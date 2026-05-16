@@ -5,8 +5,9 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import type { Product, User, CartItem } from './types';
+import logoSUL from './assets/logo_sul.png';
 
-const API_URL = 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 // ==========================================
 // CONTEXTO DE AUTENTICACIÓN (Persistencia)
@@ -157,12 +158,14 @@ function MainLayout() {
       {/* NAVBAR PROFESIONAL SUL */}
       <header className="bg-[#003366] text-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setCurrentTab('home')}>
-            <div className="bg-white text-[#003366] p-2 rounded-lg font-black text-2xl tracking-wider shadow">SUL</div>
-            <div>
-              <span className="text-sm font-bold tracking-widest block uppercase text-blue-200">Alimentos</span>
-              <span className="text-xs tracking-wider block opacity-70">CONGELADOS B2B</span>
-            </div>
+          
+          {/* LOGO LIMPIO Y MINIMALISTA */}
+          <div className="flex items-center cursor-pointer" onClick={() => setCurrentTab('home')}>
+            <img 
+              src={logoSUL} 
+              alt="SUL Congelados" 
+              className="h-14 w-auto object-contain transition-transform hover:scale-105" 
+            />
           </div>
 
           <nav className="flex items-center space-x-8 font-medium">
