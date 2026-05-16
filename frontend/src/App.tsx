@@ -7,7 +7,7 @@ import axios from 'axios';
 import type { Product, User, CartItem } from './types';
 import logoSUL from './assets/logo_sul.png';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = 'https://web-site-sul-congelados-backend.onrender.com/api'; 
 
 // ==========================================
 // CONTEXTO DE AUTENTICACIÓN (Persistencia)
@@ -155,19 +155,25 @@ function MainLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
-      {/* NAVBAR PROFESIONAL SUL */}
-      <header className="bg-[#003366] text-white shadow-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+<header className="bg-[#003366] text-white shadow-md sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between relative">
           
-          {/* LOGO LIMPIO Y MINIMALISTA */}
-          <div className="flex items-center cursor-pointer" onClick={() => setCurrentTab('home')}>
+          {/* LOGO MÁS GRANDE QUE SOBRESALE POR ARRIBA Y POR ABAJO */}
+          <div 
+            className="absolute top-[-12px] left-6 z-50 cursor-pointer drop-shadow-lg transition-transform hover:scale-105" 
+            onClick={() => setCurrentTab('home')}
+          >
             <img 
               src={logoSUL} 
               alt="SUL Congelados" 
-              className="h-14 w-auto object-contain transition-transform hover:scale-105" 
+              className="h-28 w-auto object-contain" 
             />
           </div>
 
+          {/* ESPACIADOR INVISIBLE MÁS ANCHO PARA EL LOGO GRANDE */}
+          <div className="w-56 h-1 flex-shrink-0" />
+
+          {/* MENÚ DE NAVEGACIÓN */}
           <nav className="flex items-center space-x-8 font-medium">
             <button onClick={() => setCurrentTab('home')} className={`hover:text-blue-200 transition ${currentTab === 'home' ? 'text-blue-300 underline' : ''}`}>Catálogo</button>
             <button onClick={() => setCurrentTab('nosotros')} className={`hover:text-blue-200 transition ${currentTab === 'nosotros' ? 'text-blue-300 underline' : ''}`}>Nosotros</button>
@@ -179,6 +185,7 @@ function MainLayout() {
             )}
           </nav>
 
+          {/* SECCIÓN DE USUARIO */}
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-3 bg-[#002244] px-4 py-2 rounded-full border border-blue-800">
