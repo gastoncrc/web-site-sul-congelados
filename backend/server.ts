@@ -89,22 +89,27 @@ async function initDB() {
       )
     `);
 
-    // Inyectar usuarios por defecto si no existen
+    // Generamos los hashes limpios para las credenciales por defecto
     const salt = bcrypt.genSaltSync(10);
     const adminHash = bcrypt.hashSync('admin123', salt);
     const clientHash = bcrypt.hashSync('cliente123', salt);
 
+    // RESET FORZADO: Limpiamos los registros viejos para asegurar que tomen las contraseñas correctas
+    await pool.query("DELETE FROM users WHERE email IN ('admin@sul.com', 'mayorista@sul.com')");
+
+    // Inyectamos el Administrador con los datos limpios
     await pool.query(`
       INSERT INTO users (email, password, role) 
-      VALUES ('admin@sul.com', $1, 'Admin') 
-      ON CONFLICT (email) DO NOTHING
+      VALUES ('admin@sul.com', $1, 'Admin')
     `, [adminHash]);
 
+    // Inyectamos el Mayorista con los datos limpios
     await pool.query(`
       INSERT INTO users (email, password, role) 
-      VALUES ('mayorista@sul.com', $1, 'Mayorista') 
-      ON CONFLICT (email) DO NOTHING
+      VALUES ('mayorista@sul.com', $1, 'Mayorista')
     `, [clientHash]);
+
+    console.log('👤 Usuarios por defecto re-inyectados y sincronizados.');
 
     // Inyectar catálogo inicial si está vacío
     const prodCheck = await pool.query("SELECT COUNT(*) FROM products");
