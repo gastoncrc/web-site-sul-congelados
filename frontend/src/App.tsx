@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { 
   ShoppingBag, User as UserIcon, LogOut, Shield, 
-  Upload, FileText, Mail, MapPin, ShoppingCart, Trash2, X, Menu
+  Upload, FileText, Mail, MapPin, ShoppingCart, Trash2, X
 } from 'lucide-react';
 import axios from 'axios';
 import type { Product, User, CartItem } from './types';
@@ -174,7 +174,7 @@ function MainLayout() {
           {/* ESPACIADOR FLUIDO: Grande en PC, chico en Mobile */}
           <div className="w-20 sm:w-44 md:w-56 h-1 flex-shrink-0" />
 
-          {/* MENÚ DE NAVEGACIÓN: Se adapta en tablets/PC, se simplifica al extremo en móviles */}
+          {/* MENÚ DE NAVEGACIÓN: Sencillo en móviles, expandido en PC */}
           <nav className="flex items-center space-x-3 sm:space-x-6 md:space-x-8 font-medium text-xs sm:text-sm md:text-base">
             <button onClick={() => setCurrentTab('home')} className={`hover:text-blue-200 transition ${currentTab === 'home' ? 'text-blue-300 underline' : ''}`}>Catálogo</button>
             <button onClick={() => setCurrentTab('nosotros')} className={`hidden sm:inline-block hover:text-blue-200 transition ${currentTab === 'nosotros' ? 'text-blue-300 underline' : ''}`}>Nosotros</button>
@@ -186,7 +186,7 @@ function MainLayout() {
             )}
           </nav>
 
-          {/* SECCIÓN DE USUARIO: Control de desborde y textos truncados */}
+          {/* SECCIÓN DE USUARIO: Control de desborde */}
           <div className="flex items-center ml-2 sm:ml-4">
             {user ? (
               <div className="flex items-center space-x-1 sm:space-x-3 bg-[#002244] px-2 py-1 sm:px-4 sm:py-2 rounded-full border border-blue-800 max-w-[120px] sm:max-w-none">
@@ -213,7 +213,7 @@ function MainLayout() {
         )}
 
         {currentTab === 'home' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:g-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
             <div className="lg:col-span-2 space-y-6">
               <h2 className="text-xl sm:text-2xl font-black text-[#003366] uppercase tracking-wide">Productos Disponibles</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -248,7 +248,7 @@ function MainLayout() {
 
             {/* CARRITO */}
             <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm h-fit lg:sticky lg:top-24">
-              <h3 className="text-base sm:text-lg font-black text-[#003366] uppercase tracking-wider mb-4 flex items-center space-x-2">
+              <h3 className="text-lg font-black text-[#003366] uppercase tracking-wider mb-4 flex items-center space-x-2">
                 <ShoppingBag size={18} /> <span>Tu Pedido</span>
               </h3>
               {cart.length === 0 ? (
@@ -309,7 +309,7 @@ function MainLayout() {
         )}
 
         {currentTab === 'contacto' && (
-          <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-sm max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 sm:g-8">
+          <div className="bg-white rounded-xl border border-gray-200 p-6 sm:p-8 shadow-sm max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             <div className="space-y-4">
               <h2 className="text-xl sm:text-2xl font-black text-[#003366]">CONTACTO COMERCIAL</h2>
               <div className="flex items-center space-x-3 text-xs sm:text-sm text-gray-600"><MapPin size={16} /> <span>Córdoba, Argentina</span></div>
@@ -331,12 +331,11 @@ function MainLayout() {
         <p>Infraestructura B2B de Alta Disponibilidad conectada mediante API Criptográfica.</p>
       </footer>
 
-      {/* MODAL LOGIN TOTALMENTE RESPONSIVO Y AISLADO */}
+      {/* MODAL LOGIN MULTIPANTALLA / RESPONSIVO */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-all">
           <div className="bg-white rounded-2xl p-5 sm:p-8 max-w-md w-full shadow-2xl relative border border-gray-100">
             
-            {/* Botón X superior derecho */}
             <button 
               onClick={() => setShowLoginModal(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors p-1"
