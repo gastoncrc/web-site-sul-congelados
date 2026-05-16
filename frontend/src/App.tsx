@@ -1,7 +1,7 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { 
   ShoppingBag, User as UserIcon, LogOut, Shield, 
-  Upload, FileText, Mail, MapPin, ShoppingCart, Trash2
+  Upload, FileText, Mail, MapPin, ShoppingCart, Trash2, X
 } from 'lucide-react';
 import axios from 'axios';
 import type { Product, User, CartItem } from './types';
@@ -155,7 +155,7 @@ function MainLayout() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800">
-<header className="bg-[#003366] text-white shadow-md sticky top-0 z-50">
+      <header className="bg-[#003366] text-white shadow-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between relative">
           
           {/* LOGO MÁS GRANDE QUE SOBRESALE POR ARRIBA Y POR ABAJO */}
@@ -330,17 +330,57 @@ function MainLayout() {
         <p>Infraestructura B2B de Alta Disponibilidad conectada mediante API Criptográfica.</p>
       </footer>
 
-      {/* MODAL LOGIN */}
+      {/* MODAL LOGIN MULTIPANTALLA / RESPONSIVO */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
-            <h3 className="text-lg font-black text-[#003366] mb-4 uppercase tracking-wider">Portal Clientes B2B</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm transition-all">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative border border-gray-100">
+            
+            {/* Botón X de Cierre absoluto para liberar espacio */}
+            <button 
+              onClick={() => setShowLoginModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors"
+              aria-label="Cerrar modal"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="mb-6">
+              <h3 className="text-xl font-black text-[#003366] uppercase tracking-wider">Portal Clientes B2B</h3>
+              <p className="text-xs text-gray-400 mt-1">Ingresá tus credenciales autorizadas de SUL.</p>
+            </div>
+
             <form onSubmit={handleLoginSubmit} className="space-y-4">
-              <input type="email" placeholder="Email Registrado" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} className="w-full p-3 border rounded-lg text-sm" required />
-              <input type="password" placeholder="Contraseña" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} className="w-full p-3 border rounded-lg text-sm" required />
-              <button type="submit" className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold text-sm hover:bg-blue-800 transition">Ingresar de forma segura</button>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Correo Electrónico</label>
+                <input 
+                  type="email" 
+                  placeholder="ejemplo@sul.com" 
+                  value={loginEmail} 
+                  onChange={e => setLoginEmail(e.target.value)} 
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all" 
+                  required 
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label>
+                <input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={loginPassword} 
+                  onChange={e => setLoginPassword(e.target.value)} 
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-600 focus:border-blue-600 outline-none transition-all" 
+                  required 
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold text-sm hover:bg-blue-800 shadow-md hover:shadow-lg transition-all mt-2"
+              >
+                Ingresar de forma segura
+              </button>
             </form>
-            <button onClick={() => setShowLoginModal(false)} className="w-full mt-2 text-center text-xs text-gray-400 hover:underline py-1">Cancelar</button>
           </div>
         </div>
       )}
