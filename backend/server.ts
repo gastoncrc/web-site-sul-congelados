@@ -31,14 +31,23 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 // Configuración de CORS dinámica para Producción y Local
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
-  process.env.FRONTEND_URL
-].filter(Boolean) as string[];
+  'http://localhost:3000',
+  'https://sul-congelados-web.onrender.com' // Tu dominio del frontend de Render
+];
+
+// Si tenés configurada la variable en el entorno, la sumamos al array
+if (process.env.FRONTEND_URL) {
+  ALLOWED_ORIGINS.push(process.env.FRONTEND_URL);
+}
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || ALLOWED_ORIGINS.indexOf(origin) !== -1) {
+    // Permitimos peticiones sin origin (como apps móviles, curl o herramientas internas)
+    // o si el origen está explícitamente dentro de nuestra lista permitida
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
+      console.log(`🛑 Origen bloqueado por CORS: ${origin}`);
       callback(new Error('Bloqueado por políticas CORS de SUL'));
     }
   },
