@@ -7,7 +7,7 @@ import axios from 'axios';
 import type { Product, User, CartItem } from './types';
 import logoSUL from './assets/logo_sul.png';
 
-const API_URL = 'https://web-site-sul-congelados-backend.onrender.com/api'; 
+const API_URL = 'https://web-site-sul-congelados-backend.onrender.com/api';
 
 // ==========================================
 // CONTEXTO DE AUTENTICACIÓN (Persistencia)
