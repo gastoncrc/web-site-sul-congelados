@@ -1,0 +1,16 @@
+import axios from 'axios';
+
+export const api = axios.create({
+  baseURL: 'https://web-site-sul-congelados-backend.onrender.com/api'
+});
+
+// Interceptor: Inyecta el token de forma transparente en cada consulta
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('sul_token');
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+}, (error) => {
+  return Promise.reject(error);
+});
