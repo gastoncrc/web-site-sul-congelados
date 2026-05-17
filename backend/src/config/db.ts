@@ -1,8 +1,8 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs'; // <-- Sumamos esta importación arriba
 
 dotenv.config();
-
 const { Pool } = pg;
 
 export const pool = new Pool({
@@ -12,7 +12,6 @@ export const pool = new Pool({
 
 export const initDB = async () => {
   try {
-    // 1. Tabla base de Productos (Catálogo físico)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         sku TEXT PRIMARY KEY,
@@ -24,7 +23,6 @@ export const initDB = async () => {
       )
     `);
 
-    // 2. Tabla Relacional de Precios por Convenio
     await pool.query(`
       CREATE TABLE IF NOT EXISTS product_prices (
         id SERIAL PRIMARY KEY,
@@ -35,7 +33,6 @@ export const initDB = async () => {
       )
     `);
 
-    // 3. Tabla Avanzada de Usuarios (Control logístico y comercial)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -51,6 +48,20 @@ export const initDB = async () => {
         observaciones TEXT
       )
     `);
+
+    // 👤 SEMILLERO: Auto-creamos el Admin por defecto si la tabla quedó vacía
+    const userCheck = await pool.query("SELECT COUNT(*) FROM users");
+    if (parseInt(userCheck.rows[0].count) === 0) {
+      const salt = bcrypt.genSaltSync(10);
+      const adminHash = bcrypt.hashSync('admin123', salt);
+      
+      await pool.query(`
+        INSERT INTO users (email, password, role, convenio_asignado) 
+        VALUES ('admin@sul.com', $1, 'Admin', '2x1 Cordoba')
+      `, [adminHash]);
+      
+      console.log('👤 Usuario Administrador maestro inyectado con éxito.');
+    }
 
     console.log('📦 Infraestructura relacional y logística sincronizada en Neon.');
   } catch (err: any) {
