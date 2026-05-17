@@ -3,7 +3,7 @@ import { pool } from '../config/db';
 import * as XLSX from 'xlsx'; // <-- Cambiamos la importación de streams por la de XLSX
 
 export const getProductsByConvenio = async (req: Request, res: Response) => {
-  const userConvenio = req.user ? req.user.convenio : '2x1 Cordoba';
+ const userConvenio = (req as any).user ? (req as any).user.convenio : 'Cordoba'
   try {
     const query = `
       SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, pr.precio
