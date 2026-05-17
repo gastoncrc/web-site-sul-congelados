@@ -20,22 +20,28 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // ✅ Ruta simplificada corregida
       const res = await api.post('/auth/login', { email, password });
       const { token, user } = res.data;
       
+      // 1. Cargamos la sesión en el contexto global de la App
       login(user, token);
-      onClose();
-      setEmail('');
-      setPassword('');
-
+      
+      // 2. Si requiere cambio de clave, activamos el escudo de seguridad PRIMERO
       if (user.requirePasswordChange) {
         setShowChangePwd(true);
       } else {
         setStatusMessage(`👋 ¡Bienvenido, ${user.name || user.email}!`);
       }
-    } catch (err) {
-      alert('Credenciales inválidas para el portal de SUL Congelados o error de red.');
+
+      // 3. Cerramos el modal de login AL FINAL de todo para evitar el pestañeo o glitch en React
+      onClose();
+      
+      setEmail('');
+      setPassword('');
+    } catch (err: any) {
+      console.error("Error detallado del login:", err);
+      const errorReal = err.response?.data?.error || err.response?.statusText || err.message || "Error de conexión";
+      alert(`🚨 Falló la conexión con el servidor:\n${errorReal}`);
     }
   };
 
