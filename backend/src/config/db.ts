@@ -12,7 +12,6 @@ export const pool = new Pool({
 
 export const initDB = async () => {
   try {
-    // 1. Tabla de Productos (Catálogo)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         sku TEXT PRIMARY KEY,
@@ -24,7 +23,6 @@ export const initDB = async () => {
       )
     `);
 
-    // 2. Matriz relacional de Precios por Convenio
     await pool.query(`
       CREATE TABLE IF NOT EXISTS product_prices (
         id SERIAL PRIMARY KEY,
@@ -35,36 +33,35 @@ export const initDB = async () => {
       )
     `);
 
-    // 3. Tabla Avanzada de Usuarios (Actualizada con control ERP y Cambio de Clave)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        client_code TEXT UNIQUE, -- Código único del sistema de gestión (ej: 80000193)
-        name TEXT,               -- Razón social o nombre del local (ej: 2 BV SAN JUAN)
+        client_code TEXT UNIQUE,
+        name TEXT,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT NOT NULL,
         convenio_asignado TEXT NOT NULL DEFAULT '2x1 Cordoba',
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
-        require_password_change BOOLEAN NOT NULL DEFAULT FALSE, -- Control de primer inicio
+        require_password_change BOOLEAN NOT NULL DEFAULT FALSE,
         telefono TEXT,
         domicilio_facturacion TEXT,
         lugar_entrega TEXT,
-        dias_entrega_permitidos TEXT, 
+        dias_entrega_permitidos TEXT,
         observaciones TEXT
       )
     `);
 
-    // 👤 Aseguramos el Administrador Maestro
     const userCheck = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'Admin'");
     if (parseInt(userCheck.rows[0].count) === 0) {
       const salt = bcrypt.genSaltSync(10);
       const adminHash = bcrypt.hashSync('admin123', salt);
       
+      // ✅ Corregido: Ahora pasa el parámetro dinámico [adminHash]
       await pool.query(`
         INSERT INTO users (email, password, role, convenio_asignado) 
         VALUES ('admin@sul.com', $1, 'Admin', '2x1 Cordoba')
-      `);
+      `, [adminHash]); 
       console.log('👤 Usuario Administrador maestro sincronizado.');
     }
 
