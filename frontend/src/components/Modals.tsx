@@ -17,10 +17,12 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await api.post('/auth/login', { email, password });
+      // Forzamos la ruta estructural exacta que usaba tu App.tsx original
+      const res = await api.post('/api/auth/login', { email, password });
+      
       const { token, user } = res.data;
       
       login(user, token);
@@ -34,7 +36,8 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
         setStatusMessage(`👋 ¡Bienvenido, ${user.name || user.email}!`);
       }
     } catch (err) {
-      alert('Credenciales inválidas para el portal de SUL Congelados.');
+      // Si el servidor responde cualquier error (incluso error de ruta), salta acá
+      alert('Credenciales inválidas para el portal de SUL Congelados o error de red.');
     }
   };
 
