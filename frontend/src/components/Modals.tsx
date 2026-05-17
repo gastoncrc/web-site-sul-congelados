@@ -82,8 +82,14 @@ export const ChangePasswordModal: React.FC<{ isOpen: boolean; setStatusMessage: 
       onSuccess();
       setNewPassword('');
       setStatusMessage('🔒 Contraseña comercial actualizada. Catálogo activado.');
-    } catch (err) {
-      alert('Error actualizando la clave.');
+} catch (err: any) {
+      // 🚨 Revelamos el verdadero motivo en la consola y en el alert
+      console.error("Error detallado del login:", err);
+      
+      const errorReal = err.response?.data?.error || err.response?.statusText || err.message || "Error de conexión";
+      const codigoStatus = err.response?.status ? `(Código ${err.response.status})` : "";
+      
+      alert(`🚨 Falló la conexión con el servidor:\n${errorReal} ${codigoStatus}`);
     }
   };
 
