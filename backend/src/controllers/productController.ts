@@ -1,12 +1,9 @@
 import { Request, Response } from 'express';
 import { pool } from '../config/db';
-import csv from 'csv-parser';
-import stream from 'stream';
+import * as XLSX from 'xlsx'; // <-- Cambiamos la importación de streams por la de XLSX
 
 export const getProductsByConvenio = async (req: Request, res: Response) => {
-  // Si no está logueado, forzamos convenio "2x1 Cordoba". Si está logueado, toma su convenio real.
   const userConvenio = req.user ? req.user.convenio : '2x1 Cordoba';
-
   try {
     const query = `
       SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, pr.precio
@@ -16,8 +13,6 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
       ORDER BY p.name ASC
     `;
     const result = await pool.query(query, [userConvenio]);
-
-    // Homologamos la salida para que el Frontend siga leyendo "unitPrice" de forma transparente
     const standardized = result.rows.map(row => ({
       sku: row.sku,
       name: row.name,
@@ -27,76 +22,88 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
       description: row.description,
       unitPrice: parseFloat(row.precio)
     }));
-
     res.json(standardized);
   } catch (err) {
     res.status(500).json({ error: 'Error obteniendo catálogo de convenios' });
   }
 };
 
-// Inyector del Excel (Soporta las columnas exactas de tu exportador de sistema)
+// 🚀 NUEVO PROCESADOR NATIVO DE EXCEL (.XLS / .XLSX)
 export const uploadCsvConvenios = async (req: Request, res: Response) => {
   if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Permisos insuficientes' });
   if (!req.file) return res.status(400).json({ error: 'Archivo no suministrado' });
 
-  const rows: any[] = [];
-  const bufferStream = new stream.PassThrough();
-  bufferStream.end(req.file.buffer);
+  try {
+    // Leemos el buffer binario del .xls directamente de la memoria de Multer
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    
+    // Agarramos la primera pestaña de la planilla
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    
+    // Convertimos las filas automáticamente a un JSON limpio
+    const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
 
-  bufferStream
-    .pipe(csv())
-    .on('data', (data) => rows.push(data))
-    .on('end', async () => {
-      const client = await pool.connect();
-      try {
-        await client.query('BEGIN');
-        let processed = 0;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      let processed = 0;
 
-        for (const row of rows) {
-          // Captura de tus columnas reales del Excel: codigo, descrip, preciofinal, convenio, rubro_descrip, subrubro_descrip
-          if (row.codigo && row.descrip && row.preciofinal && row.convenio) {
-            
-            // 1. Upsert del Producto Base
-            await client.query(`
-              INSERT INTO products (sku, name, category, subcategory, stock)
-              VALUES ($1, $2, $3, $4, 100)
-              ON CONFLICT (sku) DO UPDATE 
-              SET name = $2, category = $3, subcategory = $4
-            `, [row.codigo, row.descrip, row.rubro_descrip || 'Varios', row.subrubro_descrip || 'Varios']);
+      for (const row of rows) {
+        // Mapea las columnas nativas de tu XLS: codigo, descrip, preciofinal, convenio, rubro_descrip, subrubro_descrip
+        if (row.codigo && row.descrip && row.preciofinal && row.convenio) {
+          
+          // 1. Upsert del Producto Base
+          await client.query(`
+            INSERT INTO products (sku, name, category, subcategory, stock)
+            VALUES ($1, $2, $3, $4, 100)
+            ON CONFLICT (sku) DO UPDATE 
+            SET name = $2, category = $3, subcategory = $4
+          `, [
+            String(row.codigo).trim(), 
+            String(row.descrip).trim(), 
+            String(row.rubro_descrip || 'Varios').trim(), 
+            String(row.subrubro_descrip || 'Varios').trim()
+          ]);
 
-            // 2. Upsert de la matriz de precios por Convenio
-            await client.query(`
-              INSERT INTO product_prices (product_sku, convenio, precio)
-              VALUES ($1, $2, $3)
-              ON CONFLICT (product_sku, convenio) DO UPDATE 
-              SET precio = $3
-            `, [row.codigo, row.convenio, parseFloat(row.preciofinal)]);
+          // 2. Upsert de la matriz de precios por Convenio
+          await client.query(`
+            INSERT INTO product_prices (product_sku, convenio, precio)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (product_sku, convenio) DO UPDATE 
+            SET precio = $3
+          `, [
+            String(row.codigo).trim(), 
+            String(row.convenio).trim(), 
+            parseFloat(row.preciofinal)
+          ]);
 
-            processed++;
-          }
+          processed++;
         }
-
-        await client.query('COMMIT');
-        res.json({ message: `Sincronización finalizada. Se procesaron ${processed} registros del sistema comercial.` });
-      } catch (err: any) {
-        await client.query('ROLLBACK');
-        res.status(500).json({ error: 'Falla al inyectar matriz de convenios relacionales' });
-      } finally {
-        client.release();
       }
-    });
+
+      await client.query('COMMIT');
+      res.json({ message: `Sincronización finalizada. Se procesaron ${processed} registros del sistema comercial comercial.` });
+    } catch (err: any) {
+      await client.query('ROLLBACK');
+      console.error("Error inyectando fila:", err.message);
+      res.status(500).json({ error: 'Falla al inyectar matriz de convenios relacionales' });
+    } finally {
+      client.release();
+    }
+  } catch (globalErr: any) {
+    console.error("Error leyendo el archivo XLS:", globalErr.message);
+    res.status(400).json({ error: 'El archivo no tiene un formato válido de Excel .xls o .xlsx' });
+  }
 };
 
-// Panel Admin: Creación o edición manual de un producto individual
 export const adminUpsertProductManual = async (req: Request, res: Response) => {
   if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   const { sku, name, category, subcategory, description, stock, preciosPorConvenio } = req.body; 
-  // preciosPorConvenio esperado: { "2x1 Cordoba": 324333, "Interior": 40808 }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-
     await client.query(`
       INSERT INTO products (sku, name, category, subcategory, description, stock)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -111,7 +118,6 @@ export const adminUpsertProductManual = async (req: Request, res: Response) => {
         ON CONFLICT (product_sku, convenio) DO UPDATE SET precio = $3
       `, [sku, convenio, precio]);
     }
-
     await client.query('COMMIT');
     res.json({ message: 'Producto e historial de convenios guardado a mano con éxito' });
   } catch (err) {
