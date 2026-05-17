@@ -12,6 +12,7 @@ export const pool = new Pool({
 
 export const initDB = async () => {
   try {
+    // 1. Tabla de Productos (Catálogo Base)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS products (
         sku TEXT PRIMARY KEY,
@@ -23,6 +24,7 @@ export const initDB = async () => {
       )
     `);
 
+    // 2. Matriz de Precios por Convenio Cruzado
     await pool.query(`
       CREATE TABLE IF NOT EXISTS product_prices (
         id SERIAL PRIMARY KEY,
@@ -33,6 +35,7 @@ export const initDB = async () => {
       )
     `);
 
+    // 3. Tabla Avanzada de Usuarios Logísticos (ERP SUL)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -52,17 +55,38 @@ export const initDB = async () => {
       )
     `);
 
-    const userCheck = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'Admin'");
-    if (parseInt(userCheck.rows[0].count) === 0) {
-      const salt = bcrypt.genSaltSync(10);
-      const adminHash = bcrypt.hashSync('admin123', salt);
-      
-      // ✅ Corregido: Ahora pasa el parámetro dinámico [adminHash]
+    // ========================================================
+    // ASIGNACIÓN AUTOMÁTICA DE CREDENCIALES COMPATIBLES (Node)
+    // ========================================================
+
+    // 1. Aseguramos que el Administrador Maestro exista y tenga el hash correcto
+    const adminCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@sul.com'");
+    const adminHash = bcrypt.hashSync('admin123', bcrypt.genSaltSync(10));
+
+    if (adminCheck.rows.length === 0) {
       await pool.query(`
-        INSERT INTO users (email, password, role, convenio_asignado) 
-        VALUES ('admin@sul.com', $1, 'Admin', '2x1 Cordoba')
-      `, [adminHash]); 
-      console.log('👤 Usuario Administrador maestro sincronizado.');
+        INSERT INTO users (email, password, role, convenio_asignado, is_active) 
+        VALUES ('admin@sul.com', $1, 'Admin', '2x1 Cordoba', TRUE)
+      `, [adminHash]);
+      console.log('👤 Admin creado con éxito por el sistema.');
+    } else {
+      // Si ya existía de antes, le pisamos la clave con el hash de Node por seguridad
+      await pool.query("UPDATE users SET password = $1 WHERE email = 'admin@sul.com'", [adminHash]);
+    }
+
+    // 2. Aseguramos que el Cliente de prueba exista y tenga el hash correcto
+    const clientCheck = await pool.query("SELECT * FROM users WHERE email = 'cliente@sul.com'");
+    const clientHash = bcrypt.hashSync('SULcongelados2026', bcrypt.genSaltSync(10));
+
+    if (clientCheck.rows.length === 0) {
+      await pool.query(`
+        INSERT INTO users (client_code, name, email, password, role, convenio_asignado, is_active, require_password_change) 
+        VALUES ('999999', 'LOCAL TEST MANUAL', 'cliente@sul.com', $1, 'Cliente', '2x1 Cordoba', TRUE, TRUE)
+      `, [clientHash]);
+      console.log('👥 Cliente de prueba creado con éxito por el sistema.');
+    } else {
+      // Si ya existía, le reseteamos la clave genérica y le activamos el escudo de cambio obligatorio
+      await pool.query("UPDATE users SET password = $1, require_password_change = TRUE WHERE email = 'cliente@sul.com'", [clientHash]);
     }
 
     console.log('📦 Infraestructura relacional y logística sincronizada en Neon.');
