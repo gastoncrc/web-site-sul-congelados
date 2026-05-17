@@ -1,6 +1,5 @@
-import React from 'react';
 import { ShoppingBag, ShoppingCart, Trash2 } from 'lucide-react';
-import type { Product, CartItem } from '../types'; // ✅ Mantiene importación limpia
+import type { Product, CartItem } from '../types'; 
 import { useAuth } from '../context/AuthContext';
 
 interface CatalogProps {
@@ -24,16 +23,18 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setCart, openL
   };
 
   const calculateTotal = () => cart.reduce((acc, item) => acc + (item.product.unitPrice * item.quantity), 0);
+  
+  // ✅ Forzado relacional dinámico seguro
+  const convenioAsignado = user ? (user as any).convenio : null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
       <div className="lg:col-span-2 space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-xl sm:text-2xl font-black text-[#003366] uppercase tracking-wide">Productos</h2>
-          {user?.convenio && (
+          {convenioAsignado && (
             <span className="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full">
-              {/* ✅ Corregido: Se añade el opcional ?. exigido por el tipado estricto del ERP */}
-              Lista: {user?.convenio}
+              Lista: {convenioAsignado}
             </span>
           )}
         </div>
@@ -66,7 +67,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setCart, openL
         </div>
       </div>
 
-      {/* CARRITO */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm h-fit lg:sticky lg:top-24">
         <h3 className="text-lg font-black text-[#003366] uppercase tracking-wider mb-4 flex items-center space-x-2">
           <ShoppingBag size={18} /> <span>Tu Pedido</span>
@@ -90,7 +90,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setCart, openL
               <span>Total estimado:</span>
               <span className="text-[#003366]">${calculateTotal().toLocaleString('es-AR')}</span>
             </div>
-            <button onClick={() => alert('Pedido enviado. Se procesará según la hoja de ruta logistica.')} className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold hover:bg-blue-800 transition mt-4 text-sm shadow-md">
+            <button onClick={() => alert('Pedido enviado con éxito.')} className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold hover:bg-blue-800 transition mt-4 text-sm shadow-md">
               Confirmar Orden B2B
             </button>
           </div>

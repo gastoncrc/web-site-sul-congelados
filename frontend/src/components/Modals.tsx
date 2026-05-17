@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, Lock } from 'lucide-react';
 import { api } from '../config/api';
 import { useAuth } from '../context/AuthContext';
@@ -17,12 +17,11 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
 
   if (!isOpen) return null;
 
- const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Forzamos la ruta estructural exacta que usaba tu App.tsx original
-      const res = await api.post('/api/auth/login', { email, password });
-      
+      // ✅ Ruta simplificada corregida
+      const res = await api.post('/auth/login', { email, password });
       const { token, user } = res.data;
       
       login(user, token);
@@ -36,7 +35,6 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
         setStatusMessage(`👋 ¡Bienvenido, ${user.name || user.email}!`);
       }
     } catch (err) {
-      // Si el servidor responde cualquier error (incluso error de ruta), salta acá
       alert('Credenciales inválidas para el portal de SUL Congelados o error de red.');
     }
   };
@@ -78,6 +76,7 @@ export const ChangePasswordModal: React.FC<{ isOpen: boolean; setStatusMessage: 
     if (newPassword.length < 6) return alert('Debe tener al menos 6 caracteres.');
 
     try {
+      // ✅ Ruta simplificada corregida
       await api.post('/auth/change-password', { newPassword });
       updatePasswordStatus();
       onSuccess();
@@ -93,7 +92,7 @@ export const ChangePasswordModal: React.FC<{ isOpen: boolean; setStatusMessage: 
       <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center border-2 border-blue-600">
         <div className="bg-blue-50 p-3 rounded-full text-[#003366] w-fit mx-auto mb-3"><Lock size={28} /></div>
         <h3 className="text-lg font-black text-[#003366] uppercase mb-2">Actualización de Seguridad</h3>
-        <p className="text-xs text-gray-500 mb-4">Ingresaste con la credencial genérica de SUL. Debes configurar una contraseña exclusiva y privada antes de continuar.</p>
+        <p className="text-xs text-gray-500 mb-4">Ingresaste con la credencial genérica de SUL. Debes configurar una contraseña privada.</p>
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nueva Contraseña Comercial</label>

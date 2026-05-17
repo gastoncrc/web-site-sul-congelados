@@ -1,14 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'; // ✅ Limpiado el import muerto de React
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './config/api';
 import type { Product, CartItem } from './types';
 
-// Componentes Separados
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { LoginModal, ChangePasswordModal } from './components/Modals';
 
-// Páginas Separadas
 import { Catalog } from './pages/Catalog';
 import { Admin } from './pages/Admin';
 import { Nosotros } from './pages/Nosotros';
@@ -50,7 +48,8 @@ function MainLayout() {
       
       <Header currentTab={currentTab} setCurrentTab={setCurrentTab} openLogin={() => setShowLogin(true)} />
 
-     <main className="grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
+      {/* ✅ Optimizado con tu sugerencia de Tailwind nativo (grow) */}
+      <main className="grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {statusMessage && (
           <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded mb-6 flex justify-between items-center shadow-sm">
             <span className="text-sm font-medium text-blue-900">{statusMessage}</span>
@@ -63,6 +62,7 @@ function MainLayout() {
         {currentTab === 'nosotros' && <Nosotros />}
         {currentTab === 'contacto' && <Contacto />}
       </main>
+
       <Footer />
 
       <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} setStatusMessage={setStatusMessage} setShowChangePwd={setShowChangePwd} />

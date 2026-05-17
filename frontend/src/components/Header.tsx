@@ -1,5 +1,4 @@
-import React from 'react';
-import { User as UserIcon, LogOut, Shield } from 'lucide-react'; // ✅ Libre de colisiones
+import { User as UserIcon, LogOut, Shield } from 'lucide-react'; // ✅ Limpio sin imports cruzados
 import { useAuth } from '../context/AuthContext';
 
 interface HeaderProps {
@@ -15,11 +14,8 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, openL
     <header className="bg-[#003366] text-white shadow-md sticky top-0 z-40 w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between relative">
         
-        {/* ✅ Optimizado con tu sugerencia limpia de Tailwind nativo */}
-        <div 
-          className="absolute -top-2 sm:-top-3 left-4 sm:left-6 z-50 cursor-pointer transition-transform hover:scale-105" 
-          onClick={() => setCurrentTab('home')}
-        >
+        {/* ✅ Optimizado con tus clases nativas de Tailwind */}
+        <div className="absolute -top-2 sm:-top-3 left-4 sm:left-6 z-50 cursor-pointer transition-transform hover:scale-105" onClick={() => setCurrentTab('home')}>
           <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 flex items-center justify-center h-16 sm:h-24 w-auto">
             <span className="text-[#003366] font-black text-xl tracking-tighter">SUL<span className="text-blue-500">.</span></span>
           </div>
@@ -42,7 +38,6 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, openL
           {user ? (
             <div className="flex items-center space-x-1 sm:space-x-3 bg-[#002244] px-2 py-1 sm:px-4 sm:py-2 rounded-full border border-blue-800 max-w-[140px] sm:max-w-none">
               <UserIcon size={14} className="text-blue-300 flex-shrink-0" />
-              {/* ✅ Ahora user viene tipado automáticamente como SULUser desde el hook useAuth */}
               <span className="text-[10px] sm:text-xs font-semibold truncate max-w-[80px] sm:max-w-none">
                 {user?.name || user?.email.split('@')[0]}
               </span>
