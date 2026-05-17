@@ -76,9 +76,9 @@ export const initDB = async () => {
       const clientHash = bcrypt.hashSync('SULcongelados2026', bcrypt.genSaltSync(10));
       await pool.query(`
         INSERT INTO users (client_code, name, email, password, role, convenio_asignado, is_active, require_password_change) 
-        VALUES ('999999', 'LOCAL TEST MANUAL', 'cliente@sul.com', $1, 'Cliente', 'CORDOBA', TRUE, TRUE)
+        VALUES ('999999', 'LOCAL TEST MANUAL', 'cliente@sul.com', $1, 'Cliente', '2X1 CORDOBA', TRUE, TRUE) -- ✅ Cambiado a '2X1 CORDOBA'
       `, [clientHash]);
-      console.log('👥 Cliente de prueba inicializado con clave genérica.');
+      console.log('👥 Cliente de prueba inicializado en la lista 2X1 CORDOBA.');
     }
 
     console.log('📦 Infraestructura relacional SUL sincronizada correctamente.');
