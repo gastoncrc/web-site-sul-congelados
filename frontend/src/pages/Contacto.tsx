@@ -1,4 +1,3 @@
-import React from 'react';
 import { MapPin, Mail } from 'lucide-react';
 export const Contacto = () => (
   <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm max-w-2xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
