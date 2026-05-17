@@ -1,5 +1,6 @@
-import { User as UserIcon, LogOut, Shield } from 'lucide-react'; // ✅ Limpio sin imports cruzados
+import { User as UserIcon, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import logoSUL from '../assets/logo_sul.png'; // ✅ Importamos de vuelta tu logo nativo
 
 interface HeaderProps {
   currentTab: string;
@@ -14,11 +15,16 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, openL
     <header className="bg-[#003366] text-white shadow-md sticky top-0 z-40 w-full">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between relative">
         
-        {/* ✅ Optimizado con tus clases nativas de Tailwind */}
-        <div className="absolute -top-2 sm:-top-3 left-4 sm:left-6 z-50 cursor-pointer transition-transform hover:scale-105" onClick={() => setCurrentTab('home')}>
-          <div className="bg-white p-2 rounded-xl shadow-lg border border-gray-100 flex items-center justify-center h-16 sm:h-24 w-auto">
-            <span className="text-[#003366] font-black text-xl tracking-tighter">SUL<span className="text-blue-500">.</span></span>
-          </div>
+        {/* ✅ Logo SUL recuperado y flotando de forma limpia con Tailwind nativo */}
+        <div 
+          className="absolute -top-2 sm:-top-3 left-4 sm:left-6 z-50 cursor-pointer drop-shadow-lg transition-transform hover:scale-105" 
+          onClick={() => setCurrentTab('home')}
+        >
+          <img 
+            src={logoSUL} 
+            alt="SUL Congelados" 
+            className="h-20 sm:h-28 w-auto object-contain" 
+          />
         </div>
         
         <div className="w-20 sm:w-44 md:w-56 h-1 flex-shrink-0" />

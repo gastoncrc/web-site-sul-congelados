@@ -25,7 +25,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setCart, openL
   const calculateTotal = () => cart.reduce((acc, item) => acc + (item.product.unitPrice * item.quantity), 0);
   
   // ✅ Forzado relacional dinámico seguro
-  const convenioAsignado = user ? (user as any).convenio : null;
+  const convenioAsignado = user ? (user as any).convenio : 'Cordoba';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
