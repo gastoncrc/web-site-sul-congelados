@@ -1,9 +1,28 @@
 import { Request, Response } from 'express';
 import { pool } from '../config/db';
-import * as XLSX from 'xlsx'; // <-- Cambiamos la importación de streams por la de XLSX
+import * as XLSX from 'xlsx';
+import jwt from 'jsonwebtoken'; // Maximizamos la lectura nativa
+
+const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
 export const getProductsByConvenio = async (req: Request, res: Response) => {
- const userConvenio = (req as any).user ? (req as any).user.convenio : 'Cordoba'
+  let userConvenio = 'CORDOBA'; // Por defecto, la ley de la calle para anónimos
+
+  // 🕵️‍♂️ INTERCEPTOR INVISIBLE: Si el cliente está logueado, leemos su contrato ERP
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      if (decoded && decoded.convenio) {
+        userConvenio = decoded.convenio; // Le pisamos la lista por la de su franquicia/convenio real
+      }
+    } catch (err) {
+      // Si el token expiró o falló, no rompemos la app, tiramos el fallback base
+      console.log('Aviso: Token opcional inválido o vencido, usando lista base CORDOBA.');
+    }
+  }
+
   try {
     const query = `
       SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, pr.precio
@@ -28,20 +47,14 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
   }
 };
 
-// 🚀 NUEVO PROCESADOR NATIVO DE EXCEL (.XLS / .XLSX)
 export const uploadCsvConvenios = async (req: Request, res: Response) => {
-  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Permisos insuficientes' });
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Permisos insuficientes' });
   if (!req.file) return res.status(400).json({ error: 'Archivo no suministrado' });
 
   try {
-    // Leemos el buffer binario del .xls directamente de la memoria de Multer
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    
-    // Agarramos la primera pestaña de la planilla
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    
-    // Convertimos las filas automáticamente a un JSON limpio
     const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
 
     const client = await pool.connect();
@@ -50,10 +63,8 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       let processed = 0;
 
       for (const row of rows) {
-        // Mapea las columnas nativas de tu XLS: codigo, descrip, preciofinal, convenio, rubro_descrip, subrubro_descrip
         if (row.codigo && row.descrip && row.preciofinal && row.convenio) {
           
-          // 1. Upsert del Producto Base
           await client.query(`
             INSERT INTO products (sku, name, category, subcategory, stock)
             VALUES ($1, $2, $3, $4, 100)
@@ -66,7 +77,6 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
             String(row.subrubro_descrip || 'Varios').trim()
           ]);
 
-          // 2. Upsert de la matriz de precios por Convenio
           await client.query(`
             INSERT INTO product_prices (product_sku, convenio, precio)
             VALUES ($1, $2, $3)
@@ -83,47 +93,14 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       }
 
       await client.query('COMMIT');
-      res.json({ message: `Sincronización finalizada. Se procesaron ${processed} registros del sistema comercial comercial.` });
+      res.json({ message: `Sincronización finalizada. Se procesaron ${processed} registros.` });
     } catch (err: any) {
       await client.query('ROLLBACK');
-      console.error("Error inyectando fila:", err.message);
       res.status(500).json({ error: 'Falla al inyectar matriz de convenios relacionales' });
     } finally {
       client.release();
     }
   } catch (globalErr: any) {
-    console.error("Error leyendo el archivo XLS:", globalErr.message);
-    res.status(400).json({ error: 'El archivo no tiene un formato válido de Excel .xls o .xlsx' });
-  }
-};
-
-export const adminUpsertProductManual = async (req: Request, res: Response) => {
-  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
-  const { sku, name, category, subcategory, description, stock, preciosPorConvenio } = req.body; 
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    await client.query(`
-      INSERT INTO products (sku, name, category, subcategory, description, stock)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      ON CONFLICT (sku) DO UPDATE 
-      SET name = $2, category = $3, subcategory = $4, description = $5, stock = $6
-    `, [sku, name, category, subcategory, description, stock]);
-
-    for (const [convenio, precio] of Object.entries(preciosPorConvenio)) {
-      await client.query(`
-        INSERT INTO product_prices (product_sku, convenio, precio)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (product_sku, convenio) DO UPDATE SET precio = $3
-      `, [sku, convenio, precio]);
-    }
-    await client.query('COMMIT');
-    res.json({ message: 'Producto e historial de convenios guardado a mano con éxito' });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    res.status(500).json({ error: 'Error en inserción manual' });
-  } finally {
-    client.release();
+    res.status(400).json({ error: 'El archivo no tiene un formato válido de Excel.' });
   }
 };
