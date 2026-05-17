@@ -1,37 +1,38 @@
 import { Request, Response } from 'express';
 import { pool } from '../config/db';
 import * as XLSX from 'xlsx';
-import jwt from 'jsonwebtoken'; // Maximizamos la lectura nativa
+import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
 export const getProductsByConvenio = async (req: Request, res: Response) => {
-  let userConvenio = 'CORDOBA'; // Por defecto, la ley de la calle para anónimos
+  let userConvenio = 'Cordoba';
 
-  // 🕵️‍♂️ INTERCEPTOR INVISIBLE: Si el cliente está logueado, leemos su contrato ERP
+  // INTERCEPTOR INVISIBLE: Si el cliente está logueado, leemos su contrato ERP
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       if (decoded && decoded.convenio) {
-        userConvenio = decoded.convenio; // Le pisamos la lista por la de su franquicia/convenio real
+        userConvenio = decoded.convenio; 
       }
     } catch (err) {
-      // Si el token expiró o falló, no rompemos la app, tiramos el fallback base
       console.log('Aviso: Token opcional inválido o vencido, usando lista base CORDOBA.');
     }
   }
 
   try {
+    // Buscamos ignorando mayúsculas, minúsculas y espacios fantasmas
     const query = `
       SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, pr.precio
       FROM products p
       INNER JOIN product_prices pr ON p.sku = pr.product_sku
-      WHERE pr.convenio = $1
+      WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1))
       ORDER BY p.name ASC
     `;
     const result = await pool.query(query, [userConvenio]);
+    
     const standardized = result.rows.map(row => ({
       sku: row.sku,
       name: row.name,
@@ -41,6 +42,7 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
       description: row.description,
       unitPrice: parseFloat(row.precio)
     }));
+    
     res.json(standardized);
   } catch (err) {
     res.status(500).json({ error: 'Error obteniendo catálogo de convenios' });
@@ -62,19 +64,34 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       await client.query('BEGIN');
       let processed = 0;
 
-      for (const row of rows) {
-        if (row.codigo && row.descrip && row.preciofinal && row.convenio) {
-          
+      for (const rawRow of rows) {
+        // 🔄 NORMALIZADOR INTELIGENTE DE COLUMNAS (Quita acentos y pasa todo a minúsculas)
+        const row: any = {};
+        for (const k of Object.keys(rawRow)) {
+          const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          row[cleanKey] = rawRow[k];
+        }
+
+        // 🔍 Mapeo tolerante a variantes comunes de tu sistema
+        const codigo = row.codigo || row.code || row.sku;
+        const descrip = row.descrip || row.descripcion || row.name || row.nombre || row.articulo;
+        const preciofinal = row.preciofinal || row.precio || row.precio_final || row.monto;
+        const convenio = row.convenio || row.lista || row.nombre_lista || row.convenios;
+        
+        const rubro = row.rubro_descrip || row.rubro || row.category || row.categoria || 'Varios';
+        const subrubro = row.subrubro_descrip || row.subrubro || row.subcategory || row.subcategoria || 'Varios';
+
+        if (codigo && descrip && preciofinal && convenio) {
           await client.query(`
             INSERT INTO products (sku, name, category, subcategory, stock)
             VALUES ($1, $2, $3, $4, 100)
             ON CONFLICT (sku) DO UPDATE 
             SET name = $2, category = $3, subcategory = $4
           `, [
-            String(row.codigo).trim(), 
-            String(row.descrip).trim(), 
-            String(row.rubro_descrip || 'Varios').trim(), 
-            String(row.subrubro_descrip || 'Varios').trim()
+            String(codigo).trim(), 
+            String(descrip).trim(), 
+            String(rubro).trim(), 
+            String(subrubro).trim()
           ]);
 
           await client.query(`
@@ -83,9 +100,9 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
             ON CONFLICT (product_sku, convenio) DO UPDATE 
             SET precio = $3
           `, [
-            String(row.codigo).trim(), 
-            String(row.convenio).trim(), 
-            parseFloat(row.preciofinal)
+            String(codigo).trim(), 
+            String(convenio).trim(), 
+            parseFloat(preciofinal)
           ]);
 
           processed++;
@@ -93,7 +110,7 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       }
 
       await client.query('COMMIT');
-      res.json({ message: `Sincronización finalizada. Se procesaron ${processed} registros.` });
+      res.json({ message: `Sincronización exitosa. Se procesaron e inyectaron ${processed} productos en Neon.` });
     } catch (err: any) {
       await client.query('ROLLBACK');
       res.status(500).json({ error: 'Falla al inyectar matriz de convenios relacionales' });
