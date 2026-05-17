@@ -6,9 +6,9 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
 export const getProductsByConvenio = async (req: Request, res: Response) => {
-  let userConvenio = 'Cordoba';
+  let userConvenio = 'CORDOBA'; // Lista base por defecto para usuarios anónimos
 
-  // INTERCEPTOR INVISIBLE: Si el cliente está logueado, leemos su contrato ERP
+  // 🕵️‍♂️ INTERCEPTOR: Si el cliente está logueado, leemos el convenio real de su token
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
@@ -23,7 +23,7 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
   }
 
   try {
-    // Buscamos ignorando mayúsculas, minúsculas y espacios fantasmas
+    // ⚔️ QUERY BLINDADA: Compara ignorando mayúsculas/minúsculas y espacios en blanco
     const query = `
       SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, pr.precio
       FROM products p
@@ -65,14 +65,14 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       let processed = 0;
 
       for (const rawRow of rows) {
-        // 🔄 NORMALIZADOR INTELIGENTE DE COLUMNAS (Quita acentos y pasa todo a minúsculas)
+        // 🔄 NORMALIZADOR INTELIGENTE DE COLUMNAS (Pasa a minúsculas y elimina acentos)
         const row: any = {};
         for (const k of Object.keys(rawRow)) {
           const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
           row[cleanKey] = rawRow[k];
         }
 
-        // 🔍 Mapeo tolerante a variantes comunes de tu sistema
+        // 🔍 Mapeo tolerante a variantes comunes de tu sistema comercial
         const codigo = row.codigo || row.code || row.sku;
         const descrip = row.descrip || row.descripcion || row.name || row.nombre || row.articulo;
         const preciofinal = row.preciofinal || row.precio || row.precio_final || row.monto;
