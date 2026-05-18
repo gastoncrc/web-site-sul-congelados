@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Upload, Users, Package, Tag, Edit, Trash2, Power, PowerOff } from 'lucide-react';
+import { 
+  Package, Users, ChevronDown, ChevronRight, Search, 
+  Plus, Upload, Edit, Trash2, Power, PowerOff, LayoutDashboard, Eye
+} from 'lucide-react';
 import { api } from '../config/api';
 
 interface AdminProps {
@@ -8,31 +11,21 @@ interface AdminProps {
   triggerRefresh: () => Promise<void>;
 }
 
-interface IndividualFormState {
-  sku: string;
-  name: string;
-  category: string;
-  is_active: boolean;
-  is_promo: boolean;
-  promo_price: number;
-}
-
 export const Admin: React.FC<AdminProps> = ({ setStatusMessage, triggerRefresh }) => {
   const { user } = useAuth();
   
-  // Solo dos pestañas principales ahora
-  const [activeTab, setActiveTab] = useState<'productos' | 'clientes'>('productos');
-  
-  const [file, setFile] = useState<File | null>(null);
+  // Estado de navegación
+  const [activeView, setActiveView] = useState<'prod-list' | 'prod-bulk' | 'cli-list' | 'cli-bulk' | 'preview'>('prod-list');
+  const [expandedMenu, setExpandedMenu] = useState<'productos' | 'clientes' | null>('productos');
+
+  // Estados de datos
+  const [adminList, setAdminList] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Tabla de productos del Admin
-  const [adminList, setAdminList] = useState<any[]>([]);
-  const [isEditing, setIsEditing] = useState(false); // Para saber si estamos editando o creando
-
-  const [indForm, setIndForm] = useState<IndividualFormState>({ 
-    sku: '', name: '', category: '', is_active: true, is_promo: false, promo_price: 0 
-  });
+  // Carga de archivos
+  const [file, setFile] = useState<File | null>(null);
 
   const fetchAdminProducts = async () => {
     try {
@@ -43,228 +36,222 @@ export const Admin: React.FC<AdminProps> = ({ setStatusMessage, triggerRefresh }
     }
   };
 
-  // Traer los productos cuando entramos a la pestaña
   useEffect(() => {
-    if (activeTab === 'productos') fetchAdminProducts();
-  }, [activeTab]);
+    if (activeView === 'prod-list') fetchAdminProducts();
+  }, [activeView]);
 
-  if (user?.role !== 'Admin') {
-    return <div className="text-center p-10 text-red-500 font-bold">Acceso Denegado</div>;
-  }
+  if (user?.role !== 'Admin') return <div className="p-10 text-red-500 font-bold">Acceso Denegado</div>;
 
-  // --- FUNCIONES MASIVAS ---
+  // Filtrado dinámico
+  const filteredProducts = adminList.filter(p => {
+    const matchesSearch = p.sku.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = showInactive ? true : p.is_active;
+    return matchesSearch && matchesStatus;
+  });
+
   const handleUpload = async (type: 'productos' | 'clientes') => {
-    if (!file) return setStatusMessage('Por favor, seleccioná un archivo Excel.');
+    if (!file) return setStatusMessage('Seleccioná un archivo');
     setLoading(true);
     const formData = new FormData();
     formData.append('file', file);
     try {
       const endpoint = type === 'productos' ? '/products/upload-prices' : '/auth/upload-clients';
-      const res = await api.post(endpoint, formData);
-      setStatusMessage(res.data.message);
+      await api.post(endpoint, formData);
+      setStatusMessage('Sincronización exitosa');
       setFile(null);
-      if (type === 'productos') {
-        await fetchAdminProducts();
-        await triggerRefresh();
-      }
-    } catch (err: any) {
-      setStatusMessage(err.response?.data?.error || 'Error en la carga masiva');
+      await fetchAdminProducts();
+    } catch (err) {
+      setStatusMessage('Error en la carga');
     } finally {
       setLoading(false);
     }
   };
 
-  // --- FUNCIONES INDIVIDUALES ---
-  const handleIndividualSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await api.post('/products/individual', indForm);
-      setStatusMessage(isEditing ? 'Producto actualizado con éxito' : 'Producto creado con éxito');
-      setIndForm({ sku: '', name: '', category: '', is_active: true, is_promo: false, promo_price: 0 });
-      setIsEditing(false);
-      await fetchAdminProducts();
-      await triggerRefresh();
-    } catch (err) {
-      setStatusMessage('Error guardando el producto.');
-    }
-  };
-
-  // Carga los datos del producto en el formulario
-  const handleEditClick = (product: any) => {
-    setIndForm({
-      sku: product.sku,
-      name: product.name,
-      category: product.category,
-      is_active: product.is_active,
-      is_promo: product.is_promo,
-      promo_price: product.promo_price ? Number(product.promo_price) : 0
-    });
-    setIsEditing(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' }); // Sube la pantalla al form
-  };
-
-  const handleToggleActive = async (sku: string, currentStatus: boolean) => {
-    try {
-      await api.patch(`/products/${sku}/flags`, { is_active: !currentStatus });
-      setStatusMessage(!currentStatus ? 'Producto Reactivado' : 'Producto Inactivado');
-      await fetchAdminProducts();
-      await triggerRefresh();
-    } catch (err) {
-      setStatusMessage('Error al cambiar el estado.');
-    }
-  };
-
-  const handleDelete = async (sku: string) => {
-    if (!window.confirm(`¿Estás seguro de ELIMINAR el SKU ${sku}? Esta acción no se puede deshacer.`)) return;
-    try {
-      await api.delete(`/products/${sku}`);
-      setStatusMessage('Producto borrado de la base de datos.');
-      await fetchAdminProducts();
-      await triggerRefresh();
-    } catch (err) {
-      setStatusMessage('Error al eliminar. Verificá tu conexión.');
-    }
-  };
-
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      <h2 className="text-2xl font-black text-[#003366] uppercase">Consola de Administración</h2>
+    <div className="flex h-[calc(100vh-80px)] -m-4 sm:-m-6 bg-[#0f172a] overflow-hidden">
       
-      {/* 🗂️ PESTAÑAS PRINCIPALES */}
-      <div className="flex space-x-2 border-b border-gray-200">
-        <button onClick={() => setActiveTab('productos')} className={`px-4 py-2 font-bold text-sm rounded-t-lg transition flex items-center ${activeTab === 'productos' ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-          <Package size={16} className="mr-2" /> Central de Productos
-        </button>
-        <button onClick={() => setActiveTab('clientes')} className={`px-4 py-2 font-bold text-sm rounded-t-lg transition flex items-center ${activeTab === 'clientes' ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-          <Users size={16} className="mr-2" /> Central de Clientes
-        </button>
-      </div>
-
-      {/* 📦 TAB 1: PRODUCTOS (CONTIENE TODO) */}
-      {activeTab === 'productos' && (
-        <div className="space-y-6">
+      {/* 🌑 SIDEBAR IZQUIERDO */}
+      <aside className="w-64 bg-[#020617] border-r border-slate-800 flex flex-col">
+        <div className="p-6">
+          <h2 className="text-slate-400 text-[10px] font-black uppercase tracking-widest mb-6">Administración SUL</h2>
           
-          {/* Zona de Trabajo: Masivo + Formulario */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <nav className="space-y-2">
             
-            {/* Tarjeta Carga Masiva */}
-            <div className="bg-white p-6 rounded-xl shadow border border-gray-200 flex flex-col justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center"><Upload className="mr-2 text-blue-500" size={20}/> Carga Masiva (.xls)</h3>
-                <p className="text-xs text-gray-500 mb-4">Actualizá precios, convenios y listados enteros desde tu sistema comercial ERP.</p>
-                <input type="file" accept=".xls,.xlsx" onChange={(e) => setFile(e.target.files?.[0] || null)} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+            {/* ITEM: PRODUCTOS */}
+            <div>
+              <button 
+                onClick={() => setExpandedMenu(expandedMenu === 'productos' ? null : 'productos')}
+                className={`w-full flex items-center justify-between p-3 rounded-lg transition ${expandedMenu === 'productos' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+              >
+                <div className="flex items-center"><Package size={18} className="mr-3" /> <span className="text-sm font-bold">PRODUCTOS</span></div>
+                {expandedMenu === 'productos' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+              </button>
+              
+              {expandedMenu === 'productos' && (
+                <div className="ml-9 mt-2 space-y-1">
+                  <button onClick={() => setActiveView('prod-list')} className={`w-full text-left p-2 text-xs font-medium rounded ${activeView === 'prod-list' ? 'text-[#deff9a]' : 'text-slate-500 hover:text-white'}`}>Listado CRUD</button>
+                  <button onClick={() => setActiveView('prod-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded ${activeView === 'prod-bulk' ? 'text-[#deff9a]' : 'text-slate-500 hover:text-white'}`}>Carga Masiva</button>
+                </div>
+              )}
+            </div>
+
+            {/* ITEM: CLIENTES */}
+            <div>
+  <button 
+    onClick={() => setExpandedMenu(expandedMenu === 'clientes' ? null : 'clientes')}
+    className={`w-full flex items-center justify-between p-3 rounded-lg transition ${expandedMenu === 'clientes' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}
+  >
+    <div className="flex items-center"><Users size={18} className="mr-3" /> <span className="text-sm font-bold">CLIENTES</span></div>
+    {expandedMenu === 'clientes' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+  </button>
+  
+  {expandedMenu === 'clientes' && (
+    <div className="ml-9 mt-2 space-y-1">
+      {/* ✅ CORREGIDO: Ahora si el ítem está activo se pinta con tu verde claro, y si no, queda gris */}
+      <button 
+        onClick={() => setActiveView('cli-list')} 
+        className={`w-full text-left p-2 text-xs font-medium rounded ${activeView === 'cli-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}
+      >
+        Gestión CRM
+      </button>
+      
+      <button 
+        onClick={() => setActiveView('cli-bulk')} 
+        className={`w-full text-left p-2 text-xs font-medium rounded ${activeView === 'cli-bulk' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}
+      >
+        Sincronizar ERP
+      </button>
+    </div>
+  )}
+</div>
+
+            <hr className="border-slate-800 my-4" />
+            <button onClick={() => setActiveView('preview')} className="w-full flex items-center p-3 text-slate-400 hover:bg-slate-900 rounded-lg transition">
+              <Eye size={18} className="mr-3" /> <span className="text-sm font-bold text-sky-400">VISTA PREVIA</span>
+            </button>
+
+          </nav>
+        </div>
+      </aside>
+
+      {/* 🖥️ ÁREA DE TRABAJO PRINCIPAL */}
+      <main className="flex-1 overflow-y-auto bg-slate-50 p-8">
+        
+        {/* VISTA: LISTADO PRODUCTOS */}
+        {activeView === 'prod-list' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h1 className="text-2xl font-black text-slate-900 uppercase">Gestión de Artículos</h1>
+              <div className="flex items-center bg-white border border-slate-200 rounded-xl px-4 py-2 w-full sm:w-96 shadow-sm">
+                <Search size={18} className="text-slate-400 mr-2" />
+                <input 
+                  type="text" 
+                  placeholder="Buscar por SKU o Nombre..." 
+                  className="bg-transparent border-none focus:ring-0 text-sm w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-              <button onClick={() => handleUpload('productos')} disabled={loading || !file} className="mt-6 w-full bg-[#003366] text-white px-4 py-2 rounded-lg font-bold disabled:opacity-50 transition">
-                {loading ? 'Sincronizando Base...' : 'Inyectar Matriz de Precios'}
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={showInactive} 
+                    onChange={e => setShowInactive(e.target.checked)} 
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-900" 
+                  />
+                  <span className="text-xs font-bold text-slate-600 uppercase">Mostrar Inactivos</span>
+                </label>
+                <button className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center hover:bg-slate-800 transition">
+                  <Plus size={14} className="mr-2"/> NUEVO ARTÍCULO
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-widest border-b border-slate-100">
+                    <tr>
+                      <th className="px-6 py-4">SKU</th>
+                      <th className="px-6 py-4">Artículo</th>
+                      <th className="px-6 py-4">Categoría</th>
+                      <th className="px-6 py-4 text-center">Estado</th>
+                      <th className="px-6 py-4 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredProducts.map(p => (
+                      <tr key={p.sku} className={`hover:bg-slate-50 transition ${!p.is_active ? 'bg-slate-50/50' : ''}`}>
+                        <td className="px-6 py-4 font-mono font-bold text-slate-400">{p.sku}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900">{p.name}</td>
+                        <td className="px-6 py-4 text-slate-500">{p.category}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex justify-center">
+                            {p.is_active ? 
+                              <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md text-[10px] font-black flex items-center"><Power size={10} className="mr-1"/> ACTIVO</span> : 
+                              <span className="bg-slate-200 text-slate-500 px-2 py-1 rounded-md text-[10px] font-black flex items-center"><PowerOff size={10} className="mr-1"/> PAUSADO</span>
+                            }
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2">
+                          <button className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition"><Edit size={16}/></button>
+                          <button className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition"><Trash2 size={16}/></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VISTA: CARGA MASIVA */}
+        {activeView === 'prod-bulk' && (
+          <div className="max-w-2xl mx-auto space-y-8 mt-10">
+            <div className="text-center">
+              <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Upload className="text-blue-600" size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 uppercase">Sincronización Masiva</h2>
+              <p className="text-slate-500 text-sm mt-2">Cargá tu matriz de precios y convenios desde Excel.</p>
+            </div>
+            
+            <div className="bg-white p-10 rounded-3xl border-2 border-dashed border-slate-200 text-center space-y-6">
+              <input 
+                type="file" 
+                accept=".xlsx,.xls" 
+                className="hidden" 
+                id="bulk-upload" 
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />
+              <label htmlFor="bulk-upload" className="cursor-pointer block">
+                <div className="text-slate-400 text-sm">{file ? `Archivo: ${file.name}` : "Arrastrá tu archivo aquí o hacé click para buscar"}</div>
+              </label>
+              <button 
+                onClick={() => handleUpload('productos')}
+                disabled={loading || !file}
+                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition disabled:opacity-50"
+              >
+                {loading ? "Procesando Datos..." : "Iniciar Carga en Base Central"}
               </button>
             </div>
-
-            {/* Tarjeta Carga/Edición Individual */}
-            <div className={`bg-white p-6 rounded-xl shadow border ${isEditing ? 'border-orange-400 ring-2 ring-orange-100' : 'border-gray-200'}`}>
-              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                {isEditing ? <><Edit className="mr-2 text-orange-500" size={20}/> Editando Producto: {indForm.sku}</> : <><Package className="mr-2 text-blue-500" size={20}/> Crear Producto Nuevo</>}
-              </h3>
-              
-              <form onSubmit={handleIndividualSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-700">SKU (CÓDIGO)</label>
-                  <input type="text" required disabled={isEditing} value={indForm.sku} onChange={e => setIndForm({...indForm, sku: e.target.value})} className="w-full mt-1 p-2 border rounded bg-gray-50 text-sm disabled:opacity-50" placeholder="Ej: 10045" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-700">NOMBRE DE ARTÍCULO</label>
-                  <input type="text" required value={indForm.name} onChange={e => setIndForm({...indForm, name: e.target.value})} className="w-full mt-1 p-2 border rounded bg-gray-50 text-sm" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-gray-700">CATEGORÍA</label>
-                  <input type="text" required value={indForm.category} onChange={e => setIndForm({...indForm, category: e.target.value})} className="w-full mt-1 p-2 border rounded bg-gray-50 text-sm" />
-                </div>
-                
-                <div className="sm:col-span-2 flex items-center justify-between p-3 bg-orange-50 border border-orange-200 rounded-lg mt-2">
-                  <label className="flex items-center space-x-2 cursor-pointer font-bold text-orange-700 text-sm">
-                    <input type="checkbox" checked={indForm.is_promo} onChange={e => setIndForm({...indForm, is_promo: e.target.checked})} className="form-checkbox h-4 w-4 text-orange-600 rounded" />
-                    <span><Tag size={16} className="inline mr-1"/> Promo Activa</span>
-                  </label>
-                  {indForm.is_promo && (
-                    <input type="number" required={indForm.is_promo} value={indForm.promo_price} onChange={e => setIndForm({...indForm, promo_price: Number(e.target.value)})} className="w-32 p-1 px-2 border rounded text-sm text-right" placeholder="Precio $" />
-                  )}
-                </div>
-
-                <div className="sm:col-span-2 flex space-x-2 mt-2">
-                  <button type="submit" className={`flex-1 text-white py-2 rounded-lg font-bold shadow-md transition ${isEditing ? 'bg-orange-500 hover:bg-orange-600' : 'bg-[#003366] hover:bg-blue-800'}`}>
-                    {isEditing ? 'Guardar Cambios' : 'Crear Artículo'}
-                  </button>
-                  {isEditing && (
-                    <button type="button" onClick={() => { setIsEditing(false); setIndForm({ sku: '', name: '', category: '', is_active: true, is_promo: false, promo_price: 0 }); }} className="bg-gray-200 text-gray-700 px-4 rounded-lg font-bold hover:bg-gray-300 transition">
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
           </div>
+        )}
 
-          {/* 📋 LISTA INTERACTIVA DE PRODUCTOS */}
-          <div className="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-gray-800">Catálogo General B2B ({adminList.length})</h3>
-            </div>
-            <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
-              <table className="w-full text-sm text-left text-gray-500">
-                <thead className="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0 shadow-sm z-10">
-                  <tr>
-                    <th className="px-6 py-3">SKU</th>
-                    <th className="px-6 py-3">Artículo / Categoría</th>
-                    <th className="px-6 py-3 text-center">Estado</th>
-                    <th className="px-6 py-3 text-center">Promo</th>
-                    <th className="px-6 py-3 text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adminList.map(p => (
-                    <tr key={p.sku} className={`border-b hover:bg-gray-50 transition ${!p.is_active ? 'opacity-50 bg-gray-50' : ''}`}>
-                      <td className="px-6 py-4 font-mono font-bold">{p.sku}</td>
-                      <td className="px-6 py-4">
-                        <p className={`font-bold ${!p.is_active ? 'line-through text-gray-400' : 'text-gray-900'}`}>{p.name}</p>
-                        <p className="text-xs text-gray-400">{p.category}</p>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {p.is_active ? 
-                          <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold flex items-center justify-center w-fit mx-auto"><Power size={12} className="mr-1"/> Activo</span> : 
-                          <span className="bg-gray-200 text-gray-600 px-2 py-1 rounded text-xs font-bold flex items-center justify-center w-fit mx-auto"><PowerOff size={12} className="mr-1"/> Inactivo</span>
-                        }
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {p.is_promo ? <span className="bg-orange-100 text-orange-600 px-2 py-1 rounded text-xs font-bold">${Number(p.promo_price).toLocaleString('es-AR')}</span> : '-'}
-                      </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <button onClick={() => handleEditClick(p)} title="Editar" className="text-blue-500 hover:text-blue-700 p-1 bg-blue-50 rounded"><Edit size={18}/></button>
-                        <button onClick={() => handleToggleActive(p.sku, p.is_active)} title={p.is_active ? "Inactivar (Ocultar)" : "Reactivar"} className={`${p.is_active ? 'text-amber-500 bg-amber-50 hover:text-amber-700' : 'text-emerald-500 bg-emerald-50 hover:text-emerald-700'} p-1 rounded`}>
-                          {p.is_active ? <PowerOff size={18}/> : <Power size={18}/>}
-                        </button>
-                        <button onClick={() => handleDelete(p.sku)} title="Eliminar Definitivo" className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded"><Trash2 size={18}/></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {adminList.length === 0 && <p className="text-center py-10 text-gray-500">No hay productos en la base de datos.</p>}
-            </div>
+        {/* MODO PREVIEW CLIENTE */}
+        {activeView === 'preview' && (
+          <div className="bg-amber-50 border-2 border-dashed border-amber-200 rounded-3xl p-20 text-center">
+            <h2 className="text-amber-800 font-black text-xl uppercase">Modo Vista Previa</h2>
+            <p className="text-amber-600 mt-2">Aquí se cargaría el componente de Catálogo para ver cómo lo ve el cliente.</p>
+            <button onClick={() => setActiveView('prod-list')} className="mt-6 bg-amber-800 text-white px-6 py-2 rounded-full text-xs font-bold">VOLVER AL PANEL</button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 👥 TAB 2: CLIENTES (AISLADO Y LIMPIO) */}
-      {activeTab === 'clientes' && (
-        <div className="bg-white p-6 rounded-xl shadow border border-gray-200 max-w-lg">
-          <h3 className="text-lg font-bold mb-2 flex items-center"><Users className="mr-2 text-green-600" size={20}/> Alta Masiva de Clientes y Convenios (.xls)</h3>
-          <p className="text-sm text-gray-500 mb-6">Sincronizá tus clientes del ERP para darles acceso instantáneo a su lista de precios asignada.</p>
-          <input type="file" accept=".xls,.xlsx" onChange={(e) => setFile(e.target.files?.[0] || null)} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
-          <button onClick={() => handleUpload('clientes')} disabled={loading || !file} className="mt-6 w-full bg-green-700 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 transition">
-            {loading ? 'Sincronizando...' : 'Actualizar Base de Clientes'}
-          </button>
-        </div>
-      )}
-
+      </main>
     </div>
   );
 };
