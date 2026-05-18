@@ -1,112 +1,164 @@
 import React, { useState } from 'react';
-import { Shield, Upload, FileText, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { Upload, Users, Package, Tag } from 'lucide-react';
 import { api } from '../config/api';
 
+// 1. Interfaz para las propiedades que recibimos de App.tsx
 interface AdminProps {
-  setStatusMessage: (msg: string) => void;
-  triggerRefresh: () => void;
+  setStatusMessage: React.Dispatch<React.SetStateAction<string>>;
+  triggerRefresh: () => Promise<void>;
+}
+
+// 2. Interfaz explícita para el formulario para que VS Code no tire error
+interface IndividualFormState {
+  sku: string;
+  name: string;
+  category: string;
+  is_active: boolean;
+  is_promo: boolean;
+  promo_price: number;
 }
 
 export const Admin: React.FC<AdminProps> = ({ setStatusMessage, triggerRefresh }) => {
-  const [excelProducts, setExcelProducts] = useState<File | null>(null);
-  const [excelClients, setExcelClients] = useState<File | null>(null);
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'masivo' | 'clientes' | 'individual'>('masivo');
+  
+  // Estados para la carga de archivos masivos
+  const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleProductsUpload = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!excelProducts) return;
+  // ✅ Formulario tipado de forma estricta para heredar las columnas de Neon
+  const [indForm, setIndForm] = useState<IndividualFormState>({ 
+    sku: '', 
+    name: '', 
+    category: '', 
+    is_active: true, 
+    is_promo: false, 
+    promo_price: 0 
+  });
 
+  if (user?.role !== 'Admin') {
+    return <div className="text-center p-10 text-red-500 font-bold">Acceso Denegado</div>;
+  }
+
+  const handleUpload = async (type: 'productos' | 'clientes') => {
+    if (!file) {
+      setStatusMessage('Por favor, seleccioná un archivo Excel.');
+      return;
+    }
     setLoading(true);
     const formData = new FormData();
-    formData.append('file', excelProducts);
-
+    formData.append('file', file);
     try {
-      const res = await api.post('/products/upload-prices', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setStatusMessage(`📦 ${res.data.message}`);
-      setExcelProducts(null);
-      triggerRefresh();
-    } catch (err) {
-      setStatusMessage('❌ Error procesando la lista de convenios.');
+      const endpoint = type === 'productos' ? '/products/upload-prices' : '/auth/upload-clients';
+      const res = await api.post(endpoint, formData);
+      
+      setStatusMessage(res.data.message);
+      setFile(null);
+      
+      if (type === 'productos') {
+        await triggerRefresh();
+      }
+    } catch (err: any) {
+      setStatusMessage(err.response?.data?.error || 'Error en la carga masiva');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleClientsUpload = async (e: React.FormEvent) => {
+  const handleIndividualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!excelClients) return;
-
-    setLoading(true);
-    const formData = new FormData();
-    formData.append('file', excelClients);
-
     try {
-      const res = await api.post('/auth/upload-clients', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setStatusMessage(`👥 ${res.data.message}`);
-      setExcelClients(null);
+      await api.post('/products/individual', indForm);
+      setStatusMessage('¡Producto guardado e impactado en el catálogo con éxito!');
+      
+      // Reseteo limpio respetando la estructura
+      setIndForm({ sku: '', name: '', category: '', is_active: true, is_promo: false, promo_price: 0 });
+      await triggerRefresh();
     } catch (err) {
-      setStatusMessage('❌ Error estructurando el padrón de clientes.');
-    } finally {
-      setLoading(false);
+      setStatusMessage('Ocurrió un error guardando el producto individual.');
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex flex-col space-y-2">
-        <h2 className="text-2xl font-black text-[#003366] uppercase flex items-center space-x-2">
-          <Shield className="text-yellow-500" /> <span>Consola de Administración Central</span>
-        </h2>
-        <p className="text-sm text-gray-500">Sincronizá las bases de datos de SUL subiendo las planillas nativas .xls del sistema comercial.</p>
+    <div className="max-w-4xl mx-auto space-y-6">
+      <h2 className="text-2xl font-black text-[#003366] uppercase">Consola de Administración</h2>
+      
+      {/* 🗂️ TABS DE NAVEGACIÓN */}
+      <div className="flex space-x-2 border-b border-gray-200">
+        <button onClick={() => setActiveTab('masivo')} className={`px-4 py-2 font-bold text-sm rounded-t-lg transition ${activeTab === 'masivo' ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+          <Upload size={16} className="inline mr-2" /> Masivo Productos
+        </button>
+        <button onClick={() => setActiveTab('clientes')} className={`px-4 py-2 font-bold text-sm rounded-t-lg transition ${activeTab === 'clientes' ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+          <Users size={16} className="inline mr-2" /> Masivo Clientes
+        </button>
+        <button onClick={() => setActiveTab('individual')} className={`px-4 py-2 font-bold text-sm rounded-t-lg transition ${activeTab === 'individual' ? 'bg-[#003366] text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+          <Package size={16} className="inline mr-2" /> Gestión Individual
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* COMPONENTE PRODUCTOS */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center space-x-2 text-[#003366] font-bold mb-3">
-              <Upload size={18} />
-              <h3>Actualizar Precios y Productos</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">Sube el archivo "CONVENIOS.XLS" para actualizar la matriz de precios ciegos cruzados por listas.</p>
-          </div>
-          <form onSubmit={handleProductsUpload} className="space-y-4">
-            <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center bg-gray-50 relative">
-              <input type="file" accept=".xls,.xlsx" onChange={(e) => setExcelProducts(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-              <FileText className="mx-auto text-blue-500 mb-2" size={28} />
-              <p className="text-xs font-bold text-gray-700 truncate">{excelProducts ? excelProducts.name : 'Arrastrá tu convenios.xls'}</p>
-            </div>
-            <button type="submit" disabled={!excelProducts || loading} className="w-full bg-[#003366] text-white py-2.5 rounded-lg text-xs font-bold hover:bg-blue-800 transition disabled:opacity-50">
-              {loading ? 'Sincronizando...' : 'Procesar Excel de Convenios'}
-            </button>
-          </form>
+      {/* 📦 TAB 1: MASIVO PRODUCTOS */}
+      {activeTab === 'masivo' && (
+        <div className="bg-white p-6 rounded-b-xl rounded-tr-xl shadow border border-gray-200">
+          <h3 className="text-lg font-bold mb-4">Actualización Masiva de Listas y Precios (.xls)</h3>
+          <input type="file" accept=".xls,.xlsx" onChange={(e) => setFile(e.target.files?.[0] || null)} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+          <button onClick={() => handleUpload('productos')} disabled={loading || !file} className="mt-4 bg-[#003366] text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">
+            {loading ? 'Procesando...' : 'Inyectar Matriz de Precios'}
+          </button>
         </div>
+      )}
 
-        {/* COMPONENTE CLIENTES */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center space-x-2 text-emerald-700 font-bold mb-3">
-              <Users size={18} />
-              <h3>Sincronizar Padrón de Clientes</h3>
+      {/* 👥 TAB 2: MASIVO CLIENTES */}
+      {activeTab === 'clientes' && (
+        <div className="bg-white p-6 rounded-b-xl rounded-tr-xl shadow border border-gray-200">
+          <h3 className="text-lg font-bold mb-4">Alta Masiva de Clientes y Convenios (.xls)</h3>
+          <input type="file" accept=".xls,.xlsx" onChange={(e) => setFile(e.target.files?.[0] || null)} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100" />
+          <button onClick={() => handleUpload('clientes')} disabled={loading || !file} className="mt-4 bg-green-700 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">
+            {loading ? 'Procesando...' : 'Sincronizar ERP Logístico'}
+          </button>
+        </div>
+      )}
+
+      {/* 🏷️ TAB 3: GESTIÓN INDIVIDUAL */}
+      {activeTab === 'individual' && (
+        <div className="bg-white p-6 rounded-b-xl rounded-tr-xl shadow border border-gray-200">
+          <h3 className="text-lg font-bold mb-4">Crear o Editar Producto (Sobrescribe Masivo)</h3>
+          <form onSubmit={handleIndividualSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase">SKU (Código Exacto)</label>
+              <input type="text" required value={indForm.sku} onChange={e => setIndForm({...indForm, sku: e.target.value})} className="w-full mt-1 p-2 border rounded bg-gray-50" placeholder="Ej: 10045" />
             </div>
-            <p className="text-xs text-gray-400 mb-4">Sube el archivo "CLIENTES.XLS" para dar de alta locales, modificar convenios asignados o registrar bajas.</p>
-          </div>
-          <form onSubmit={handleClientsUpload} className="space-y-4">
-            <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center bg-gray-50 relative">
-              <input type="file" accept=".xls,.xlsx" onChange={(e) => setExcelClients(e.target.files?.[0] || null)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-              <Users className="mx-auto text-emerald-500 mb-2" size={28} />
-              <p className="text-xs font-bold text-gray-700 truncate">{excelClients ? excelClients.name : 'Arrastrá tu clientes.xls'}</p>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase">Nombre de Artículo</label>
+              <input type="text" required value={indForm.name} onChange={e => setIndForm({...indForm, name: e.target.value})} className="w-full mt-1 p-2 border rounded bg-gray-50" />
             </div>
-            <button type="submit" disabled={!excelClients || loading} className="w-full bg-emerald-600 text-white py-2.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition disabled:opacity-50">
-              {loading ? 'Sincronizando...' : 'Procesar Excel de Clientes'}
-            </button>
+            <div>
+              <label className="block text-xs font-bold text-gray-700 uppercase">Categoría</label>
+              <input type="text" required value={indForm.category} onChange={e => setIndForm({...indForm, category: e.target.value})} className="w-full mt-1 p-2 border rounded bg-gray-50" />
+            </div>
+            
+            <div className="md:col-span-2 flex items-center space-x-6 p-4 bg-orange-50 border border-orange-200 rounded-lg mt-2">
+              <label className="flex items-center space-x-2 cursor-pointer font-bold text-orange-700">
+                <input type="checkbox" checked={indForm.is_promo} onChange={e => setIndForm({...indForm, is_promo: e.target.checked})} className="form-checkbox h-5 w-5 text-orange-600 rounded" />
+                <span><Tag size={16} className="inline mr-1"/> Destacar en Carrusel Promo</span>
+              </label>
+              
+              {indForm.is_promo && (
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-orange-700 uppercase">Precio Promo ($)</label>
+                  <input type="number" required={indForm.is_promo} value={indForm.promo_price} onChange={e => setIndForm({...indForm, promo_price: Number(e.target.value)})} className="w-full max-w-50 mt-1 p-2 border rounded" placeholder="Ej: 45000" />
+                </div>
+              )}
+            </div>
+
+            <div className="md:col-span-2 mt-4">
+              <button type="submit" className="bg-[#003366] text-white px-6 py-2 rounded-lg font-bold w-full md:w-auto shadow-md">
+                Guardar Artículo Individual
+              </button>
+            </div>
           </form>
         </div>
-      </div>
+      )}
     </div>
   );
 };
