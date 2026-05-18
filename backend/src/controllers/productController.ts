@@ -179,3 +179,41 @@ export const setIndividualPrice = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error actualizando precio' });
   }
 };
+
+// 6. Obtener TODOS los productos para la tabla del Admin (Incluye inactivos)
+export const getAdminProducts = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  try {
+    const result = await pool.query(`
+      SELECT sku, name, category, is_active, is_promo, promo_price 
+      FROM products 
+      ORDER BY name ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo catálogo admin' });
+  }
+};
+
+// 7. Eliminar producto de raíz (Limpia precios asociados primero por seguridad)
+export const deleteProduct = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku } = req.params;
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM product_prices WHERE product_sku = $1', [sku]);
+      await client.query('DELETE FROM products WHERE sku = $1', [sku]);
+      await client.query('COMMIT');
+      res.json({ message: 'Producto eliminado correctamente' });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar el producto' });
+  }
+};
