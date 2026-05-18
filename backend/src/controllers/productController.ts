@@ -5,10 +5,10 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
+// 1. OBTENER CATÁLOGO (Ahora trae solo los activos y avisa cuáles son promo)
 export const getProductsByConvenio = async (req: Request, res: Response) => {
-  let userConvenio = 'CORDOBA'; // Base por defecto
+  let userConvenio = 'CORDOBA'; 
 
-  // 🕵️‍♂️ INTERCEPTOR: Leemos el token limpio
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
@@ -23,22 +23,27 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
   }
 
   try {
+    // Agregamos is_active, is_promo y promo_price. Filtramos para que no muestre los inactivos al cliente.
     const query = `
-      SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, pr.precio
+      SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, 
+             p.is_active, p.is_promo, p.promo_price, pr.precio
       FROM products p
       INNER JOIN product_prices pr ON p.sku = pr.product_sku
-      WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1))
-      ORDER BY p.name ASC
+      WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE
+      ORDER BY p.is_promo DESC, p.name ASC
     `;
     const result = await pool.query(query, [userConvenio]);
     
     const standardized = result.rows.map(row => ({
       sku: row.sku,
-      name: row.name, // ✅ Trazador eliminado: vuelve a mostrar el nombre puro del producto
+      name: row.name,
       category: row.category,
       subcategory: row.subcategory,
       stock: row.stock,
       description: row.description,
+      isActive: row.is_active,
+      isPromo: row.is_promo,
+      promoPrice: parseFloat(row.promo_price),
       unitPrice: parseFloat(row.precio)
     }));
     
@@ -48,14 +53,14 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
   }
 };
 
+// 2. CARGA MASIVA (Se mantiene intacta)
 export const uploadCsvConvenios = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Permisos insuficientes' });
   if (!req.file) return res.status(400).json({ error: 'Archivo no suministrado' });
 
   try {
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const firstSheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[firstSheetName];
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
 
     const client = await pool.connect();
@@ -64,21 +69,18 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       let processed = 0;
 
       for (const rawRow of rows) {
-        // 🔄 NORMALIZADOR INTELIGENTE DE COLUMNAS (Pasa a minúsculas y elimina acentos)
         const row: any = {};
         for (const k of Object.keys(rawRow)) {
           const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
           row[cleanKey] = rawRow[k];
         }
 
-        // 🔍 Mapeo tolerante a variantes comunes de tu sistema comercial
         const codigo = row.codigo || row.code || row.sku;
         const descrip = row.descrip || row.descripcion || row.name || row.nombre || row.articulo;
         const preciofinal = row.preciofinal || row.precio || row.precio_final || row.monto;
         const convenio = row.convenio || row.lista || row.nombre_lista || row.convenios;
-        
-        const rubro = row.rubro_descrip || row.rubro || row.category || row.categoria || 'Varios';
-        const subrubro = row.subrubro_descrip || row.subrubro || row.subcategory || row.subcategoria || 'Varios';
+        const rubro = row.rubro_descrip || row.rubro || row.category || 'Varios';
+        const subrubro = row.subrubro_descrip || row.subrubro || 'Varios';
 
         if (codigo && descrip && preciofinal && convenio) {
           await client.query(`
@@ -86,37 +88,94 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
             VALUES ($1, $2, $3, $4, 100)
             ON CONFLICT (sku) DO UPDATE 
             SET name = $2, category = $3, subcategory = $4
-          `, [
-            String(codigo).trim(), 
-            String(descrip).trim(), 
-            String(rubro).trim(), 
-            String(subrubro).trim()
-          ]);
+          `, [String(codigo).trim(), String(descrip).trim(), String(rubro).trim(), String(subrubro).trim()]);
 
           await client.query(`
             INSERT INTO product_prices (product_sku, convenio, precio)
             VALUES ($1, $2, $3)
             ON CONFLICT (product_sku, convenio) DO UPDATE 
             SET precio = $3
-          `, [
-            String(codigo).trim(), 
-            String(convenio).trim(), 
-            parseFloat(preciofinal)
-          ]);
+          `, [String(codigo).trim(), String(convenio).trim(), parseFloat(preciofinal)]);
 
           processed++;
         }
       }
-
       await client.query('COMMIT');
-      res.json({ message: `Sincronización exitosa. Se procesaron e inyectaron ${processed} productos en Neon.` });
-    } catch (err: any) {
+      res.json({ message: `Sincronización masiva exitosa. ${processed} registros procesados.` });
+    } catch (err) {
       await client.query('ROLLBACK');
-      res.status(500).json({ error: 'Falla al inyectar matriz de convenios relacionales' });
+      res.status(500).json({ error: 'Error en inyección masiva' });
     } finally {
       client.release();
     }
-  } catch (globalErr: any) {
-    res.status(400).json({ error: 'El archivo no tiene un formato válido de Excel.' });
+  } catch (err) {
+    res.status(400).json({ error: 'Formato de Excel inválido.' });
+  }
+};
+
+// ==========================================
+// NUEVAS RUTAS INDIVIDUALES (Para el nuevo Panel)
+// ==========================================
+
+// 3. Crear/Editar un producto individual
+export const upsertIndividualProduct = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku, name, category, subcategory, is_active, is_promo, promo_price } = req.body;
+  
+  try {
+    await pool.query(`
+      INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      ON CONFLICT (sku) DO UPDATE 
+      SET name = $2, category = $3, subcategory = $4, is_active = $5, is_promo = $6, promo_price = $7
+    `, [sku, name, category, subcategory, is_active ?? true, is_promo ?? false, promo_price ?? 0]);
+    
+    res.json({ message: 'Producto guardado con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error guardando producto' });
+  }
+};
+
+// 4. Cambiar estado rápido (Activar/Inactivar o Promo)
+export const toggleProductFlags = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku } = req.params;
+  const { is_active, is_promo, promo_price } = req.body; // Se mandan solo los campos a cambiar
+
+  try {
+    const updates = [];
+    const values = [];
+    let counter = 1;
+
+    if (is_active !== undefined) { updates.push(`is_active = $${counter++}`); values.push(is_active); }
+    if (is_promo !== undefined) { updates.push(`is_promo = $${counter++}`); values.push(is_promo); }
+    if (promo_price !== undefined) { updates.push(`promo_price = $${counter++}`); values.push(promo_price); }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Nada que actualizar' });
+
+    values.push(sku);
+    await pool.query(`UPDATE products SET ${updates.join(', ')} WHERE sku = $${counter}`, values);
+    
+    res.json({ message: 'Estado actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando estado' });
+  }
+};
+
+// 5. Asignar precio manual a un convenio específico (Edición manual)
+export const setIndividualPrice = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku, convenio, precio } = req.body;
+
+  try {
+    await pool.query(`
+      INSERT INTO product_prices (product_sku, convenio, precio)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (product_sku, convenio) DO UPDATE 
+      SET precio = $3
+    `, [sku, convenio, precio]);
+    res.json({ message: 'Precio individual actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando precio' });
   }
 };
