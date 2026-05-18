@@ -19,7 +19,17 @@ export const login = async (req: Request, res: Response) => {
     const passwordIsValid = bcrypt.compareSync(password, user.password);
     if (!passwordIsValid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    const token = jwt.sign({ id: user.id, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '8h' });
+    // 🚀 ACÁ ESTÁ LA CORRECCIÓN: Inyectamos el convenio adentro del token
+    const token = jwt.sign(
+      { 
+        id: user.id, 
+        role: user.role, 
+        email: user.email,
+        convenio: user.convenio_asignado // <-- ESTE ES EL DATO QUE FALTABA
+      }, 
+      JWT_SECRET, 
+      { expiresIn: '8h' }
+    );
 
     res.status(200).json({
       token,
@@ -28,7 +38,7 @@ export const login = async (req: Request, res: Response) => {
         role: user.role, 
         convenio: user.convenio_asignado,
         name: user.name,
-        requirePasswordChange: user.require_password_change // Corregido: Comentario JS válido
+        requirePasswordChange: user.require_password_change 
       }
     });
   } catch (err) {
@@ -39,7 +49,7 @@ export const login = async (req: Request, res: Response) => {
 // 2. Ruta para que el cliente actualice su clave temporal la primera vez
 export const changePassword = async (req: Request, res: Response) => {
   const { newPassword } = req.body;
-  const userId = req.user?.id;
+  const userId = (req as any).user?.id; // Ajustado por tipado de Express
 
   if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
 
@@ -61,7 +71,7 @@ export const changePassword = async (req: Request, res: Response) => {
 
 // 3. 🚀 INYECTOR MASIVO DE CLIENTES DESDE EXCEL (.XLS / .XLSX)
 export const uploadClientsExcel = async (req: Request, res: Response) => {
-  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   if (!req.file) return res.status(400).json({ error: 'Archivo de clientes ausente' });
 
   try {
@@ -85,7 +95,7 @@ export const uploadClientsExcel = async (req: Request, res: Response) => {
           const cleanName = String(row.cl_nombre).trim();
           const generatedEmail = `cl_${cleanCode}@sul.com`.toLowerCase();
           
-          const convenio = row.nombre_lista ? String(row.nombre_lista).trim() : '2x1 Cordoba';
+          const convenio = row.nombre_lista ? String(row.nombre_lista).trim() : 'CORDOBA'; // Alineado con tu lista base
           const isActive = parseInt(row.inactivo) === 0;
           const vendedor = row.nombre_vendedor ? `Vendedor: ${row.nombre_vendedor}` : 'Sin vendedor';
 
@@ -122,7 +132,7 @@ export const registerMinorista = async (req: Request, res: Response) => {
     
     await pool.query(`
       INSERT INTO users (email, password, role, convenio_asignado, telefono, domicilio_facturacion, lugar_entrega, require_password_change)
-      VALUES ($1, $2, 'Minorista', '2x1 Cordoba', $3, $4, $4, FALSE)
+      VALUES ($1, $2, 'Minorista', 'CORDOBA', $3, $4, $4, FALSE)
     `, [email, hash, telefono, domicilio_facturacion]);
 
     res.status(201).json({ message: 'Registro exitoso asignado a Red Córdoba' });
@@ -132,13 +142,12 @@ export const registerMinorista = async (req: Request, res: Response) => {
 };
 
 export const adminCreateUser = async (req: Request, res: Response) => {
-  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   const { email, password, role, convenio_asignado, telefono, domicilio_facturacion, lugar_entrega, dias_entrega_permitidos, observaciones } = req.body;
   try {
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
 
-    // Corregido: Se eliminó el "suicide" fantasma
     await pool.query(`
       INSERT INTO users (email, password, role, convenio_asignado, telefono, domicilio_facturacion, lugar_entrega, dias_entrega_permitidos, observaciones, require_password_change)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
