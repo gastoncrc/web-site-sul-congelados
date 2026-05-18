@@ -30,9 +30,9 @@ function MainLayout() {
   const [showChangePwd, setShowChangePwd] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  const fetchProducts = async () => {
+const fetchProducts = async () => {
     try {
-      const res = await api.get('/products');
+       const res = await api.get(`/products?t=${new Date().getTime()}`);
       setProducts(res.data);
     } catch (err) {
       setProducts([]); 
