@@ -7,8 +7,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
 export const getProductsByConvenio = async (req: Request, res: Response) => {
   let userConvenio = 'CORDOBA'; // Base por defecto
-  let estadoToken = '❌ SIN TOKEN (Anónimo)';
 
+  // 🕵️‍♂️ INTERCEPTOR: Leemos el token limpio
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
@@ -16,12 +16,9 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       if (decoded && decoded.convenio) {
         userConvenio = decoded.convenio; 
-        estadoToken = '✅ TOKEN OK';
-      } else {
-        estadoToken = '⚠️ TOKEN VACÍO';
       }
     } catch (err) {
-      estadoToken = '🚨 TOKEN ROTO/VENCIDO';
+      console.log('Aviso: Token opcional inválido o vencido, usando lista base CORDOBA.');
     }
   }
 
@@ -37,8 +34,7 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
     
     const standardized = result.rows.map(row => ({
       sku: row.sku,
-      // 🕵️‍♂️ EL TRAZADOR: Forzamos al backend a imprimir sus variables en el nombre del producto
-      name: `[${estadoToken} | Leyó: ${userConvenio}] ${row.name}`,
+      name: row.name, // ✅ Trazador eliminado: vuelve a mostrar el nombre puro del producto
       category: row.category,
       subcategory: row.subcategory,
       stock: row.stock,
