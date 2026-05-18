@@ -6,9 +6,9 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
 export const getProductsByConvenio = async (req: Request, res: Response) => {
-  let userConvenio = 'CORDOBA'; // Lista base por defecto para usuarios anónimos
+  let userConvenio = 'CORDOBA'; // Base por defecto
+  let estadoToken = '❌ SIN TOKEN (Anónimo)';
 
-  // 🕵️‍♂️ INTERCEPTOR: Si el cliente está logueado, leemos el convenio real de su token
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
@@ -16,14 +16,16 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
       if (decoded && decoded.convenio) {
         userConvenio = decoded.convenio; 
+        estadoToken = '✅ TOKEN OK';
+      } else {
+        estadoToken = '⚠️ TOKEN VACÍO';
       }
     } catch (err) {
-      console.log('Aviso: Token opcional inválido o vencido, usando lista base CORDOBA.');
+      estadoToken = '🚨 TOKEN ROTO/VENCIDO';
     }
   }
 
   try {
-    // ⚔️ QUERY BLINDADA: Compara ignorando mayúsculas/minúsculas y espacios en blanco
     const query = `
       SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, pr.precio
       FROM products p
@@ -35,7 +37,8 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
     
     const standardized = result.rows.map(row => ({
       sku: row.sku,
-      name: row.name,
+      // 🕵️‍♂️ EL TRAZADOR: Forzamos al backend a imprimir sus variables en el nombre del producto
+      name: `[${estadoToken} | Leyó: ${userConvenio}] ${row.name}`,
       category: row.category,
       subcategory: row.subcategory,
       stock: row.stock,
@@ -45,7 +48,7 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
     
     res.json(standardized);
   } catch (err) {
-    res.status(500).json({ error: 'Error obteniendo catálogo de convenios' });
+    res.status(500).json({ error: 'Error obteniendo catálogo' });
   }
 };
 
