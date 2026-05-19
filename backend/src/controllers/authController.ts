@@ -6,7 +6,7 @@ import { pool } from '../config/db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
-// 1. Login unificado con la nueva estructura de la base de datos
+// 1. Login unificado con control de estado activo
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
   try {
@@ -14,6 +14,11 @@ export const login = async (req: Request, res: Response) => {
     const user = result.rows[0];
 
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
+
+    // Bloqueo inmediato si el cliente está desactivado por lógica
+    if (user.is_active === false) {
+      return res.status(403).json({ error: 'Cuenta suspendida temporalmente. Contacte a logística de SUL.' });
+    }
 
     const passwordIsValid = bcrypt.compareSync(password, user.password);
     if (!passwordIsValid) return res.status(401).json({ error: 'Credenciales inválidas' });
@@ -91,8 +96,8 @@ export const registerClientAdmin = async (req: Request, res: Response) => {
     await pool.query(
       `INSERT INTO users (
         name, email, password, role, convenio, domicilio_facturacion, 
-        razon_social, cuit, localidad, provincia, telefono, vendedor, grupo, require_password_change
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+        razon_social, cuit, localidad, provincia, telefono, vendedor, grupo, require_password_change, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, TRUE)`,
       [
         tradeName, 
         email, 
@@ -151,10 +156,10 @@ export const uploadClientsExcel = async (req: Request, res: Response) => {
           const vendedor = row.nombre_vendedor ? String(row.nombre_vendedor).trim() : 'Sin vendedor';
 
           await pool.query(`
-            INSERT INTO users (name, email, password, role, convenio, vendedor, require_password_change)
-            VALUES ($1, $2, $3, 'Cliente', $4, $5, TRUE)
+            INSERT INTO users (name, email, password, role, convenio, vendedor, require_password_change, is_active)
+            VALUES ($1, $2, $3, 'Cliente', $4, $5, TRUE, TRUE)
             ON CONFLICT (email) DO UPDATE 
-            SET name = $1, convenio = $4, vendedor = $5
+            SET name = $1, convenio = $4, vendedor = $5, is_active = TRUE
           `, [cleanName, generatedEmail, defaultPasswordHash, convenio, vendedor]);
 
           processed++;
@@ -183,8 +188,8 @@ export const registerMinorista = async (req: Request, res: Response) => {
     const hash = bcrypt.hashSync(password, salt);
     
     await pool.query(`
-      INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, require_password_change)
-      VALUES ($1, $2, 'Minorista', 'GENERAL', $3, $4, FALSE)
+      INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, require_password_change, is_active)
+      VALUES ($1, $2, 'Minorista', 'GENERAL', $3, $4, FALSE, TRUE)
     `, [email, hash, telefono, domicilio_facturacion]);
 
     res.status(201).json({ message: 'Registro exitoso asignado a Red General' });
@@ -202,8 +207,8 @@ export const adminCreateUser = async (req: Request, res: Response) => {
     const hash = bcrypt.hashSync(password, salt);
 
     await pool.query(`
-      INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, vendedor, grupo, require_password_change)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE)
+      INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, vendedor, grupo, require_password_change, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE, TRUE)
     `, [email, hash, role, convenio, telefono, domicilio_facturacion, vendedor, grupo]);
 
     res.status(201).json({ message: 'Usuario dado de alta de forma manual' });
@@ -212,11 +217,12 @@ export const adminCreateUser = async (req: Request, res: Response) => {
   }
 };
 
+// 7. Listado CRM de clientes (Trae también el estado is_active)
 export const getClients = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const result = await pool.query(`
-      SELECT id, name, email, convenio, razon_social, cuit, localidad, provincia, telefono, vendedor, grupo 
+      SELECT id, name, email, convenio, razon_social, cuit, localidad, provincia, telefono, vendedor, grupo, is_active 
       FROM users 
       WHERE role = 'Cliente' 
       ORDER BY name ASC
@@ -225,5 +231,18 @@ export const getClients = async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Error al obtener clientes:', err);
     res.status(500).json({ error: 'Error interno del servidor al obtener el listado de clientes.' });
+  }
+};
+
+// 8. 🚀 NUEVO: Baja lógica de clientes (Desactivación en vez de eliminación física)
+export const deleteClientAdmin = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
+  const { id } = req.params;
+  try {
+    await pool.query("UPDATE users SET is_active = FALSE WHERE id = $1 AND role = 'Cliente'", [id]);
+    res.json({ message: 'Cliente suspendido comercialmente con éxito.' });
+  } catch (err) {
+    console.error('Error al desactivar cliente:', err);
+    res.status(500).json({ error: 'Error al cambiar estado del cliente.' });
   }
 };

@@ -28,12 +28,17 @@ export const verifyTokenAndStatus = async (req: Request, res: Response, next: Ne
     if (err) return res.status(401).json({ error: 'Token inválido o expirado' });
 
     try {
-      // 🚀 ACÁ ESTÁ EL FIX: Solo buscamos las columnas nuevas que existen en Neon
-      const userCheck = await pool.query('SELECT role, convenio FROM users WHERE id = $1', [decoded.id]);
+      // 🚀 Buscamos role, convenio y también is_active para bloquear tokens activos de bajas
+      const userCheck = await pool.query('SELECT role, convenio, is_active FROM users WHERE id = $1', [decoded.id]);
       const dbUser = userCheck.rows[0];
 
       if (!dbUser) return res.status(404).json({ error: 'Usuario inexistente' });
       
+      // 🚨 Control estricto de accesos logísticos: Si is_active es false, rebota la petición
+      if (dbUser.is_active === false) {
+        return res.status(403).json({ error: 'Cuenta suspendida temporalmente. Contacte a administración.' });
+      }
+
       req.user = {
         id: decoded.id,
         role: dbUser.role,
