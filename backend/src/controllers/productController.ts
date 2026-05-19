@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
-// 1. OBTENER CATÁLOGO (Ahora trae solo los activos y avisa cuáles son promo)
+// 1. OBTENER CATÁLOGO (Ahora trae in_slider)
 export const getProductsByConvenio = async (req: Request, res: Response) => {
   let userConvenio = 'CORDOBA'; 
 
@@ -23,10 +23,9 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
   }
 
   try {
-    // Agregamos is_active, is_promo y promo_price. Filtramos para que no muestre los inactivos al cliente.
     const query = `
       SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, 
-             p.is_active, p.is_promo, p.promo_price, pr.precio
+             p.is_active, p.is_promo, p.promo_price, p.in_slider, pr.precio
       FROM products p
       INNER JOIN product_prices pr ON p.sku = pr.product_sku
       WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE
@@ -44,6 +43,7 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
       isActive: row.is_active,
       isPromo: row.is_promo,
       promoPrice: parseFloat(row.promo_price),
+      inSlider: row.in_slider, // 🚀 NUEVO: Mapeo de la columna in_slider
       unitPrice: parseFloat(row.precio)
     }));
     
@@ -53,7 +53,7 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
   }
 };
 
-// 2. CARGA MASIVA (Se mantiene intacta)
+// 2. CARGA MASIVA 
 export const uploadCsvConvenios = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Permisos insuficientes' });
   if (!req.file) return res.status(400).json({ error: 'Archivo no suministrado' });
@@ -113,22 +113,18 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
   }
 };
 
-// ==========================================
-// NUEVAS RUTAS INDIVIDUALES (Para el nuevo Panel)
-// ==========================================
-
-// 3. Crear/Editar un producto individual
+// 3. Crear/Editar un producto individual (Ahora guarda in_slider)
 export const upsertIndividualProduct = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
-  const { sku, name, category, subcategory, is_active, is_promo, promo_price } = req.body;
+  const { sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider } = req.body;
   
   try {
     await pool.query(`
-      INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       ON CONFLICT (sku) DO UPDATE 
-      SET name = $2, category = $3, subcategory = $4, is_active = $5, is_promo = $6, promo_price = $7
-    `, [sku, name, category, subcategory, is_active ?? true, is_promo ?? false, promo_price ?? 0]);
+      SET name = $2, category = $3, subcategory = $4, is_active = $5, is_promo = $6, promo_price = $7, in_slider = $8
+    `, [sku, name, category, subcategory, is_active ?? true, is_promo ?? false, promo_price ?? 0, in_slider ?? false]);
     
     res.json({ message: 'Producto guardado con éxito' });
   } catch (err) {
@@ -136,11 +132,11 @@ export const upsertIndividualProduct = async (req: Request, res: Response) => {
   }
 };
 
-// 4. Cambiar estado rápido (Activar/Inactivar o Promo)
+// 4. Cambiar estado rápido
 export const toggleProductFlags = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
   const { sku } = req.params;
-  const { is_active, is_promo, promo_price } = req.body; // Se mandan solo los campos a cambiar
+  const { is_active, is_promo, promo_price } = req.body; 
 
   try {
     const updates = [];
@@ -162,7 +158,7 @@ export const toggleProductFlags = async (req: Request, res: Response) => {
   }
 };
 
-// 5. Asignar precio manual a un convenio específico (Edición manual)
+// 5. Asignar precio manual a un convenio específico 
 export const setIndividualPrice = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
   const { sku, convenio, precio } = req.body;
@@ -180,12 +176,12 @@ export const setIndividualPrice = async (req: Request, res: Response) => {
   }
 };
 
-// 6. Obtener TODOS los productos para la tabla del Admin (Incluye inactivos)
+// 6. Obtener TODOS los productos para la tabla del Admin (Incluye in_slider)
 export const getAdminProducts = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
   try {
     const result = await pool.query(`
-      SELECT sku, name, category, is_active, is_promo, promo_price 
+      SELECT sku, name, category, is_active, is_promo, promo_price, in_slider 
       FROM products 
       ORDER BY name ASC
     `);
@@ -195,7 +191,7 @@ export const getAdminProducts = async (req: Request, res: Response) => {
   }
 };
 
-// 7. Eliminar producto de raíz (Limpia precios asociados primero por seguridad)
+// 7. Eliminar producto de raíz 
 export const deleteProduct = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
   const { sku } = req.params;
