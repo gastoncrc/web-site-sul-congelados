@@ -48,6 +48,7 @@ function MainLayout() {
   useEffect(() => {
     if (currentView === 'home') {
       fetchCatalogData();
+      setSystemMessage('');
     }
   }, [token, currentView]);
 
