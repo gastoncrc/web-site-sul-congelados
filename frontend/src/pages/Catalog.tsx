@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ShoppingCart, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Search, Filter, ShoppingCart, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 import type { Product, CartItem } from '../types';
 
 interface CatalogProduct extends Product {
@@ -21,8 +21,14 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12; 
 
-  // 🚀 Separar los productos del Carrusel
+  // 🚀 1. Separar los productos del Carrusel
   const sliderProducts = products.filter(p => p.inSlider);
+  
+  // 🚀 2. Lógica inteligente para asegurar que el carrusel nunca quede "corto"
+  const minItemsRequired = 8;
+  const repeatCount = sliderProducts.length > 0 ? Math.ceil(minItemsRequired / sliderProducts.length) : 1;
+  const baseSliders = Array(repeatCount).fill(sliderProducts).flat();
+  const displaySliders = [...baseSliders, ...baseSliders];
 
   const categories = ['TODOS', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
 
@@ -49,51 +55,56 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
   return (
     <div className="w-full space-y-8 overflow-hidden">
       
-      {/* 🚀 CSS PARA EL CARRUSEL */}
+      {/* 🚀 CSS PERFECCIONADO PARA EL CARRUSEL */}
       <style>{`
-        @keyframes scroll {
+        @keyframes scroll-infinite {
           0% { transform: translateX(0); }
-          100% { transform: translateX(calc(-250px * ${sliderProducts.length} - 1rem * ${sliderProducts.length})); }
+          100% { transform: translateX(calc(-50% - 0.5rem)); }
         }
         .slider-track {
           display: flex;
           width: max-content;
-          animation: scroll ${sliderProducts.length * 4}s linear infinite;
+          animation: scroll-infinite ${displaySliders.length * 2.5}s linear infinite;
         }
-        .slider-track:hover { animation-play-state: paused; }
+        .slider-track:hover { 
+          animation-play-state: paused; 
+        }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
       {/* 🌟 CARRUSEL DE DESTACADOS */}
       {sliderProducts.length > 0 && searchTerm === '' && selectedCategory === 'TODOS' && (
-        <div className="w-full mb-10 border-b border-slate-200 pb-10">
-          <div className="flex items-center space-x-2 text-slate-800 text-lg font-black uppercase tracking-wider mb-6">
-            <Star className="text-amber-500 fill-amber-500" size={20}/> <span>Productos Destacados</span>
+        <div className="w-full mb-10 bg-slate-900 rounded-3xl p-6 md:p-8 shadow-xl border border-slate-800">
+          <div className="flex items-center space-x-2 text-white text-lg font-black uppercase tracking-wider mb-6">
+            <Zap className="text-[#deff9a] fill-[#deff9a]" size={22}/> 
+            <span>Destacados de la Semana</span>
           </div>
           
-          <div className="w-full overflow-hidden relative hide-scrollbar">
-            {/* 🚀 CORRECCIÓN: bg-linear-to-* */}
-            <div className="absolute top-0 bottom-0 left-0 w-16 bg-linear-to-r from-gray-50 to-transparent z-10 pointer-events-none"></div>
-            <div className="absolute top-0 bottom-0 right-0 w-16 bg-linear-to-l from-gray-50 to-transparent z-10 pointer-events-none"></div>
+          <div className="w-full overflow-hidden relative hide-scrollbar rounded-xl">
+            {/* 🚀 CORRECCIÓN: Usando la nueva sintaxis bg-linear-to-* de Tailwind v4 */}
+            <div className="absolute top-0 bottom-0 left-0 w-12 bg-linear-to-r from-slate-900 to-transparent z-10 pointer-events-none"></div>
+            <div className="absolute top-0 bottom-0 right-0 w-12 bg-linear-to-l from-slate-900 to-transparent z-10 pointer-events-none"></div>
             
             <div className="slider-track gap-4">
-              {[...sliderProducts, ...sliderProducts].map((product, idx) => (
-                // 🚀 CORRECCIÓN: w-62.5 en lugar de w-[250px]
-                <div key={`${product.sku}-${idx}`} className="w-62.5 shrink-0 bg-slate-900 rounded-2xl p-5 shadow-lg border border-slate-800 flex flex-col justify-between">
+              {displaySliders.map((product, idx) => (
+                <div key={`${product.sku}-${idx}`} className="w-64 shrink-0 bg-white rounded-2xl p-5 shadow border border-slate-200 flex flex-col justify-between transition-transform hover:scale-[1.02] cursor-pointer">
                   <div>
-                    <span className="text-[10px] font-black tracking-widest text-blue-400 uppercase">{product.category}</span>
-                    <h3 className="font-black text-white text-base leading-tight mt-1 mb-2 line-clamp-2">{product.name}</h3>
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{product.category}</span>
+                      {product.isPromo && <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Promo</span>}
+                    </div>
+                    <h3 className="font-black text-slate-900 text-sm leading-tight mb-2 line-clamp-2">{product.name}</h3>
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-3">
                     <div className="mb-3 flex items-baseline space-x-2">
-                      <span className="text-xl font-black text-[#deff9a]">
+                      <span className="text-xl font-black text-slate-900">
                         ${product.isPromo ? product.promoPrice : product.unitPrice}
                       </span>
-                      {product.isPromo && <span className="text-xs text-slate-500 line-through">${product.unitPrice}</span>}
+                      {product.isPromo && <span className="text-xs text-slate-400 line-through">${product.unitPrice}</span>}
                     </div>
-                    <button onClick={() => handleAddToCart(product)} className="w-full bg-white hover:bg-slate-200 text-slate-900 font-bold py-2 rounded-xl text-xs transition cursor-pointer">
-                      Añadir al Pedido
+                    <button onClick={() => handleAddToCart(product)} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex justify-center items-center space-x-2">
+                      <ShoppingCart size={14} /> <span>Agregar</span>
                     </button>
                   </div>
                 </div>
@@ -102,6 +113,10 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
           </div>
         </div>
       )}
+
+      {/* ========================================= */}
+      {/* SECCIÓN DEL CATÁLOGO NORMAL ABAJO */}
+      {/* ========================================= */}
 
       {/* 🔍 BARRA DE BÚSQUEDA UNIVERSAL */}
       <div className="relative max-w-2xl mx-auto w-full">
