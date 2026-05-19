@@ -15,7 +15,6 @@ export const login = async (req: Request, res: Response) => {
 
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // Bloqueo inmediato si el cliente está desactivado por lógica
     if (user.is_active === false) {
       return res.status(403).json({ error: 'Cuenta suspendida temporalmente. Contacte a logística de SUL.' });
     }
@@ -24,25 +23,14 @@ export const login = async (req: Request, res: Response) => {
     if (!passwordIsValid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        role: user.role, 
-        email: user.email,
-        convenio: user.convenio 
-      }, 
+      { id: user.id, role: user.role, email: user.email, convenio: user.convenio }, 
       JWT_SECRET, 
       { expiresIn: '8h' }
     );
 
     res.status(200).json({
       token,
-      user: { 
-        email: user.email, 
-        role: user.role, 
-        convenio: user.convenio,
-        name: user.name,
-        requirePasswordChange: user.require_password_change 
-      }
+      user: { email: user.email, role: user.role, convenio: user.convenio, name: user.name, requirePasswordChange: user.require_password_change }
     });
   } catch (err) {
     res.status(500).json({ error: 'Error en servidor' });
@@ -60,32 +48,22 @@ export const changePassword = async (req: Request, res: Response) => {
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(newPassword, salt);
 
-    await pool.query(`
-      UPDATE users 
-      SET password = $1, require_password_change = FALSE 
-      WHERE id = $2
-    `, [hash, userId]);
-
+    await pool.query(`UPDATE users SET password = $1, require_password_change = FALSE WHERE id = $2`, [hash, userId]);
     res.json({ message: 'Contraseña actualizada correctamente. ¡Ya podés operar!' });
   } catch (err) {
     res.status(500).json({ error: 'Error al cambiar contraseña' });
   }
 };
 
-// 3. Alta Individual de Cliente desde el Formulario del Panel Admin
+// 3. Alta Individual de Cliente desde el Formulario del Panel Admin (Intacto, como lo pasaste)
 export const registerClientAdmin = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
 
-  const {
-    tradeName, businessName, taxId, address, city, 
-    province, phone, email, seller, agreement, group
-  } = req.body;
+  const { tradeName, businessName, taxId, address, city, province, phone, email, seller, agreement, group } = req.body;
 
   try {
     const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-    if (userExists.rows.length > 0) {
-      return res.status(400).json({ error: 'Ya existe una cuenta vinculada a este email.' });
-    }
+    if (userExists.rows.length > 0) return res.status(400).json({ error: 'Ya existe una cuenta vinculada a este email.' });
 
     const currentYear = new Date().getFullYear();
     const genericPassword = `SUL${currentYear}!`;
@@ -98,35 +76,16 @@ export const registerClientAdmin = async (req: Request, res: Response) => {
         name, email, password, role, convenio, domicilio_facturacion, 
         razon_social, cuit, localidad, provincia, telefono, vendedor, grupo, require_password_change, is_active
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, TRUE)`,
-      [
-        tradeName, 
-        email, 
-        hashedPassword, 
-        'Cliente', 
-        agreement, 
-        address, 
-        businessName || null, 
-        taxId || null, 
-        city, 
-        province, 
-        phone, 
-        seller, 
-        group,
-        true 
-      ]
+      [tradeName, email, hashedPassword, 'Cliente', agreement, address, businessName || null, taxId || null, city, province, phone, seller, group, true]
     );
 
-    res.status(201).json({ 
-      message: 'Cliente creado exitosamente. Contraseña temporal generada.'
-    });
-
+    res.status(201).json({ message: 'Cliente creado exitosamente. Contraseña temporal generada.' });
   } catch (error) {
-    console.error('Error al registrar cliente desde admin:', error);
     res.status(500).json({ error: 'Error interno al crear el cliente.' });
   }
 };
 
-// 4. Inyector masivo desde Excel alineado a la nueva tabla de Neon (Mapeo de tu CSV)
+// 4. Inyector masivo desde Excel alineado a la nueva tabla de Neon (Corregido 'Cliente' y campos del CSV)
 export const uploadClientsExcel = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   if (!req.file) return res.status(400).json({ error: 'Archivo de clientes ausente' });
@@ -147,24 +106,18 @@ export const uploadClientsExcel = async (req: Request, res: Response) => {
       await client.query('BEGIN');
 
       for (const row of rows) {
-        // Normalizamos claves del objeto JSON extraído del CSV
-        const cleanRow: any = {};
-        for (const k of Object.keys(row)) {
-          cleanRow[k.toLowerCase().trim()] = row[k];
-        }
-
-        if (cleanRow.cl_codigo && cleanRow.cl_nombre) {
-          const cleanCode = String(cleanRow.cl_codigo).replace('.0', '').trim();
-          const cleanName = String(cleanRow.cl_nombre).trim();
+        if (row.cl_codigo && row.cl_nombre) {
+          const cleanCode = String(row.cl_codigo).split('.')[0].trim();
+          const cleanName = String(row.cl_nombre).trim();
           const generatedEmail = `cl_${cleanCode}@sul.com`.toLowerCase();
           
-          const convenio = cleanRow.nombre_lista ? String(cleanRow.nombre_lista).trim() : 'GENERAL';
-          const vendedor = cleanRow.nombre_vendedor ? String(cleanRow.nombre_vendedor).trim() : 'Sin vendedor';
+          const convenio = row.nombre_lista ? String(row.nombre_lista).trim() : 'GENERAL';
+          const vendedor = row.nombre_vendedor ? String(row.nombre_vendedor).trim() : 'Sin vendedor';
           
-          // 🚀 Mapeo del campo inactivo del CSV
-          const is_active = (cleanRow.inactivo == 1 || cleanRow.inactivo == '1') ? false : true;
+          // Mapea si "inactivo" es 1, entonces is_active es false. Si no, es true.
+          const is_active = (row.inactivo == 1 || row.inactivo == '1') ? false : true;
 
-          await pool.query(`
+          await client.query(`
             INSERT INTO users (name, email, password, role, convenio, vendedor, require_password_change, is_active)
             VALUES ($1, $2, $3, 'Cliente', $4, $5, TRUE, $6)
             ON CONFLICT (email) DO UPDATE 
@@ -179,7 +132,6 @@ export const uploadClientsExcel = async (req: Request, res: Response) => {
       res.json({ message: `Sincronización logística exitosa. Se procesaron ${processed} clientes en la base central.` });
     } catch (err: any) {
       await client.query('ROLLBACK');
-      console.error("Error inyectando cliente:", err.message);
       res.status(500).json({ error: 'Error interno procesando las filas del Excel' });
     } finally {
       client.release();
@@ -195,12 +147,7 @@ export const registerMinorista = async (req: Request, res: Response) => {
   try {
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
-    
-    await pool.query(`
-      INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, require_password_change, is_active)
-      VALUES ($1, $2, 'Minorista', 'GENERAL', $3, $4, FALSE, TRUE)
-    `, [email, hash, telefono, domicilio_facturacion]);
-
+    await pool.query(`INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, require_password_change, is_active) VALUES ($1, $2, 'Minorista', 'GENERAL', $3, $4, FALSE, TRUE)`, [email, hash, telefono, domicilio_facturacion]);
     res.status(201).json({ message: 'Registro exitoso asignado a Red General' });
   } catch (err) {
     res.status(400).json({ error: 'El correo electrónico ya se encuentra registrado' });
@@ -238,12 +185,11 @@ export const getClients = async (req: Request, res: Response) => {
     `);
     res.json(result.rows);
   } catch (err) {
-    console.error('Error al obtener clientes:', err);
     res.status(500).json({ error: 'Error interno del servidor al obtener el listado de clientes.' });
   }
 };
 
-// 8. 🚀 NUEVO: Baja lógica de clientes (Desactivación en vez de eliminación física)
+// 8. Baja lógica de clientes
 export const deleteClientAdmin = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   const { id } = req.params;
@@ -251,7 +197,6 @@ export const deleteClientAdmin = async (req: Request, res: Response) => {
     await pool.query("UPDATE users SET is_active = FALSE WHERE id = $1 AND role = 'Cliente'", [id]);
     res.json({ message: 'Cliente suspendido comercialmente con éxito.' });
   } catch (err) {
-    console.error('Error al desactivar cliente:', err);
     res.status(500).json({ error: 'Error al cambiar estado del cliente.' });
   }
 };
