@@ -22,40 +22,46 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
 
   // Data States
   const [productList, setProductList] = useState<any[]>([]);
-  const [clientList, setClientList] = useState<any[]>([]); // 🚀 NUEVO: Estado para clientes
+  const [clientList, setClientList] = useState<any[]>([]); 
   const [isLoading, setIsLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
-  // Traer Productos con destructor de caché obligatorio
+  // Traer Productos para la tabla del admin
   const fetchAdminData = async () => {
     try {
-      const response = await api.get(`/products?t=${new Date().getTime()}`);
+      // Usamos la ruta /admin definida en tus rutas de productos
+      const response = await api.get(`/products/admin?t=${new Date().getTime()}`);
       setProductList(response.data);
     } catch (error) { 
       console.error('Error cargando productos en el admin:', error); 
     }
   };
 
-  // 🚀 NUEVO: Traer listado de clientes de la base de datos
-const fetchClientsData = async () => {
+  // Traer listado de clientes de la base de datos
+  const fetchClientsData = async () => {
     try {
-      // 🚀 CORRECCIÓN: Le sacamos el /auth
-      const response = await api.get(`/clients?t=${new Date().getTime()}`);
+      // 🚀 CORRECCIÓN: Le DEVOLVEMOS el /auth que lleva la API real
+      const response = await api.get(`/auth/clients?t=${new Date().getTime()}`);
       setClientList(response.data);
     } catch (error) {
       console.error('Error cargando clientes en el admin:', error);
     }
   };
 
-  // 2. Buscá handleBulkUpload y cambiá el endpoint de clientes:
+  useEffect(() => {
+    if (activeModule === 'product-list') fetchAdminData();
+    if (activeModule === 'client-list') fetchClientsData(); 
+  }, [activeModule]);
+
+  // Manejador de subidas masivas
   const handleBulkUpload = async (type: 'products' | 'clients') => {
     if (!file) return setSystemMessage('Seleccioná un archivo Excel.');
     setIsLoading(true);
     const formData = new FormData();
     formData.append('file', file);
     try {
-      // 🚀 CORRECCIÓN: Le sacamos el /auth a upload-clients
-      const endpoint = type === 'products' ? '/products/upload-prices' : '/upload-clients';
+      // 🚀 CORRECCIÓN: Le DEVOLVEMOS el /auth a upload-clients
+      const endpoint = type === 'products' ? '/products/upload-prices' : '/auth/upload-clients';
       const response = await api.post(endpoint, formData);
       setSystemMessage(response.data.message);
       setFile(null);
@@ -71,6 +77,8 @@ const fetchClientsData = async () => {
       setIsLoading(false);
     }
   };
+
+  if (user?.role !== 'Admin') return null;
 
   return (
     <div className="flex h-full w-full bg-[#0f172a] overflow-hidden">
@@ -159,7 +167,7 @@ const fetchClientsData = async () => {
           <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />
         )}
 
-        {/* 🚀 NUEVO: RENDER GESTIÓN CRM (LISTADO DE CLIENTES) */}
+        {/* RENDER GESTIÓN CRM (LISTADO DE CLIENTES) */}
         {activeModule === 'client-list' && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <h2 className="text-xl font-black text-slate-900 uppercase mb-6 flex items-center">
