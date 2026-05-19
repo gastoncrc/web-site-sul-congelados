@@ -9,7 +9,7 @@ declare global {
     interface Request {
       user?: {
         id: number;
-        role: 'Admin' | 'Mayorista' | 'Distribuidor' | 'Minorista';
+        role: string;
         email: string;
         convenio: string;
       };
@@ -20,7 +20,6 @@ declare global {
 export const verifyTokenAndStatus = async (req: Request, res: Response, next: NextFunction) => {
   const token = req.headers['authorization']?.split(' ')[1];
   
-  // Si no hay token, pasa como público (asumirá convenio Córdoba más adelante)
   if (!token) {
     return next();
   }
@@ -29,26 +28,22 @@ export const verifyTokenAndStatus = async (req: Request, res: Response, next: Ne
     if (err) return res.status(401).json({ error: 'Token inválido o expirado' });
 
     try {
-      // Verificamos estado real e is_active directo en base de datos
-      const userCheck = await pool.query('SELECT is_active, convenio_asignado FROM users WHERE id = $1', [decoded.id]);
+      // 🚀 ACÁ ESTÁ EL FIX: Solo buscamos las columnas nuevas que existen en Neon
+      const userCheck = await pool.query('SELECT role, convenio FROM users WHERE id = $1', [decoded.id]);
       const dbUser = userCheck.rows[0];
 
       if (!dbUser) return res.status(404).json({ error: 'Usuario inexistente' });
       
-      // Control de Riesgo: Si diste de baja al cliente, se le corta el acceso de inmediato
-      if (!dbUser.is_active) {
-        return res.status(403).json({ error: 'Cuenta suspendida temporalmente. Contacte a logística de SUL.' });
-      }
-
       req.user = {
         id: decoded.id,
-        role: decoded.role,
+        role: dbUser.role,
         email: decoded.email,
-        convenio: dbUser.convenio_asignado
+        convenio: dbUser.convenio
       };
       
       next();
     } catch (error) {
+      console.error("Error en Middleware Auth:", error);
       res.status(500).json({ error: 'Error verificando estado de usuario' });
     }
   });
