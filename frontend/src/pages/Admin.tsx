@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Package, Users, ChevronDown, ChevronRight, Upload, Menu } from 'lucide-react';
+import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu } from 'lucide-react';
 import { api } from '../config/api';
 
 // 🚀 IMPORTAMOS LOS COMPONENTES CREADOS RECIÉN
@@ -13,7 +13,8 @@ interface AdminProps {
 }
 
 export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefresh }) => {
-  const { user } = useAuth();
+  // 🚀 Agregamos 'logout' acá para que funcione el botón de salir
+  const { user, logout } = useAuth(); 
   
   // Navigation & UI States
   const [activeModule, setActiveModule] = useState<'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'preview'>('product-list');
@@ -27,10 +28,11 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
 
   const fetchAdminData = async () => {
     try {
-      const response = await api.get('/products/admin');
+      // 🚀 CORRECCIÓN: Apuntamos a /products para que traiga la misma data que el catálogo
+      const response = await api.get('/products');
       setProductList(response.data);
     } catch (error) { 
-      console.error(error); 
+      console.error('Error cargando productos en el admin:', error); 
     }
   };
 
@@ -66,16 +68,21 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       
       {/* 🌑 SIDEBAR */}
       <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#020617] border-r border-slate-800 flex flex-col shrink-0 transition-all duration-300`}>
-        <div className="p-4 sm:p-6 flex flex-col h-full">
+        <div className="flex flex-col h-full">
           
-          <div className="flex items-center justify-between mb-8">
-            {!isSidebarCollapsed && <h2 className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Consola B2B</h2>}
-            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-slate-400 hover:text-white p-1">
+          {/* 🚀 TÍTULO CORREGIDO */}
+          <div className="h-20 flex items-center justify-between px-4 sm:px-6 border-b border-slate-800 shrink-0">
+            {!isSidebarCollapsed ? (
+              <h2 className="text-white text-sm font-black uppercase tracking-widest">PANEL ADMINISTRADOR</h2>
+            ) : (
+              <h2 className="text-white text-lg font-black mx-auto">PA</h2>
+            )}
+            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-slate-400 hover:text-white p-1 ml-2">
               <Menu size={20} />
             </button>
           </div>
           
-          <nav className="space-y-4 flex-1">
+          <nav className="space-y-4 flex-1 overflow-y-auto p-4 sm:p-6">
             {/* PRODUCT MODULE */}
             <div>
               <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'products' ? null : 'products')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition ${expandedSection === 'products' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
@@ -105,6 +112,33 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               )}
             </div>
           </nav>
+
+          {/* 🚀 NUEVO FOOTER CON DATOS DE USUARIO Y LOGOUT */}
+          <div className="p-4 border-t border-slate-800 shrink-0">
+            {!isSidebarCollapsed && (
+              <div className="flex items-center space-x-3 mb-4 px-2">
+                <div className="bg-slate-800 p-2 rounded-full shrink-0">
+                  <UserIcon size={18} className="text-blue-400" />
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-sm font-bold text-white truncate">{user?.name || 'Usuario'}</p>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate">
+                    {user?.role === 'Admin' ? 'Administrador' : user?.role}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            <button 
+              onClick={logout}
+              className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-4'} space-x-2 bg-red-900/20 hover:bg-red-900/50 text-red-400 hover:text-red-300 py-3 rounded-lg transition-colors border border-red-900/30 font-bold text-sm cursor-pointer`}
+              title="Cerrar Sesión"
+            >
+              <LogOut size={18} className="shrink-0" />
+              {!isSidebarCollapsed && <span>Cerrar Sesión</span>}
+            </button>
+          </div>
+
         </div>
       </aside>
 
