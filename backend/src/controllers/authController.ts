@@ -6,7 +6,7 @@ import { pool } from '../config/db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
-// 1. Login con bandera de cambio de contraseña obligatorio
+// 1. Login unificado con la nueva estructura de la base de datos
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
   try {
@@ -14,18 +14,16 @@ export const login = async (req: Request, res: Response) => {
     const user = result.rows[0];
 
     if (!user) return res.status(401).json({ error: 'Credenciales inválidas' });
-    if (!user.is_active) return res.status(403).json({ error: 'Cuenta suspendida temporalmente. Contacte a logística.' });
 
     const passwordIsValid = bcrypt.compareSync(password, user.password);
     if (!passwordIsValid) return res.status(401).json({ error: 'Credenciales inválidas' });
 
-    // 🚀 ACÁ ESTÁ LA CORRECCIÓN: Inyectamos el convenio adentro del token
     const token = jwt.sign(
       { 
         id: user.id, 
         role: user.role, 
         email: user.email,
-        convenio: user.convenio_asignado // <-- ESTE ES EL DATO QUE FALTABA
+        convenio: user.convenio 
       }, 
       JWT_SECRET, 
       { expiresIn: '8h' }
@@ -36,7 +34,7 @@ export const login = async (req: Request, res: Response) => {
       user: { 
         email: user.email, 
         role: user.role, 
-        convenio: user.convenio_asignado,
+        convenio: user.convenio,
         name: user.name,
         requirePasswordChange: user.require_password_change 
       }
@@ -46,10 +44,10 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
-// 2. Ruta para que el cliente actualice su clave temporal la primera vez
+// 2. Ruta para cambiar contraseña temporal en el primer ingreso
 export const changePassword = async (req: Request, res: Response) => {
   const { newPassword } = req.body;
-  const userId = (req as any).user?.id; // Ajustado por tipado de Express
+  const userId = (req as any).user?.id; 
 
   if (!userId) return res.status(401).json({ error: 'Usuario no autenticado' });
 
@@ -69,7 +67,61 @@ export const changePassword = async (req: Request, res: Response) => {
   }
 };
 
-// 3. 🚀 INYECTOR MASIVO DE CLIENTES DESDE EXCEL (.XLS / .XLSX)
+// 3. Alta Individual de Cliente desde el Formulario del Panel Admin
+export const registerClientAdmin = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
+
+  const {
+    tradeName, businessName, taxId, address, city, 
+    province, phone, email, seller, agreement, group
+  } = req.body;
+
+  try {
+    const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ error: 'Ya existe una cuenta vinculada a este email.' });
+    }
+
+    const currentYear = new Date().getFullYear();
+    const genericPassword = `SUL${currentYear}!`;
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(genericPassword, salt);
+
+    await pool.query(
+      `INSERT INTO users (
+        name, email, password, role, convenio, domicilio_facturacion, 
+        razon_social, cuit, localidad, provincia, telefono, vendedor, grupo, require_password_change
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+      [
+        tradeName, 
+        email, 
+        hashedPassword, 
+        'Cliente', 
+        agreement, 
+        address, 
+        businessName || null, 
+        taxId || null, 
+        city, 
+        province, 
+        phone, 
+        seller, 
+        group,
+        true 
+      ]
+    );
+
+    res.status(201).json({ 
+      message: 'Cliente creado exitosamente. Contraseña temporal generada.'
+    });
+
+  } catch (error) {
+    console.error('Error al registrar cliente desde admin:', error);
+    res.status(500).json({ error: 'Error interno al crear el cliente.' });
+  }
+};
+
+// 4. Inyector masivo desde Excel alineado a la nueva tabla de Neon
 export const uploadClientsExcel = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   if (!req.file) return res.status(400).json({ error: 'Archivo de clientes ausente' });
@@ -95,16 +147,15 @@ export const uploadClientsExcel = async (req: Request, res: Response) => {
           const cleanName = String(row.cl_nombre).trim();
           const generatedEmail = `cl_${cleanCode}@sul.com`.toLowerCase();
           
-          const convenio = row.nombre_lista ? String(row.nombre_lista).trim() : 'CORDOBA'; // Alineado con tu lista base
-          const isActive = parseInt(row.inactivo) === 0;
-          const vendedor = row.nombre_vendedor ? `Vendedor: ${row.nombre_vendedor}` : 'Sin vendedor';
+          const convenio = row.nombre_lista ? String(row.nombre_lista).trim() : 'GENERAL';
+          const vendedor = row.nombre_vendedor ? String(row.nombre_vendedor).trim() : 'Sin vendedor';
 
-          await client.query(`
-            INSERT INTO users (client_code, name, email, password, role, convenio_asignado, is_active, require_password_change, observaciones)
-            VALUES ($1, $2, $3, $4, 'Cliente', $5, $6, TRUE, $7)
-            ON CONFLICT (client_code) DO UPDATE 
-            SET name = $2, convenio_asignado = $5, is_active = $6, observaciones = $7
-          `, [cleanCode, cleanName, generatedEmail, defaultPasswordHash, convenio, isActive, vendedor]);
+          await pool.query(`
+            INSERT INTO users (name, email, password, role, convenio, vendedor, require_password_change)
+            VALUES ($1, $2, $3, 'Cliente', $4, $5, TRUE)
+            ON CONFLICT (email) DO UPDATE 
+            SET name = $1, convenio = $4, vendedor = $5
+          `, [cleanName, generatedEmail, defaultPasswordHash, convenio, vendedor]);
 
           processed++;
         }
@@ -124,6 +175,7 @@ export const uploadClientsExcel = async (req: Request, res: Response) => {
   }
 };
 
+// 5. Registro manual simplificado para minoristas
 export const registerMinorista = async (req: Request, res: Response) => {
   const { email, password, telefono, domicilio_facturacion } = req.body;
   try {
@@ -131,30 +183,31 @@ export const registerMinorista = async (req: Request, res: Response) => {
     const hash = bcrypt.hashSync(password, salt);
     
     await pool.query(`
-      INSERT INTO users (email, password, role, convenio_asignado, telefono, domicilio_facturacion, lugar_entrega, require_password_change)
-      VALUES ($1, $2, 'Minorista', 'CORDOBA', $3, $4, $4, FALSE)
+      INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, require_password_change)
+      VALUES ($1, $2, 'Minorista', 'GENERAL', $3, $4, FALSE)
     `, [email, hash, telefono, domicilio_facturacion]);
 
-    res.status(201).json({ message: 'Registro exitoso asignado a Red Córdoba' });
+    res.status(201).json({ message: 'Registro exitoso asignado a Red General' });
   } catch (err) {
     res.status(400).json({ error: 'El correo electrónico ya se encuentra registrado' });
   }
 };
 
+// 6. Creación genérica de usuarios por Administrador
 export const adminCreateUser = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
-  const { email, password, role, convenio_asignado, telefono, domicilio_facturacion, lugar_entrega, dias_entrega_permitidos, observaciones } = req.body;
+  const { email, password, role, convenio, telefono, domicilio_facturacion, vendedor, grupo } = req.body;
   try {
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
 
     await pool.query(`
-      INSERT INTO users (email, password, role, convenio_asignado, telefono, domicilio_facturacion, lugar_entrega, dias_entrega_permitidos, observaciones, require_password_change)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, FALSE)
-    `, [email, hash, role, convenio_asignado, telefono, domicilio_facturacion, lugar_entrega, JSON.stringify(dias_entrega_permitidos), observaciones]);
+      INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, vendedor, grupo, require_password_change)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE)
+    `, [email, hash, role, convenio, telefono, domicilio_facturacion, vendedor, grupo]);
 
-    res.status(201).json({ message: 'Cliente dado de alta de forma manual' });
+    res.status(201).json({ message: 'Usuario dado de alta de forma manual' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al procesar alta de cliente' });
+    res.status(500).json({ error: 'Error al procesar alta de usuario' });
   }
 };
