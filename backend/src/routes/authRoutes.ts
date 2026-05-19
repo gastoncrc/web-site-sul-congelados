@@ -9,6 +9,7 @@ import {
 } from '../controllers/authController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 import multer from 'multer';
+import { getClients } from '../controllers/authController';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -24,5 +25,6 @@ router.post('/change-password', verifyTokenAndStatus, changePassword);
 router.post('/register-client-admin', verifyTokenAndStatus, registerClientAdmin);
 router.post('/upload-clients', verifyTokenAndStatus, upload.single('file'), uploadClientsExcel);
 router.post('/admin/create-user', verifyTokenAndStatus, adminCreateUser);
+router.get('/clients', verifyTokenAndStatus, getClients);
 
 export default router;

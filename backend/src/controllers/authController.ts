@@ -211,3 +211,19 @@ export const adminCreateUser = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error al procesar alta de usuario' });
   }
 };
+
+export const getClients = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
+  try {
+    const result = await pool.query(`
+      SELECT id, name, email, convenio, razon_social, cuit, localidad, provincia, telefono, vendedor, grupo 
+      FROM users 
+      WHERE role = 'Cliente' 
+      ORDER BY name ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Error al obtener clientes:', err);
+    res.status(500).json({ error: 'Error interno del servidor al obtener el listado de clientes.' });
+  }
+};
