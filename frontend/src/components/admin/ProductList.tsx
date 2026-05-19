@@ -12,10 +12,8 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
   const [searchQuery, setSearchQuery] = useState('');
   const [isShowingInactive, setIsShowingInactive] = useState(false);
   
-  // 🚀 ESTADO PARA EL MODAL DE EDICIÓN DE PRODUCTO
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
 
-  // Filtrado de la tabla (Buscador en tiempo real)
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.sku.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -23,7 +21,6 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
     return matchesSearch && matchesStatus;
   });
 
-  // Toggle rápido de Activo/Inactivo
   const handleToggleProductStatus = async (sku: string, currentStatus: boolean) => {
     try {
       await api.patch(`/products/${sku}/flags`, { is_active: !currentStatus });
@@ -34,7 +31,6 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
     }
   };
 
-  // Guardar la edición completa del producto
   const handleUpdateProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProduct) return;
@@ -47,7 +43,8 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
         subcategory: editingProduct.subcategory,
         is_active: editingProduct.is_active,
         is_promo: editingProduct.is_promo,
-        promo_price: parseFloat(editingProduct.promo_price) || 0
+        promo_price: parseFloat(editingProduct.promo_price) || 0,
+        in_slider: editingProduct.in_slider // 🚀 SE ENVÍA EL DATO DEL SLIDER
       });
       
       setSystemMessage(`✅ Datos del producto actualizados.`);
@@ -83,7 +80,6 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
           <span className="text-xs font-bold text-slate-400">{filteredProducts.length} Artículos</span>
         </div>
 
-        {/* 🚀 CORRECCIÓN: Optimizamos a max-h-150 */}
         <div className="overflow-x-auto max-h-150 overflow-y-auto">
           <table className="w-full text-left text-sm border-collapse">
             <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-widest border-b border-slate-100 sticky top-0 z-10 shadow-sm">
@@ -106,7 +102,10 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
                     <td className="px-6 py-4 font-mono font-bold text-slate-400 text-xs">{p.sku}</td>
                     <td className="px-6 py-4">
                       <span className="font-bold text-slate-900 block">{p.name}</span>
-                      {p.is_promo && <span className="text-[9px] bg-amber-100 text-amber-700 font-black px-1.5 py-0.5 rounded uppercase">En Promo</span>}
+                      <div className="flex space-x-1 mt-1">
+                        {p.is_promo && <span className="text-[9px] bg-amber-100 text-amber-700 font-black px-1.5 py-0.5 rounded uppercase">Oferta</span>}
+                        {p.in_slider && <span className="text-[9px] bg-blue-100 text-blue-700 font-black px-1.5 py-0.5 rounded uppercase">Destacado</span>}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">{p.category}</td>
                     <td className="px-6 py-4 text-center">
@@ -179,20 +178,36 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
                 <input type="text" value={editingProduct.subcategory || ''} onChange={e => setEditingProduct({...editingProduct, subcategory: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
               </div>
 
-              <div className="md:col-span-2 mt-4"><h4 className="text-xs font-bold text-slate-400 uppercase">Configuración de Promoción</h4><hr className="mt-1 border-slate-100"/></div>
+              <div className="md:col-span-2 mt-4"><h4 className="text-xs font-bold text-slate-400 uppercase">Configuración Comercial y Destacados</h4><hr className="mt-1 border-slate-100"/></div>
 
-              <div className="flex items-center h-full pt-4">
+              <div className="flex flex-col justify-center space-y-4 pt-2">
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input type="checkbox" checked={editingProduct.is_promo || false} onChange={e => setEditingProduct({...editingProduct, is_promo: e.target.checked})} className="rounded border-slate-300 w-5 h-5 text-amber-500 focus:ring-amber-500" />
-                  <span className="text-sm font-bold text-slate-700 uppercase">Activar Oferta</span>
+                  <span className="text-sm font-bold text-slate-700 uppercase">1. Activar Oferta (Precio Tachado)</span>
+                </label>
+
+                {/* 🚀 EL LÍMITE DEL CARRUSEL EN ACCIÓN */}
+                <label className={`flex items-center space-x-2 ${(!editingProduct.in_slider && products.filter(p => p.in_slider).length >= 6) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <input 
+                    type="checkbox" 
+                    disabled={!editingProduct.in_slider && products.filter(p => p.in_slider).length >= 6}
+                    checked={editingProduct.in_slider || false} 
+                    onChange={e => setEditingProduct({...editingProduct, in_slider: e.target.checked})} 
+                    className="rounded border-slate-300 w-5 h-5 text-blue-600 focus:ring-blue-600" 
+                  />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-slate-700 uppercase">2. Destacar en Carrusel Principal</span>
+                    {(!editingProduct.in_slider && products.filter(p => p.in_slider).length >= 6) && (
+                      <span className="text-[10px] text-red-500 font-bold">Límite alcanzado (Máx 6). Quitá uno primero.</span>
+                    )}
+                  </div>
                 </label>
               </div>
 
               <div>
                 <label className="block text-[11px] font-black text-slate-700 uppercase">Precio Promocional ($)</label>
                 <input 
-                  type="number" 
-                  step="0.01"
+                  type="number" step="0.01"
                   disabled={!editingProduct.is_promo} 
                   value={editingProduct.promo_price || ''} 
                   onChange={e => setEditingProduct({...editingProduct, promo_price: e.target.value})} 
