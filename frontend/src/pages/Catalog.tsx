@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Filter, ShoppingCart, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 import type { Product, CartItem } from '../types';
+import { formatPrice } from '../../utils/currency';
 
 interface CatalogProduct extends Product {
   isPromo?: boolean;
@@ -155,9 +156,9 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
                   <div className="mt-3">
                     <div className="mb-3 flex items-baseline space-x-2 pointer-events-none">
                       <span className="text-xl font-black text-slate-900">
-                        ${product.isPromo ? product.promoPrice : product.unitPrice}
+                        ${formatPrice((product.isPromo ? product.promoPrice : product.unitPrice) ?? 0)}
                       </span>
-                      {product.isPromo && <span className="text-xs text-slate-400 line-through">${product.unitPrice}</span>}
+                      {product.isPromo && <span className="text-xs text-slate-400 line-through">${formatPrice(product.unitPrice ?? 0)}</span>}
                     </div>
                     {/* Z-index y detención de propagación para que el clic al botón no se confunda con arrastrar */}
                     <button 
@@ -240,11 +241,11 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
                   <div className="mb-3">
                     {product.isPromo ? (
                       <div className="flex items-baseline space-x-2">
-                        <span className="text-lg font-black text-slate-900">${product.promoPrice}</span>
-                        <span className="text-xs text-slate-400 line-through">${product.unitPrice}</span>
+                        <span className="text-lg font-black text-slate-900">${formatPrice(product.promoPrice ?? 0)}</span>
+                        <span className="text-xs text-slate-400 line-through">${formatPrice(product.unitPrice ?? 0)}</span>
                       </div>
                     ) : (
-                      <span className="text-lg font-black text-slate-900">${product.unitPrice}</span>
+                      <span className="text-lg font-black text-slate-900">${formatPrice(product.unitPrice ?? 0)}</span>
                     )}
                   </div>
                   <button

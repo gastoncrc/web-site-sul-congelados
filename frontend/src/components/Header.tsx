@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User as UserIcon, LogOut, Menu, X } from 'lucide-react';
+import { User as UserIcon, LogOut, Menu, X, ShoppingCart } from 'lucide-react'; // 🚀 AGREGADO SHOPPINGCART
 import { useAuth } from '../context/AuthContext';
 import logoSUL from '../assets/logo_sul.png'; 
 
@@ -7,9 +7,11 @@ interface HeaderProps {
   currentTab: string;
   setCurrentTab: (tab: any) => void;
   openLogin: () => void;
+  cartCount?: number; // 🚀 NUEVO: Recibe la cantidad del carrito
+  onOpenCart?: () => void; // 🚀 NUEVO: Función para abrir el carrito
 }
 
-export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, openLogin }) => {
+export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, openLogin, cartCount = 0, onOpenCart }) => {
   const { user, logout } = useAuth();
   
   // UI State para el Menú Móvil
@@ -46,26 +48,40 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, openL
           <button onClick={() => setCurrentTab('contacto')} className={`hover:text-blue-200 transition ${currentTab === 'contacto' ? 'text-blue-300 underline' : ''}`}>Contacto</button>
         </nav>
         
-        {/* 🖥️ BOTONES DE SESIÓN DESKTOP (Se ocultan en mobile) */}
-        <div className="hidden md:flex items-center ml-4">
-          {user ? (
-            <div className="flex items-center space-x-3 bg-[#002244] px-4 py-2 rounded-full border border-blue-800">
-              <UserIcon size={14} className="text-blue-300 shrink-0" />
-              <span className="text-xs font-semibold truncate">
-                {user?.name || user?.email.split('@')[0]}
+        {/* 🖥️ BOTONES DE SESIÓN Y CARRITO DESKTOP/MOBILE */}
+        <div className="flex items-center ml-auto">
+          
+          {/* 🚀 EL CARRITO (Visible siempre) */}
+          <button onClick={onOpenCart} className="relative mr-4 p-2 text-white hover:text-blue-200 transition cursor-pointer">
+            <ShoppingCart size={24} />
+            {cartCount > 0 && (
+              <span className="absolute top-0 right-0 bg-red-500 text-white text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#003366]">
+                {cartCount}
               </span>
-              <button onClick={logout} className="text-red-400 hover:text-red-300 ml-2"><LogOut size={14} /></button>
-            </div>
-          ) : (
-            <button onClick={openLogin} className="bg-white text-[#003366] font-bold px-5 py-2 rounded-lg hover:bg-blue-50 transition shadow text-sm">Acceso Clientes</button>
-          )}
+            )}
+          </button>
+
+          {/* SESIÓN DESKTOP */}
+          <div className="hidden md:flex items-center">
+            {user ? (
+              <div className="flex items-center space-x-3 bg-[#002244] px-4 py-2 rounded-full border border-blue-800">
+                <UserIcon size={14} className="text-blue-300 shrink-0" />
+                <span className="text-xs font-semibold truncate">
+                  {user?.name || user?.email.split('@')[0]}
+                </span>
+                <button onClick={logout} className="text-red-400 hover:text-red-300 ml-2 cursor-pointer"><LogOut size={14} /></button>
+              </div>
+            ) : (
+              <button onClick={openLogin} className="bg-white text-[#003366] font-bold px-5 py-2 rounded-lg hover:bg-blue-50 transition shadow text-sm cursor-pointer">Acceso Clientes</button>
+            )}
+          </div>
         </div>
 
         {/* 📱 BOTÓN HAMBURGUESA PARA MOBILE */}
-        <div className="md:hidden flex items-center justify-end flex-1">
+        <div className="md:hidden flex items-center ml-2">
           <button 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
-            className="text-white p-2 focus:outline-none"
+            className="text-white p-2 focus:outline-none cursor-pointer"
           >
             {isMobileMenuOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
@@ -90,10 +106,10 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab, openL
                     {user?.name || user?.email.split('@')[0]}
                   </span>
                 </div>
-                <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="text-red-400 hover:text-red-300 flex items-center"><LogOut size={16} className="mr-1"/> Salir</button>
+                <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="text-red-400 hover:text-red-300 flex items-center cursor-pointer"><LogOut size={16} className="mr-1"/> Salir</button>
               </div>
             ) : (
-              <button onClick={() => { openLogin(); setIsMobileMenuOpen(false); }} className="w-full bg-white text-[#003366] font-bold px-5 py-3 rounded-lg shadow text-sm mt-2">Acceso Clientes</button>
+              <button onClick={() => { openLogin(); setIsMobileMenuOpen(false); }} className="w-full bg-white text-[#003366] font-bold px-5 py-3 rounded-lg shadow text-sm mt-2 cursor-pointer">Acceso Clientes</button>
             )}
           </div>
         </div>

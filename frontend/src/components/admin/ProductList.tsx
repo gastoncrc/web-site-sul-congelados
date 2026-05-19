@@ -44,7 +44,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
         is_active: editingProduct.is_active,
         is_promo: editingProduct.is_promo,
         promo_price: parseFloat(editingProduct.promo_price) || 0,
-        in_slider: editingProduct.in_slider // 🚀 SE ENVÍA EL DATO DEL SLIDER
+        in_slider: editingProduct.in_slider 
       });
       
       setSystemMessage(`✅ Datos del producto actualizados.`);
@@ -81,7 +81,8 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
         </div>
 
         <div className="overflow-x-auto max-h-150 overflow-y-auto">
-          <table className="w-full text-left text-sm border-collapse">
+          {/* 🚀 ACÁ ESTÁ LA SOLUCIÓN DEL RESPONSIVE: min-w-[800px] */}
+          <table className="min-w-200 w-full text-left text-sm border-collapse">
             <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-widest border-b border-slate-100 sticky top-0 z-10 shadow-sm">
               <tr>
                 <th className="px-6 py-4">SKU</th>
@@ -186,7 +187,6 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
                   <span className="text-sm font-bold text-slate-700 uppercase">1. Activar Oferta (Precio Tachado)</span>
                 </label>
 
-                {/* 🚀 EL LÍMITE DEL CARRUSEL EN ACCIÓN */}
                 <label className={`flex items-center space-x-2 ${(!editingProduct.in_slider && products.filter(p => p.in_slider).length >= 6) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                   <input 
                     type="checkbox" 
