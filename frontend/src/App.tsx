@@ -26,7 +26,7 @@ function MainLayout() {
   const [currentView, setCurrentView] = useState<'home' | 'nosotros' | 'contacto' | 'admin'>('home');
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [shoppingCart, setShoppingCart] = useState<CartItem[]>([]);
-  const [isCatalogLoading, setIsCatalogLoading] = useState(true); // 🚀 ESTADO DE CARGA
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true); 
   
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -48,9 +48,16 @@ function MainLayout() {
   useEffect(() => {
     if (currentView === 'home') {
       fetchCatalogData();
-      setSystemMessage('');
+      setSystemMessage(''); // Limpia mensajes viejos al volver al home
     }
   }, [token, currentView]);
+
+  // 🚀 EL FIX DEL MODAL: Si el token desaparece (cierre de sesión), matamos el modal de contraseña
+  useEffect(() => {
+    if (!token) {
+      setIsPasswordModalOpen(false);
+    }
+  }, [token]);
 
   // 🚀 INTERCEPTOR ADMIN
   if (user?.role === 'Admin') {
@@ -59,7 +66,7 @@ function MainLayout() {
         {systemMessage && (
           <div className="absolute top-4 right-4 z-50 bg-blue-50 border-l-4 border-blue-600 p-4 rounded shadow-lg flex justify-between items-center min-w-75">
             <span className="text-sm font-medium text-blue-900">{systemMessage}</span>
-            <button onClick={() => setSystemMessage('')} className="ml-4 text-blue-500 font-bold text-xs hover:underline">X</button>
+            <button onClick={() => setSystemMessage('')} className="ml-4 text-blue-500 font-bold text-xs hover:underline cursor-pointer">X</button>
           </div>
         )}
         <Admin setSystemMessage={setSystemMessage} triggerDataRefresh={fetchCatalogData} />
@@ -76,11 +83,10 @@ function MainLayout() {
         {systemMessage && (
           <div className="bg-blue-50 border-l-4 border-blue-600 p-4 rounded mb-6 flex justify-between items-center shadow-sm">
             <span className="text-sm font-medium text-blue-900">{systemMessage}</span>
-            <button onClick={() => setSystemMessage('')} className="text-blue-500 font-bold text-xs hover:underline">Entendido</button>
+            <button onClick={() => setSystemMessage('')} className="text-blue-500 font-bold text-xs hover:underline cursor-pointer">Entendido</button>
           </div>
         )}
         
-        {/* 🚀 LÓGICA DE CARGA Y CORRECCIÓN DE PROPS DEL CATALOGO */}
         {currentView === 'home' && (
           isCatalogLoading ? (
             <div className="flex flex-col items-center justify-center py-24 opacity-70">

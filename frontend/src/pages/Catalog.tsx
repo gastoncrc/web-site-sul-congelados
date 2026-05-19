@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, Filter, ShoppingCart, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
 import type { Product, CartItem } from '../types';
 
@@ -21,13 +21,16 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12; 
 
-  // 🚀 1. Separar los productos del Carrusel
+  // 🚀 VARIABLES DEL CARRUSEL INTERACTIVO
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const [isSliderPaused, setIsSliderPaused] = useState(false);
+
   const sliderProducts = products.filter(p => p.inSlider);
   
-  // 🚀 2. Lógica inteligente para asegurar que el carrusel nunca quede "corto"
   const minItemsRequired = 8;
   const repeatCount = sliderProducts.length > 0 ? Math.ceil(minItemsRequired / sliderProducts.length) : 1;
   const baseSliders = Array(repeatCount).fill(sliderProducts).flat();
+  // Se duplica para tener pista suficiente para el scroll infinito
   const displaySliders = [...baseSliders, ...baseSliders];
 
   const categories = ['TODOS', ...Array.from(new Set(products.map(p => p.category).filter(Boolean)))];
@@ -40,6 +43,30 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
   });
 
   useEffect(() => setCurrentPage(1), [searchTerm, selectedCategory]);
+
+  // 🚀 LÓGICA JAVASCRIPT DEL CARRUSEL: Movimiento fluido, pausable y arrastrable
+  useEffect(() => {
+    let animationId: number;
+    const slider = sliderRef.current;
+
+    const step = () => {
+      if (slider && !isSliderPaused) {
+        slider.scrollLeft += 1; // Velocidad del carrusel (1px por frame)
+        
+        // Magia del infinito: si scrolleó hasta la mitad exacta, lo devolvemos a 0 en silencio
+        if (slider.scrollLeft >= slider.scrollWidth / 2) {
+          slider.scrollLeft = 0;
+        }
+      }
+      animationId = requestAnimationFrame(step);
+    };
+
+    if (sliderProducts.length > 0) {
+      animationId = requestAnimationFrame(step);
+    }
+    
+    return () => cancelAnimationFrame(animationId);
+  }, [isSliderPaused, sliderProducts.length]);
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const currentProductsForDisplay = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -55,25 +82,13 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
   return (
     <div className="w-full space-y-8 overflow-hidden">
       
-      {/* 🚀 CSS PERFECCIONADO PARA EL CARRUSEL */}
       <style>{`
-        @keyframes scroll-infinite {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(calc(-50% - 0.5rem)); }
-        }
-        .slider-track {
-          display: flex;
-          width: max-content;
-          animation: scroll-infinite ${displaySliders.length * 2.5}s linear infinite;
-        }
-        .slider-track:hover { 
-          animation-play-state: paused; 
-        }
+        /* Oculta la barra espantosa nativa pero mantiene la funcionalidad de arrastre/scroll */
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
 
-      {/* 🌟 CARRUSEL DE DESTACADOS */}
+      {/* 🌟 CARRUSEL DE DESTACADOS (Interactivo) */}
       {sliderProducts.length > 0 && searchTerm === '' && selectedCategory === 'TODOS' && (
         <div className="w-full mb-10 bg-slate-900 rounded-3xl p-6 md:p-8 shadow-xl border border-slate-800">
           <div className="flex items-center space-x-2 text-white text-lg font-black uppercase tracking-wider mb-6">
@@ -81,14 +96,21 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
             <span>Destacados de la Semana</span>
           </div>
           
-          <div className="w-full overflow-hidden relative hide-scrollbar rounded-xl">
-            {/* 🚀 CORRECCIÓN: Usando la nueva sintaxis bg-linear-to-* de Tailwind v4 */}
+          <div className="w-full overflow-hidden relative rounded-xl">
             <div className="absolute top-0 bottom-0 left-0 w-12 bg-linear-to-r from-slate-900 to-transparent z-10 pointer-events-none"></div>
             <div className="absolute top-0 bottom-0 right-0 w-12 bg-linear-to-l from-slate-900 to-transparent z-10 pointer-events-none"></div>
             
-            <div className="slider-track gap-4">
+            {/* 🚀 CONTENEDOR NATIVO: Se maneja con scroll verdadero, lo que permite agarrarlo */}
+            <div 
+              ref={sliderRef}
+              className="flex gap-4 overflow-x-auto hide-scrollbar touch-pan-x py-2 cursor-grab active:cursor-grabbing"
+              onMouseEnter={() => setIsSliderPaused(true)}
+              onMouseLeave={() => setIsSliderPaused(false)}
+              onTouchStart={() => setIsSliderPaused(true)}
+              onTouchEnd={() => setIsSliderPaused(false)}
+            >
               {displaySliders.map((product, idx) => (
-                <div key={`${product.sku}-${idx}`} className="w-64 shrink-0 bg-white rounded-2xl p-5 shadow border border-slate-200 flex flex-col justify-between transition-transform hover:scale-[1.02] cursor-pointer">
+                <div key={`${product.sku}-${idx}`} className="w-64 shrink-0 bg-white rounded-2xl p-5 shadow border border-slate-200 flex flex-col justify-between transition-transform hover:-translate-y-1">
                   <div>
                     <div className="flex justify-between items-start mb-1">
                       <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{product.category}</span>
@@ -103,7 +125,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
                       </span>
                       {product.isPromo && <span className="text-xs text-slate-400 line-through">${product.unitPrice}</span>}
                     </div>
-                    <button onClick={() => handleAddToCart(product)} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex justify-center items-center space-x-2">
+                    <button onClick={() => handleAddToCart(product)} className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex justify-center items-center space-x-2 cursor-pointer">
                       <ShoppingCart size={14} /> <span>Agregar</span>
                     </button>
                   </div>
@@ -118,7 +140,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
       {/* SECCIÓN DEL CATÁLOGO NORMAL ABAJO */}
       {/* ========================================= */}
 
-      {/* 🔍 BARRA DE BÚSQUEDA UNIVERSAL */}
       <div className="relative max-w-2xl mx-auto w-full">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <Search className="text-slate-400" size={20} />
@@ -137,7 +158,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
         )}
       </div>
 
-      {/* 🏷️ FILTROS DINÁMICOS POR RUBRO */}
       <div className="w-full border-b border-slate-200 pb-4">
         <div className="flex items-center space-x-2 text-slate-400 text-xs font-black uppercase tracking-wider mb-3">
           <Filter size={14}/> <span>Filtrar por Rubro</span>
@@ -159,7 +179,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
         </div>
       </div>
 
-      {/* 📦 GRILLA DE RESULTADOS PAGINADOS */}
       {currentProductsForDisplay.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 p-8">
           <p className="text-slate-400 font-bold text-base">No encontramos productos que coincidan con los filtros seleccionados.</p>
@@ -202,7 +221,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
             ))}
           </div>
 
-          {/* 🔢 CONTROLES DE PAGINACIÓN */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center space-x-2 pt-6 border-t border-slate-100">
               <button
