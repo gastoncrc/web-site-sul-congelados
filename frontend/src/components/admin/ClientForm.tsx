@@ -34,7 +34,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
     setSystemMessage('Creando cuenta de cliente...');
     
     try {
-      const response = await api.post('/auth/register-client-admin', clientForm);
+      const response = await api.post('/register-client-admin', clientForm);
       setSystemMessage(`✅ ${response.data.message}`);
       
       // Limpiamos el formulario tras un registro exitoso

@@ -37,29 +37,25 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
   };
 
   // 🚀 NUEVO: Traer listado de clientes de la base de datos
-  const fetchClientsData = async () => {
+const fetchClientsData = async () => {
     try {
-      const response = await api.get(`/auth/clients?t=${new Date().getTime()}`);
+      // 🚀 CORRECCIÓN: Le sacamos el /auth
+      const response = await api.get(`/clients?t=${new Date().getTime()}`);
       setClientList(response.data);
     } catch (error) {
       console.error('Error cargando clientes en el admin:', error);
     }
   };
 
-  useEffect(() => {
-    if (activeModule === 'product-list') fetchAdminData();
-    if (activeModule === 'client-list') fetchClientsData(); // 🚀 Dispara la carga al entrar a Gestión CRM
-  }, [activeModule]);
-
-  if (user?.role !== 'Admin') return null;
-
+  // 2. Buscá handleBulkUpload y cambiá el endpoint de clientes:
   const handleBulkUpload = async (type: 'products' | 'clients') => {
     if (!file) return setSystemMessage('Seleccioná un archivo Excel.');
     setIsLoading(true);
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const endpoint = type === 'products' ? '/products/upload-prices' : '/auth/upload-clients';
+      // 🚀 CORRECCIÓN: Le sacamos el /auth a upload-clients
+      const endpoint = type === 'products' ? '/products/upload-prices' : '/upload-clients';
       const response = await api.post(endpoint, formData);
       setSystemMessage(response.data.message);
       setFile(null);
