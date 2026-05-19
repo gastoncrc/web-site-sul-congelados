@@ -21,7 +21,7 @@ export default function App() {
 }
 
 function MainLayout() {
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   
   const [currentView, setCurrentView] = useState<'home' | 'nosotros' | 'contacto' | 'admin'>('home');
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
@@ -47,9 +47,18 @@ function MainLayout() {
   // 🚀 INTERCEPTOR ADMIN: Full screen dashboard
   if (user?.role === 'Admin') {
     return (
-      <div className="h-screen w-screen bg-[#0f172a] font-sans text-gray-800 overflow-hidden">
+      <div className="h-screen w-screen bg-[#0f172a] font-sans text-gray-800 overflow-hidden relative">
+        
+        {/* 🚀 NUEVO BOTÓN DE SALIDA PARA EL ADMIN */}
+        <button 
+          onClick={logout} 
+          className="absolute top-4 right-4 z-50 bg-red-900/50 text-red-200 border border-red-700/50 px-4 py-2 rounded-lg flex items-center hover:bg-red-800 transition font-bold text-sm shadow-lg cursor-pointer"
+        >
+          Cerrar Sesión Admin
+        </button>
+
         {systemMessage && (
-          <div className="absolute top-4 right-4 z-50 bg-blue-50 border-l-4 border-blue-600 p-4 rounded shadow-lg flex justify-between items-center min-w-75">
+          <div className="absolute top-16 right-4 z-50 bg-blue-50 border-l-4 border-blue-600 p-4 rounded shadow-lg flex justify-between items-center min-w-75">
             <span className="text-sm font-medium text-blue-900">{systemMessage}</span>
             <button onClick={() => setSystemMessage('')} className="ml-4 text-blue-500 font-bold text-xs hover:underline">X</button>
           </div>
