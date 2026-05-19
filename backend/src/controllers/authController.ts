@@ -126,7 +126,7 @@ export const registerClientAdmin = async (req: Request, res: Response) => {
   }
 };
 
-// 4. Inyector masivo desde Excel alineado a la nueva tabla de Neon
+// 4. Inyector masivo desde Excel alineado a la nueva tabla de Neon (Mapeo de tu CSV)
 export const uploadClientsExcel = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   if (!req.file) return res.status(400).json({ error: 'Archivo de clientes ausente' });
@@ -147,20 +147,29 @@ export const uploadClientsExcel = async (req: Request, res: Response) => {
       await client.query('BEGIN');
 
       for (const row of rows) {
-        if (row.cl_codigo && row.cl_nombre) {
-          const cleanCode = String(row.cl_codigo).split('.')[0].trim();
-          const cleanName = String(row.cl_nombre).trim();
+        // Normalizamos claves del objeto JSON extraído del CSV
+        const cleanRow: any = {};
+        for (const k of Object.keys(row)) {
+          cleanRow[k.toLowerCase().trim()] = row[k];
+        }
+
+        if (cleanRow.cl_codigo && cleanRow.cl_nombre) {
+          const cleanCode = String(cleanRow.cl_codigo).replace('.0', '').trim();
+          const cleanName = String(cleanRow.cl_nombre).trim();
           const generatedEmail = `cl_${cleanCode}@sul.com`.toLowerCase();
           
-          const convenio = row.nombre_lista ? String(row.nombre_lista).trim() : 'GENERAL';
-          const vendedor = row.nombre_vendedor ? String(row.nombre_vendedor).trim() : 'Sin vendedor';
+          const convenio = cleanRow.nombre_lista ? String(cleanRow.nombre_lista).trim() : 'GENERAL';
+          const vendedor = cleanRow.nombre_vendedor ? String(cleanRow.nombre_vendedor).trim() : 'Sin vendedor';
+          
+          // 🚀 Mapeo del campo inactivo del CSV
+          const is_active = (cleanRow.inactivo == 1 || cleanRow.inactivo == '1') ? false : true;
 
           await pool.query(`
             INSERT INTO users (name, email, password, role, convenio, vendedor, require_password_change, is_active)
-            VALUES ($1, $2, $3, 'Cliente', $4, $5, TRUE, TRUE)
+            VALUES ($1, $2, $3, 'Cliente', $4, $5, TRUE, $6)
             ON CONFLICT (email) DO UPDATE 
-            SET name = $1, convenio = $4, vendedor = $5, is_active = TRUE
-          `, [cleanName, generatedEmail, defaultPasswordHash, convenio, vendedor]);
+            SET name = $1, convenio = $4, vendedor = $5, is_active = $6
+          `, [cleanName, generatedEmail, defaultPasswordHash, convenio, vendedor, is_active]);
 
           processed++;
         }
