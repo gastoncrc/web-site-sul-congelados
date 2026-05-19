@@ -5,8 +5,8 @@ import {
   upsertIndividualProduct, 
   toggleProductFlags, 
   setIndividualPrice,
-  getAdminProducts, // ✅ Función agregada al import
-  deleteProduct     // ✅ Función agregada al import
+  getAdminProducts,
+  deleteProduct 
 } from '../controllers/productController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 import multer from 'multer';
