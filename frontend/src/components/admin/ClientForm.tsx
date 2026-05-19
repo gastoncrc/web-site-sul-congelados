@@ -1,129 +1,101 @@
 import React, { useState } from 'react';
-import { Users } from 'lucide-react';
+import { UserPlus, Save } from 'lucide-react';
 import { api } from '../../config/api';
 
 interface ClientFormProps {
   setSystemMessage: (msg: string) => void;
 }
 
-interface ClientFormData {
-  tradeName: string;
-  businessName: string;
-  taxId: string;
-  address: string;
-  city: string;
-  province: string;
-  phone: string;
-  email: string;
-  seller: string;
-  agreement: string;
-  group: string;
-}
-
 export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
-  const [clientForm, setClientForm] = useState<ClientFormData>({ 
-    tradeName: '', businessName: '', taxId: '', address: '', city: '', province: '', 
-    phone: '', email: '', seller: '', agreement: '', group: '' 
+  const [formData, setFormData] = useState({
+    username: '',
+    name: '',
+    convenio: 'CORDOBA',
+    is_active: true
   });
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleClientSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setSystemMessage('Creando cuenta de cliente...');
-    
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
     try {
-      const response = await api.post('/auth/register-client-admin', clientForm);
-      setSystemMessage(`✅ ${response.data.message}`);
-      
-      // Limpiamos el formulario tras un registro exitoso
-      setClientForm({ 
-        tradeName: '', businessName: '', taxId: '', address: '', city: '', province: '', 
-        phone: '', email: '', seller: '', agreement: '', group: '' 
-      });
-    } catch (err: any) {
-      const errorMsg = err.response?.data?.error || 'Error de conexión con el servidor.';
-      setSystemMessage(`🚨 Error: ${errorMsg}`);
+      await api.post('/auth/create', formData);
+      setSystemMessage('✅ Cliente creado/actualizado exitosamente.');
+      setFormData({ username: '', name: '', convenio: 'CORDOBA', is_active: true });
+    } catch (error) {
+      setSystemMessage('🚨 Error al guardar el cliente.');
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-      <h2 className="text-xl font-black text-slate-900 uppercase mb-6 flex items-center">
-        <Users className="mr-2 text-slate-400"/> Alta Individual de Cliente
-      </h2>
-      <form onSubmit={handleClientSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="max-w-2xl mx-auto space-y-6 mt-6">
+      <div className="flex items-center space-x-3 mb-6">
+        <div className="bg-slate-900 p-3 rounded-xl"><UserPlus className="text-[#deff9a]" size={24} /></div>
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 uppercase">Alta de Cliente</h2>
+          <p className="text-sm text-slate-500 font-medium">La contraseña por defecto será: <span className="font-mono bg-slate-100 px-1 rounded text-slate-700">SULcongelados2026</span></p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200 space-y-6">
         
-        <div className="md:col-span-2">
-          <hr className="my-2 border-slate-100"/> 
-          <h3 className="text-xs font-bold text-slate-400 mb-2 uppercase">Datos Comerciales</h3>
-        </div>
-        
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Nombre de Fantasía *</label>
-          <input type="text" required value={clientForm.tradeName} onChange={e => setClientForm({...clientForm, tradeName: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Razón Social</label>
-          <input type="text" value={clientForm.businessName} onChange={e => setClientForm({...clientForm, businessName: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">CUIT</label>
-          <input type="text" value={clientForm.taxId} onChange={e => setClientForm({...clientForm, taxId: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Convenio Asignado *</label>
-          <input type="text" required value={clientForm.agreement} onChange={e => setClientForm({...clientForm, agreement: e.target.value})} placeholder="Ej: 2X1 CORDOBA" className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Grupo *</label>
-          <input type="text" required value={clientForm.group} onChange={e => setClientForm({...clientForm, group: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Vendedor *</label>
-          <input type="text" required value={clientForm.seller} onChange={e => setClientForm({...clientForm, seller: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-xs font-black text-slate-700 uppercase mb-2">Código Cliente (Usuario) *</label>
+            <input 
+              type="text" required
+              value={formData.username}
+              onChange={e => setFormData({...formData, username: e.target.value})}
+              className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900" 
+              placeholder="Ej: 80000193"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-black text-slate-700 uppercase mb-2">Razón Social / Nombre *</label>
+            <input 
+              type="text" required
+              value={formData.name}
+              onChange={e => setFormData({...formData, name: e.target.value})}
+              className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900" 
+              placeholder="Ej: 2 CAÑADA"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-xs font-black text-slate-700 uppercase mb-2">Lista de Precios (Convenio) *</label>
+            <input 
+              type="text" required
+              value={formData.convenio}
+              onChange={e => setFormData({...formData, convenio: e.target.value})}
+              className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900" 
+              placeholder="Ej: 2x1 Cordoba"
+            />
+          </div>
         </div>
 
-        <div className="md:col-span-2">
-          <hr className="my-2 border-slate-100"/> 
-          <h3 className="text-xs font-bold text-slate-400 mb-2 uppercase">Datos Logísticos y Contacto</h3>
+        <div className="flex items-center pt-4">
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={formData.is_active} 
+              onChange={e => setFormData({...formData, is_active: e.target.checked})} 
+              className="rounded border-slate-300 w-5 h-5 text-slate-900 focus:ring-slate-900 cursor-pointer" 
+            />
+            <span className="text-sm font-bold text-slate-700 uppercase">Cuenta Activa</span>
+          </label>
         </div>
 
-        <div className="md:col-span-2">
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Domicilio de Entrega *</label>
-          <input type="text" required value={clientForm.address} onChange={e => setClientForm({...clientForm, address: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Localidad *</label>
-          <input type="text" required value={clientForm.city} onChange={e => setClientForm({...clientForm, city: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Provincia *</label>
-          <input type="text" required value={clientForm.province} onChange={e => setClientForm({...clientForm, province: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Teléfono *</label>
-          <input type="text" required value={clientForm.phone} onChange={e => setClientForm({...clientForm, phone: e.target.value})} className="w-full mt-1 p-2 border rounded bg-slate-50 text-sm outline-none" />
-        </div>
-        <div>
-          <label className="block text-[11px] font-black text-slate-700 uppercase">Email (Usuario Web) *</label>
-          <input type="email" required value={clientForm.email} onChange={e => setClientForm({...clientForm, email: e.target.value})} className="w-full mt-1 p-2 border border-blue-200 rounded bg-blue-50 text-sm outline-none" />
-          <p className="text-[10px] text-slate-400 mt-1">Se generará una contraseña aleatoria y se exigirá el cambio al primer ingreso.</p>
-        </div>
-
-        <div className="md:col-span-2 mt-6">
-          <button type="submit" disabled={isSubmitting} className="w-full bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-slate-800 transition shadow disabled:opacity-50 flex justify-center">
-            {isSubmitting ? (
-              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
-              "Generar Cuenta de Cliente"
-            )}
+        <div className="pt-6 border-t border-slate-100 flex justify-end">
+          <button 
+            type="submit" 
+            disabled={isLoading}
+            className="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-slate-800 transition flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
+          >
+            <Save size={18} />
+            <span>{isLoading ? 'Guardando...' : 'Crear Cliente'}</span>
           </button>
         </div>
       </form>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './config/api';
-import type { Product, CartItem } from './types';
+import type { Product } from './types'; // CartItem eliminado porque está en desuso
+import { X, ShoppingCart as CartIcon, Trash2 } from 'lucide-react';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -11,6 +12,19 @@ import { Catalog } from './pages/Catalog';
 import { Admin } from './pages/Admin';
 import { Nosotros } from './pages/Nosotros';
 import { Contacto } from './pages/Contacto';
+import { formatPrice } from './../utils/currency'; // Ajustá la ruta si tu App.tsx está en otro lado
+
+// 🚀 Interfaz extendida para solucionar el error de TypeScript
+interface AppProduct extends Product {
+  isPromo?: boolean;
+  promoPrice?: number;
+  unitPrice: number;
+}
+
+interface AppCartItem {
+  product: AppProduct;
+  quantity: number;
+}
 
 export default function App() {
   return (
@@ -24,12 +38,13 @@ function MainLayout() {
   const { token, user } = useAuth();
   
   const [currentView, setCurrentView] = useState<'home' | 'nosotros' | 'contacto' | 'admin'>('home');
-  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
-  const [shoppingCart, setShoppingCart] = useState<CartItem[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<AppProduct[]>([]);
+  const [shoppingCart, setShoppingCart] = useState<AppCartItem[]>([]);
   const [isCatalogLoading, setIsCatalogLoading] = useState(true); 
   
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [systemMessage, setSystemMessage] = useState('');
 
   const fetchCatalogData = async () => {
@@ -38,7 +53,7 @@ function MainLayout() {
       const response = await api.get(`/products?t=${new Date().getTime()}`);
       setCatalogProducts(response.data);
     } catch (error) {
-      console.error("Error al cargar productos (El servidor de Render está iniciando):", error);
+      console.error("Error al cargar productos:", error);
       setCatalogProducts([]); 
     } finally {
       setIsCatalogLoading(false);
@@ -48,21 +63,17 @@ function MainLayout() {
   useEffect(() => {
     if (currentView === 'home') {
       fetchCatalogData();
-      setSystemMessage(''); // Limpia mensajes viejos al volver al home
+      setSystemMessage(''); 
     }
   }, [token, currentView]);
 
-  // 🚀 EL FIX DEL MODAL: Si el token desaparece (cierre de sesión), matamos el modal de contraseña
   useEffect(() => {
-    if (!token) {
-      setIsPasswordModalOpen(false);
-    }
+    if (!token) setIsPasswordModalOpen(false);
   }, [token]);
 
-  // 🚀 INTERCEPTOR ADMIN
   if (user?.role === 'Admin') {
     return (
-      <div className="h-screen w-screen bg-[#0f172a] font-sans text-gray-800 overflow-hidden relative">
+      <div className="fixed inset-0 h-dvh w-screen bg-[#0f172a] font-sans text-gray-800 overflow-hidden flex flex-col">
         {systemMessage && (
           <div className="absolute top-4 right-4 z-50 bg-blue-50 border-l-4 border-blue-600 p-4 rounded shadow-lg flex justify-between items-center min-w-75">
             <span className="text-sm font-medium text-blue-900">{systemMessage}</span>
@@ -74,10 +85,15 @@ function MainLayout() {
     );
   }
 
-  // 🛒 CLIENT VIEW
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 overflow-x-hidden">
-      <Header currentTab={currentView} setCurrentTab={setCurrentView} openLogin={() => setIsLoginModalOpen(true)} />
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 overflow-x-hidden relative">
+      <Header 
+        currentTab={currentView} 
+        setCurrentTab={setCurrentView} 
+        openLogin={() => setIsLoginModalOpen(true)} 
+        cartCount={shoppingCart.reduce((acc, item) => acc + item.quantity, 0)}
+        onOpenCart={() => setIsCartOpen(true)} 
+      />
       
       <main className="grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-10">
         {systemMessage && (
@@ -92,33 +108,65 @@ function MainLayout() {
             <div className="flex flex-col items-center justify-center py-24 opacity-70">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900 mb-4"></div>
               <p className="text-slate-800 font-bold">Conectando con el catálogo...</p>
-              <p className="text-xs text-slate-400 mt-2 max-w-sm text-center">
-                Aguardá unos segundos mientras inicializamos la base de datos de precios.
-              </p>
             </div>
           ) : (
-            <Catalog products={catalogProducts} cart={shoppingCart} setShoppingCart={setShoppingCart} />
+            <Catalog products={catalogProducts as any} cart={shoppingCart as any} setShoppingCart={setShoppingCart as any} />
           )
         )}
-
         {currentView === 'nosotros' && <Nosotros />}
         {currentView === 'contacto' && <Contacto />}
       </main>
       
       <Footer />
       
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
-        setStatusMessage={setSystemMessage} 
-        setShowChangePwd={setIsPasswordModalOpen} 
-      />
-      
-      <ChangePasswordModal 
-        isOpen={isPasswordModalOpen} 
-        setStatusMessage={setSystemMessage} 
-        onSuccess={() => setIsPasswordModalOpen(false)} 
-      />
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} setStatusMessage={setSystemMessage} setShowChangePwd={setIsPasswordModalOpen} />
+      <ChangePasswordModal isOpen={isPasswordModalOpen} setStatusMessage={setSystemMessage} onSuccess={() => setIsPasswordModalOpen(false)} />
+
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setIsCartOpen(false)} />
+          <div className="relative w-full max-w-md bg-white h-dvh shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <h2 className="text-lg font-black uppercase text-slate-900 flex items-center"><CartIcon size={20} className="mr-2"/> Tu Pedido</h2>
+              <button onClick={() => setIsCartOpen(false)} className="p-2 text-slate-500 hover:text-slate-900 bg-slate-200 rounded-full cursor-pointer"><X size={18} /></button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {shoppingCart.length === 0 ? (
+                <div className="text-center text-slate-400 mt-10"><CartIcon size={48} className="mx-auto mb-4 opacity-20"/> <p>Tu carrito está vacío.</p></div>
+              ) : (
+                shoppingCart.map(item => (
+                  <div key={item.product.sku} className="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-900">{item.product.name}</p>
+                      {/* 🚀 FIX: Se agregan los ?? 0 para evitar el error de TypeScript */}
+                      <p className="text-[10px] text-slate-500">{item.quantity} x ${formatPrice((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0)}</p>
+                    </div>
+                    <div className="flex items-center space-x-3 ml-2">
+                      <span className="font-black text-sm">${formatPrice(((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity)}</span>
+                      <button onClick={() => setShoppingCart(shoppingCart.filter(i => i.product.sku !== item.product.sku))} className="text-red-400 hover:text-red-600 cursor-pointer p-1"><Trash2 size={16}/></button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {shoppingCart.length > 0 && (
+              <div className="p-6 border-t border-slate-200 bg-slate-50 shrink-0">
+                <div className="flex justify-between items-center mb-4">
+                  <span className="font-bold text-slate-600">Total Neto:</span>
+                  <span className="text-xl font-black text-slate-900">
+                    ${formatPrice(shoppingCart.reduce((total, item) => total + (((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity), 0))}
+                  </span>
+                </div>
+                <button className="w-full bg-[#003366] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-900 transition cursor-pointer">
+                  Confirmar Pedido
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
