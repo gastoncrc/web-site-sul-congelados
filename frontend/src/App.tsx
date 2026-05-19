@@ -21,30 +21,37 @@ export default function App() {
 }
 
 function MainLayout() {
-  const { token, user } = useAuth(); // Ya no necesitamos 'logout' acá, va en Admin.tsx
+  const { token, user } = useAuth();
   
   const [currentView, setCurrentView] = useState<'home' | 'nosotros' | 'contacto' | 'admin'>('home');
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const [shoppingCart, setShoppingCart] = useState<CartItem[]>([]);
+  const [isCatalogLoading, setIsCatalogLoading] = useState(true); // 🚀 ESTADO DE CARGA
   
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [systemMessage, setSystemMessage] = useState('');
 
   const fetchCatalogData = async () => {
+    setIsCatalogLoading(true);
     try {
       const response = await api.get(`/products?t=${new Date().getTime()}`);
       setCatalogProducts(response.data);
     } catch (error) {
+      console.error("Error al cargar productos (El servidor de Render está iniciando):", error);
       setCatalogProducts([]); 
+    } finally {
+      setIsCatalogLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCatalogData();
+    if (currentView === 'home') {
+      fetchCatalogData();
+    }
   }, [token, currentView]);
 
-  // 🚀 INTERCEPTOR ADMIN: Full screen dashboard (Limpio)
+  // 🚀 INTERCEPTOR ADMIN
   if (user?.role === 'Admin') {
     return (
       <div className="h-screen w-screen bg-[#0f172a] font-sans text-gray-800 overflow-hidden relative">
@@ -72,7 +79,21 @@ function MainLayout() {
           </div>
         )}
         
-        {currentView === 'home' && <Catalog products={catalogProducts} cart={shoppingCart} setCart={setShoppingCart} openLogin={() => setIsLoginModalOpen(true)} />}
+        {/* 🚀 LÓGICA DE CARGA Y CORRECCIÓN DE PROPS DEL CATALOGO */}
+        {currentView === 'home' && (
+          isCatalogLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 opacity-70">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900 mb-4"></div>
+              <p className="text-slate-800 font-bold">Conectando con el catálogo...</p>
+              <p className="text-xs text-slate-400 mt-2 max-w-sm text-center">
+                Aguardá unos segundos mientras inicializamos la base de datos de precios.
+              </p>
+            </div>
+          ) : (
+            <Catalog products={catalogProducts} cart={shoppingCart} setShoppingCart={setShoppingCart} />
+          )
+        )}
+
         {currentView === 'nosotros' && <Nosotros />}
         {currentView === 'contacto' && <Contacto />}
       </main>
