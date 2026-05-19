@@ -13,12 +13,26 @@ interface AdminProps {
   triggerDataRefresh: () => Promise<void>;
 }
 
+// 🚀 COMPONENTE PARA ALTA DE USUARIOS/ADMINS
+const UserForm = ({ setSystemMessage }: { setSystemMessage: any }) => {
+  const [form, setForm] = useState({ email: '', password: '', role: 'Admin', convenio: 'GENERAL', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' });
+  return (
+    <form className="bg-white p-6 rounded-2xl max-w-xl mx-auto space-y-4 shadow-sm border border-slate-200 mt-10" onSubmit={async e => { e.preventDefault(); try { await api.post('/auth/admin-create-user', form); setSystemMessage('✅ Usuario creado exitosamente'); setForm({ email: '', password: '', role: 'Admin', convenio: 'GENERAL', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' }); } catch(e){ setSystemMessage('🚨 Error al crear usuario'); } }}>
+      <h2 className="font-black text-xl mb-4 text-slate-900 uppercase">Alta de Usuario</h2>
+      <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Email</label><input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" /></div>
+      <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Contraseña</label><input type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" /></div>
+      <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Rol</label><select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none"><option value="Admin">Administrador</option><option value="Minorista">Minorista</option></select></div>
+      <button type="submit" className="w-full bg-slate-900 text-white p-3 rounded-xl font-bold hover:bg-slate-800 transition cursor-pointer">Crear Usuario</button>
+    </form>
+  );
+};
+
 export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefresh }) => {
   const { user, logout } = useAuth(); 
   
-  // Navigation & UI States
-  const [activeModule, setActiveModule] = useState<'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'preview'>('product-list');
-  const [expandedSection, setExpandedSection] = useState<'products' | 'clients' | null>('products');
+  // Navigation & UI States (Agregado user-form)
+  const [activeModule, setActiveModule] = useState<'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'preview'>('product-list');
+  const [expandedSection, setExpandedSection] = useState<'products' | 'clients' | 'users' | null>('products');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Data States
@@ -54,7 +68,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
 
   // Manejador de subidas masivas
   const handleBulkUpload = async (type: 'products' | 'clients') => {
-    if (!file) return setSystemMessage('Seleccioná un archivo Excel.');
+    if (!file) return setSystemMessage('Seleccioná un archivo Excel o CSV.');
     setIsLoading(true);
     const formData = new FormData();
     formData.append('file', file);
@@ -92,7 +106,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
             ) : (
               <h2 className="text-white text-lg font-black mx-auto">PA</h2>
             )}
-            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-slate-400 hover:text-white p-1 ml-2">
+            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-slate-400 hover:text-white p-1 ml-2 cursor-pointer">
               <Menu size={20} />
             </button>
           </div>
@@ -100,29 +114,42 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
           <nav className="space-y-4 flex-1 overflow-y-auto p-4 sm:p-6">
             {/* PRODUCT MODULE */}
             <div>
-              <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'products' ? null : 'products')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition ${expandedSection === 'products' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+              <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'products' ? null : 'products')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'products' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
                 <div className="flex items-center"><Package size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">PRODUCTOS</span>}</div>
                 {!isSidebarCollapsed && (expandedSection === 'products' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
               </button>
               {expandedSection === 'products' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('product-list')} className={`w-full text-left p-2 text-xs font-medium rounded ${activeModule === 'product-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Listado de Productos</button>
-                  <button onClick={() => setActiveModule('product-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded ${activeModule === 'product-bulk' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Carga Masiva</button>
+                  <button onClick={() => setActiveModule('product-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Listado de Productos</button>
+                  <button onClick={() => setActiveModule('product-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-bulk' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Carga Masiva</button>
                 </div>
               )}
             </div>
 
             {/* CLIENT MODULE */}
             <div>
-              <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'clients' ? null : 'clients')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition ${expandedSection === 'clients' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+              <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'clients' ? null : 'clients')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'clients' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
                 <div className="flex items-center"><Users size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">CLIENTES</span>}</div>
                 {!isSidebarCollapsed && (expandedSection === 'clients' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
               </button>
               {expandedSection === 'clients' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('client-list')} className={`w-full text-left p-2 text-xs font-medium rounded ${activeModule === 'client-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Gestión CRM</button>
-                  <button onClick={() => setActiveModule('client-form')} className={`w-full text-left p-2 text-xs font-medium rounded ${activeModule === 'client-form' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Alta Individual</button>
-                  <button onClick={() => setActiveModule('client-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded ${activeModule === 'client-bulk' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Sincronizar ERP</button>
+                  <button onClick={() => setActiveModule('client-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Gestión CRM</button>
+                  <button onClick={() => setActiveModule('client-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-form' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Alta Individual</button>
+                  <button onClick={() => setActiveModule('client-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-bulk' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Sincronizar ERP</button>
+                </div>
+              )}
+            </div>
+
+            {/* 🚀 USER MODULE (AGREGADO) */}
+            <div>
+              <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'users' ? null : 'users')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'users' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+                <div className="flex items-center"><UserIcon size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">USUARIOS</span>}</div>
+                {!isSidebarCollapsed && (expandedSection === 'users' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
+              </button>
+              {expandedSection === 'users' && !isSidebarCollapsed && (
+                <div className="ml-9 mt-2 space-y-1">
+                  <button onClick={() => setActiveModule('user-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'user-form' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Crear Admin / Minorista</button>
                 </div>
               )}
             </div>
@@ -165,13 +192,18 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
           <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />
         )}
 
-        {/* 🚀 RENDER GESTIÓN CRM SEPARADO */}
+        {/* RENDER GESTIÓN CRM SEPARADO */}
         {activeModule === 'client-list' && (
           <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />
         )}
 
         {activeModule === 'client-form' && (
           <ClientForm setSystemMessage={setSystemMessage} />
+        )}
+
+        {/* 🚀 RENDER DE CREACIÓN DE USUARIO (AGREGADO) */}
+        {activeModule === 'user-form' && (
+          <UserForm setSystemMessage={setSystemMessage} />
         )}
 
         {/* PRODUCT BULK UPLOAD */}
@@ -183,10 +215,28 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               <p className="text-slate-400 text-xs mt-1">Sincronizá tu Excel de inventario y listas.</p>
             </div>
             <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200">
-              <input type="file" accept=".xlsx,.xls" className="hidden" id="prod-file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" id="prod-file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
               <label htmlFor="prod-file" className="cursor-pointer block text-sm text-slate-500 font-medium py-4">{file ? `Seleccionado: ${file.name}` : "Hacé click para seleccionar matriz Excel"}</label>
-              <button onClick={() => handleBulkUpload('products')} disabled={isLoading || !file} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition disabled:opacity-50 text-sm">
+              <button onClick={() => handleBulkUpload('products')} disabled={isLoading || !file} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition disabled:opacity-50 text-sm cursor-pointer">
                 {isLoading ? "Procesando matriz..." : "Actualizar Catálogo B2B"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 🚀 CLIENT BULK UPLOAD (AGREGADO) */}
+        {activeModule === 'client-bulk' && (
+          <div className="max-w-xl mx-auto space-y-6 mt-10 text-center">
+            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto"><Upload className="text-blue-600" size={28} /></div>
+            <div>
+              <h2 className="text-xl font-black text-slate-900 uppercase">Carga Masiva de Clientes</h2>
+              <p className="text-slate-400 text-xs mt-1">Sincronizá tu listado de clientes mediante Excel/CSV.</p>
+            </div>
+            <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200">
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" id="client-file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              <label htmlFor="client-file" className="cursor-pointer block text-sm text-slate-500 font-medium py-4">{file ? `Seleccionado: ${file.name}` : "Hacé click para seleccionar matriz CSV/Excel"}</label>
+              <button onClick={() => handleBulkUpload('clients')} disabled={isLoading || !file} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition disabled:opacity-50 text-sm cursor-pointer">
+                {isLoading ? "Procesando matriz..." : "Sincronizar Clientes"}
               </button>
             </div>
           </div>

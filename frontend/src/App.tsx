@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './config/api';
-import type { Product } from './types'; // CartItem eliminado porque está en desuso
+import type { Product } from './types'; 
 import { X, ShoppingCart as CartIcon, Trash2 } from 'lucide-react';
 
 import { Header } from './components/Header';
@@ -12,9 +12,8 @@ import { Catalog } from './pages/Catalog';
 import { Admin } from './pages/Admin';
 import { Nosotros } from './pages/Nosotros';
 import { Contacto } from './pages/Contacto';
-import { formatPrice } from './../utils/currency'; // Ajustá la ruta si tu App.tsx está en otro lado
+import { formatPrice } from './../utils/currency';
 
-// 🚀 Interfaz extendida para solucionar el error de TypeScript
 interface AppProduct extends Product {
   isPromo?: boolean;
   promoPrice?: number;
@@ -53,7 +52,6 @@ function MainLayout() {
       const response = await api.get(`/products?t=${new Date().getTime()}`);
       setCatalogProducts(response.data);
     } catch (error) {
-      console.error("Error al cargar productos:", error);
       setCatalogProducts([]); 
     } finally {
       setIsCatalogLoading(false);
@@ -67,9 +65,7 @@ function MainLayout() {
     }
   }, [token, currentView]);
 
-  useEffect(() => {
-    if (!token) setIsPasswordModalOpen(false);
-  }, [token]);
+  useEffect(() => { if (!token) setIsPasswordModalOpen(false); }, [token]);
 
   if (user?.role === 'Admin') {
     return (
@@ -85,11 +81,21 @@ function MainLayout() {
     );
   }
 
+  // 🚀 FUNCIÓN PARA CAMBIAR CANTIDADES
+  const updateCartQuantity = (sku: string, delta: number) => {
+    setShoppingCart(prev => prev.map(item => {
+      if (item.product.sku === sku) {
+        const newQty = item.quantity + delta;
+        return newQty > 0 ? { ...item, quantity: newQty } : item;
+      }
+      return item;
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 overflow-x-hidden relative">
       <Header 
-        currentTab={currentView} 
-        setCurrentTab={setCurrentView} 
+        currentTab={currentView} setCurrentTab={setCurrentView} 
         openLogin={() => setIsLoginModalOpen(true)} 
         cartCount={shoppingCart.reduce((acc, item) => acc + item.quantity, 0)}
         onOpenCart={() => setIsCartOpen(true)} 
@@ -118,7 +124,6 @@ function MainLayout() {
       </main>
       
       <Footer />
-      
       <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} setStatusMessage={setSystemMessage} setShowChangePwd={setIsPasswordModalOpen} />
       <ChangePasswordModal isOpen={isPasswordModalOpen} setStatusMessage={setSystemMessage} onSuccess={() => setIsPasswordModalOpen(false)} />
 
@@ -139,8 +144,14 @@ function MainLayout() {
                   <div key={item.product.sku} className="flex justify-between items-center border-b border-slate-100 pb-4">
                     <div className="flex-1">
                       <p className="text-xs font-bold text-slate-900">{item.product.name}</p>
-                      {/* 🚀 FIX: Se agregan los ?? 0 para evitar el error de TypeScript */}
-                      <p className="text-[10px] text-slate-500">{item.quantity} x ${formatPrice((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0)}</p>
+                      
+                      {/* 🚀 BOTONES DE SUMAR Y RESTAR CANTIDADES */}
+                      <div className="flex items-center space-x-2 mt-2">
+                        <button onClick={() => updateCartQuantity(item.product.sku, -1)} className="w-6 h-6 flex items-center justify-center bg-slate-200 rounded-md text-slate-700 font-bold hover:bg-slate-300 cursor-pointer">-</button>
+                        <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+                        <button onClick={() => updateCartQuantity(item.product.sku, 1)} className="w-6 h-6 flex items-center justify-center bg-slate-200 rounded-md text-slate-700 font-bold hover:bg-slate-300 cursor-pointer">+</button>
+                      </div>
+
                     </div>
                     <div className="flex items-center space-x-3 ml-2">
                       <span className="font-black text-sm">${formatPrice(((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity)}</span>
