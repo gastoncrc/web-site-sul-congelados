@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Lock } from 'lucide-react';
 import { api } from '../config/api';
 import { useAuth } from '../context/AuthContext';
@@ -14,11 +14,16 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // 🚀 Estado de carga para el Spinner
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoggingIn(true); // 🚀 Inicia la animación de carga
+
     try {
       const res = await api.post('/auth/login', { email, password });
       const { token, user } = res.data;
@@ -33,7 +38,7 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
         setStatusMessage(`👋 ¡Bienvenido, ${user.name || user.email}!`);
       }
 
-      // 3. Cerramos el modal de login AL FINAL de todo para evitar el pestañeo o glitch en React
+      // 3. Cerramos el modal de login AL FINAL de todo
       onClose();
       
       setEmail('');
@@ -42,6 +47,8 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
       console.error("Error detallado del login:", err);
       const errorReal = err.response?.data?.error || err.response?.statusText || err.message || "Error de conexión";
       alert(`🚨 Falló la conexión con el servidor:\n${errorReal}`);
+    } finally {
+      setIsLoggingIn(false); // 🚀 Detiene la animación pase lo que pase
     }
   };
 
@@ -62,8 +69,21 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Contraseña</label>
             <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none" required />
           </div>
-          <button type="submit" className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-blue-800 transition shadow-md">
-            Ingresar de forma segura
+          
+          {/* 🚀 Botón dinámico con Spinner */}
+          <button 
+  type="submit" 
+  disabled={isLoggingIn}
+  className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-blue-800 transition shadow-md disabled:opacity-50 flex items-center justify-center h-11"
+>
+            {isLoggingIn ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              "Ingresar de forma segura"
+            )}
           </button>
         </form>
       </div>
@@ -74,28 +94,31 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
 export const ChangePasswordModal: React.FC<{ isOpen: boolean; setStatusMessage: (msg: string) => void; onSuccess: () => void }> = ({ isOpen, setStatusMessage, onSuccess }) => {
   const { updatePasswordStatus } = useAuth();
   const [newPassword, setNewPassword] = useState('');
+  
+  // También le agregamos spinner a este modal
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) return alert('Debe tener al menos 6 caracteres.');
+    
+    setIsSubmitting(true);
 
     try {
-      // ✅ Ruta simplificada corregida
       await api.post('/auth/change-password', { newPassword });
       updatePasswordStatus();
       onSuccess();
       setNewPassword('');
       setStatusMessage('🔒 Contraseña comercial actualizada. Catálogo activado.');
-} catch (err: any) {
-      // 🚨 Revelamos el verdadero motivo en la consola y en el alert
+    } catch (err: any) {
       console.error("Error detallado del login:", err);
-      
       const errorReal = err.response?.data?.error || err.response?.statusText || err.message || "Error de conexión";
       const codigoStatus = err.response?.status ? `(Código ${err.response.status})` : "";
-      
       alert(`🚨 Falló la conexión con el servidor:\n${errorReal} ${codigoStatus}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -110,11 +133,22 @@ export const ChangePasswordModal: React.FC<{ isOpen: boolean; setStatusMessage: 
             <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nueva Contraseña Comercial</label>
             <input type="password" placeholder="Escribí tu nueva clave" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-3 bg-gray-50 border border-blue-200 rounded-lg text-xs sm:text-sm font-mono outline-none" required />
           </div>
-          <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-blue-700 transition shadow-md">
-            Blindar Cuenta y Activar Catálogo
+          <button 
+  type="submit" 
+  disabled={isSubmitting}
+  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-blue-700 transition shadow-md disabled:opacity-50 flex items-center justify-center h-11"
+>
+            {isSubmitting ? (
+              <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              "Blindar Cuenta y Activar Catálogo"
+            )}
           </button>
         </form>
       </div>
     </div>
   );
-};
+};  

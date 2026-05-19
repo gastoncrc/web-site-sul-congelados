@@ -127,7 +127,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setCart, openL
       </div>
 
       {/* 🧾 SECCIÓN DERECHA: CARRITO (Arriba en celular, Derecha pegajosa en Desktop) */}
-      <div className="order-1 lg:order-2">
+      <div className="order-1 lg:order-2 relative z-20">
         <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm sticky top-24">
           <h3 className="text-lg font-black text-[#003366] uppercase tracking-wider mb-4 flex items-center space-x-2">
             <ShoppingBag size={18} /> <span>Tu Pedido</span>
@@ -136,27 +136,47 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setCart, openL
           {cart.length === 0 ? (
             <p className="text-sm text-gray-400 py-6 text-center">Aún no seleccionaste artículos.</p>
           ) : (
-            <div className="space-y-4 max-h-[50vh] lg:max-h-none overflow-y-auto pr-2">
+            <div className="space-y-4 max-h-[50vh] lg:max-h-none overflow-y-auto pr-2 relative z-30">
               {cart.map(item => (
                 <div key={item.product.sku} className="flex justify-between items-center text-sm pb-3 border-b border-gray-100">
                   <div className="flex-1 pr-2">
                     <p className="font-bold text-gray-900 text-xs sm:text-sm leading-tight">{item.product.name}</p>
                     <p className="text-[11px] text-gray-500 mt-1">${item.product.unitPrice.toLocaleString('es-AR')} c/u</p>
                     
-                    {/* 🚀 CONTROLES + y - */}
+                    {/* 🚀 CONTROLES + y - REFORZADOS PARA DESKTOP */}
                     <div className="flex items-center space-x-3 mt-2">
-                      <div className="flex items-center bg-gray-100 rounded-md border border-gray-200">
-                        <button onClick={() => updateQuantity(item.product.sku, -1)} className="px-2 py-1 text-gray-600 hover:text-black transition"><Minus size={12} strokeWidth={3} /></button>
-                        <span className="text-xs font-black w-6 text-center">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.product.sku, 1)} className="px-2 py-1 text-gray-600 hover:text-black transition"><Plus size={12} strokeWidth={3} /></button>
+                      <div className="flex items-center bg-gray-100 rounded-md border border-gray-200 relative z-40">
+                        <button 
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQuantity(item.product.sku, -1); }} 
+                          className="px-2.5 py-1 text-gray-600 hover:text-black hover:bg-gray-200 rounded-l-md transition cursor-pointer select-none font-bold"
+                        >
+                          <Minus size={12} strokeWidth={3} />
+                        </button>
+                        
+                        <span className="text-xs font-black w-6 text-center select-none text-slate-900">{item.quantity}</span>
+                        
+                        <button 
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); updateQuantity(item.product.sku, 1); }} 
+                          className="px-2.5 py-1 text-gray-600 hover:text-black hover:bg-gray-200 rounded-r-md transition cursor-pointer select-none font-bold"
+                        >
+                          <Plus size={12} strokeWidth={3} />
+                        </button>
                       </div>
-                      <span className="text-xs font-bold text-[#003366]">
+                      
+                      {/* ✅ CORRECCIÓN APLICADA ACÁ */}
+                      <span className="text-xs font-bold text-[#003366] min-w-17.5 text-right">
                         ${(item.product.unitPrice * item.quantity).toLocaleString('es-AR')}
                       </span>
                     </div>
                   </div>
                   
-                  <button onClick={() => setCart(prev => prev.filter(i => i.product.sku !== item.product.sku))} className="text-red-400 hover:text-red-600 shrink-0 p-2 bg-red-50 rounded-lg ml-2 transition">
+                  <button 
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setCart(prev => prev.filter(i => i.product.sku !== item.product.sku)); }} 
+                    className="text-red-400 hover:text-red-600 shrink-0 p-2 bg-red-50 rounded-lg ml-2 transition cursor-pointer relative z-40"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -166,7 +186,11 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setCart, openL
                 <span>Total:</span>
                 <span className="text-[#003366]">${calculateTotal().toLocaleString('es-AR')}</span>
               </div>
-              <button onClick={() => alert('Pedido en proceso de envío...')} className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold hover:bg-blue-800 transition mt-2 text-sm shadow-md">
+              <button 
+                type="button"
+                onClick={() => alert('Pedido en proceso de envío...')} 
+                className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold hover:bg-blue-800 transition mt-2 text-sm shadow-md cursor-pointer relative z-40"
+              >
                 Confirmar Orden
               </button>
             </div>
