@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu } from 'lucide-react';
 import { api } from '../config/api';
 
-// 🚀 IMPORTAMOS LOS COMPONENTES CREADOS RECIÉN
+// IMPORTAMOS LOS COMPONENTES CREADOS
 import { ProductList } from '../components/admin/ProductList';
 import { ClientForm } from '../components/admin/ClientForm';
 
@@ -13,7 +13,6 @@ interface AdminProps {
 }
 
 export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefresh }) => {
-  // 🚀 Agregamos 'logout' acá para que funcione el botón de salir
   const { user, logout } = useAuth(); 
   
   // Navigation & UI States
@@ -23,21 +22,33 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
 
   // Data States
   const [productList, setProductList] = useState<any[]>([]);
+  const [clientList, setClientList] = useState<any[]>([]); // 🚀 NUEVO: Estado para clientes
   const [isLoading, setIsLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
+  // Traer Productos con destructor de caché obligatorio
   const fetchAdminData = async () => {
     try {
-      // 🚀 CORRECCIÓN: Apuntamos a /products para que traiga la misma data que el catálogo
-      const response = await api.get('/products');
+      const response = await api.get(`/products?t=${new Date().getTime()}`);
       setProductList(response.data);
     } catch (error) { 
       console.error('Error cargando productos en el admin:', error); 
     }
   };
 
+  // 🚀 NUEVO: Traer listado de clientes de la base de datos
+  const fetchClientsData = async () => {
+    try {
+      const response = await api.get(`/auth/clients?t=${new Date().getTime()}`);
+      setClientList(response.data);
+    } catch (error) {
+      console.error('Error cargando clientes en el admin:', error);
+    }
+  };
+
   useEffect(() => {
     if (activeModule === 'product-list') fetchAdminData();
+    if (activeModule === 'client-list') fetchClientsData(); // 🚀 Dispara la carga al entrar a Gestión CRM
   }, [activeModule]);
 
   if (user?.role !== 'Admin') return null;
@@ -55,6 +66,8 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       if (type === 'products') {
         await fetchAdminData();
         await triggerDataRefresh();
+      } else {
+        await fetchClientsData();
       }
     } catch (err) {
       setSystemMessage('Error procesando el archivo.');
@@ -70,7 +83,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#020617] border-r border-slate-800 flex flex-col shrink-0 transition-all duration-300`}>
         <div className="flex flex-col h-full">
           
-          {/* 🚀 TÍTULO CORREGIDO */}
+          {/* TÍTULO PANEL */}
           <div className="h-20 flex items-center justify-between px-4 sm:px-6 border-b border-slate-800 shrink-0">
             {!isSidebarCollapsed ? (
               <h2 className="text-white text-sm font-black uppercase tracking-widest">PANEL ADMINISTRADOR</h2>
@@ -113,7 +126,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
             </div>
           </nav>
 
-          {/* 🚀 NUEVO FOOTER CON DATOS DE USUARIO Y LOGOUT */}
+          {/* FOOTER CON DATOS DE USUARIO Y LOGOUT */}
           <div className="p-4 border-t border-slate-800 shrink-0">
             {!isSidebarCollapsed && (
               <div className="flex items-center space-x-3 mb-4 px-2">
@@ -145,16 +158,68 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       {/* 🖥️ MAIN WORKSPACE */}
       <main className="flex-1 overflow-y-auto bg-slate-50 p-6 sm:p-10">
         
-        {/* 🚀 RENDER DE COMPONENTES */}
+        {/* RENDER LISTADO PRODUCTOS */}
         {activeModule === 'product-list' && (
           <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />
+        )}
+
+        {/* 🚀 NUEVO: RENDER GESTIÓN CRM (LISTADO DE CLIENTES) */}
+        {activeModule === 'client-list' && (
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-xl font-black text-slate-900 uppercase mb-6 flex items-center">
+              <Users className="mr-2 text-slate-400"/> Gestión CRM - Clientes Registrados
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-black text-slate-500 uppercase">
+                    <th className="p-3">Nombre Comercial / Razón Social</th>
+                    <th className="p-3">Email</th>
+                    <th className="p-3">CUIT</th>
+                    <th className="p-3">Convenio</th>
+                    <th className="p-3">Localidad</th>
+                    <th className="p-3">Vendedor</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm divide-y divide-slate-100">
+                  {clientList.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-400 font-medium">
+                        No hay clientes registrados en el sistema o la base de datos está vacía.
+                      </td>
+                    </tr>
+                  ) : (
+                    clientList.map((client) => (
+                      <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-3">
+                          <span className="font-bold text-slate-950 block">{client.name}</span>
+                          <span className="text-xs text-slate-400 font-medium">{client.razon_social || '-'}</span>
+                        </td>
+                        <td className="p-3 text-slate-600 font-medium">{client.email}</td>
+                        <td className="p-3 text-slate-600 font-mono text-xs">{client.cuit || '-'}</td>
+                        <td className="p-3">
+                          <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider border border-blue-100">
+                            {client.convenio || 'GENERAL'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-slate-600 font-medium">
+                          {client.localidad || '-'}{client.provincia ? `, ${client.provincia}` : ''}
+                        </td>
+                        <td className="p-3 text-slate-500 text-xs font-bold uppercase">{client.vendedor || '-'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
 
         {activeModule === 'client-form' && (
           <ClientForm setSystemMessage={setSystemMessage} />
         )}
 
-        {/* 🚀 PRODUCT BULK UPLOAD */}
+        {/* PRODUCT BULK UPLOAD */}
         {activeModule === 'product-bulk' && (
           <div className="max-w-xl mx-auto space-y-6 mt-10 text-center">
             <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto"><Upload className="text-blue-600" size={28} /></div>
