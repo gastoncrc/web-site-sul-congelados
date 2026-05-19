@@ -29,7 +29,6 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
   // Traer Productos para la tabla del admin
   const fetchAdminData = async () => {
     try {
-      // Usamos la ruta /admin definida en tus rutas de productos
       const response = await api.get(`/products/admin?t=${new Date().getTime()}`);
       setProductList(response.data);
     } catch (error) { 
@@ -40,7 +39,6 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
   // Traer listado de clientes de la base de datos
   const fetchClientsData = async () => {
     try {
-      // 🚀 CORRECCIÓN: Le DEVOLVEMOS el /auth que lleva la API real
       const response = await api.get(`/auth/clients?t=${new Date().getTime()}`);
       setClientList(response.data);
     } catch (error) {
@@ -60,7 +58,6 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
     const formData = new FormData();
     formData.append('file', file);
     try {
-      // 🚀 CORRECCIÓN: Le DEVOLVEMOS el /auth a upload-clients
       const endpoint = type === 'products' ? '/products/upload-prices' : '/auth/upload-clients';
       const response = await api.post(endpoint, formData);
       setSystemMessage(response.data.message);
@@ -167,7 +164,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
           <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />
         )}
 
-        {/* RENDER GESTIÓN CRM (LISTADO DE CLIENTES) */}
+        {/* 🚀 RENDER GESTIÓN CRM (CON INTEGRACIÓN DE BAJA LÓGICA) */}
         {activeModule === 'client-list' && (
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
             <h2 className="text-xl font-black text-slate-900 uppercase mb-6 flex items-center">
@@ -179,10 +176,10 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
                   <tr className="border-b border-slate-200 bg-slate-50 text-xs font-black text-slate-500 uppercase">
                     <th className="p-3">Nombre Comercial / Razón Social</th>
                     <th className="p-3">Email</th>
-                    <th className="p-3">CUIT</th>
                     <th className="p-3">Convenio</th>
                     <th className="p-3">Localidad</th>
-                    <th className="p-3">Vendedor</th>
+                    <th className="p-3">Estado</th>
+                    <th className="p-3 text-center">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="text-sm divide-y divide-slate-100">
@@ -194,13 +191,12 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
                     </tr>
                   ) : (
                     clientList.map((client) => (
-                      <tr key={client.id} className="hover:bg-slate-50 transition-colors">
+                      <tr key={client.id} className={`hover:bg-slate-50 transition-colors ${!client.is_active ? 'bg-slate-50/50 opacity-60' : ''}`}>
                         <td className="p-3">
                           <span className="font-bold text-slate-950 block">{client.name}</span>
                           <span className="text-xs text-slate-400 font-medium">{client.razon_social || '-'}</span>
                         </td>
                         <td className="p-3 text-slate-600 font-medium">{client.email}</td>
-                        <td className="p-3 text-slate-600 font-mono text-xs">{client.cuit || '-'}</td>
                         <td className="p-3">
                           <span className="bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md text-xs font-black uppercase tracking-wider border border-blue-100">
                             {client.convenio || 'GENERAL'}
@@ -209,7 +205,39 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
                         <td className="p-3 text-slate-600 font-medium">
                           {client.localidad || '-'}{client.provincia ? `, ${client.provincia}` : ''}
                         </td>
-                        <td className="p-3 text-slate-500 text-xs font-bold uppercase">{client.vendedor || '-'}</td>
+                        <td className="p-3">
+                          {client.is_active !== false ? (
+                            <span className="bg-green-50 text-green-700 border border-green-200 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase">
+                              Activo
+                            </span>
+                          ) : (
+                            <span className="bg-slate-100 text-slate-500 border border-slate-200 px-2.5 py-0.5 rounded-md text-xs font-bold uppercase">
+                              Inactivo
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center whitespace-nowrap">
+                          {client.is_active !== false ? (
+                            <button 
+                              onClick={async () => {
+                                if (window.confirm(`¿Seguro que querés dar de baja la cuenta de ${client.name}? Se bloqueará su login inmediato.`)) {
+                                  try {
+                                    const response = await api.delete(`/auth/clients/${client.id}`);
+                                    setSystemMessage(`✅ ${response.data.message}`);
+                                    setClientList(prev => prev.map(c => c.id === client.id ? { ...c, is_active: false } : c));
+                                  } catch (err) {
+                                    setSystemMessage('🚨 Error al procesar la baja lógica.');
+                                  }
+                                }
+                              }}
+                              className="bg-red-50 text-red-600 border border-red-100 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-600 hover:text-white transition cursor-pointer"
+                            >
+                              Desactivar
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-medium">Cuenta Suspendida</span>
+                          )}
+                        </td>
                       </tr>
                     ))
                   )}
