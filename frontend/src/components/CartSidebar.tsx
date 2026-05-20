@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, Calendar, AlertTriangle, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, AlertTriangle, FileText, ChevronRight } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import type { Product } from '../types';
 
@@ -23,38 +23,6 @@ interface CartSidebarProps {
   user: any;
 }
 
-// 🚀 HELPER: Calcula automáticamente las próximas fechas exactas según los días permitidos
-const generarProximasFechas = (diasHabilitados: string[]) => {
-  const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  const indicesHabilitados = diasHabilitados.map(d => diasSemana.indexOf(d)).filter(i => i !== -1);
-  
-  if (indicesHabilitados.length === 0) return [];
-
-  const fechasValidas = [];
-  let fechaActual = new Date();
-  fechaActual.setDate(fechaActual.getDate() + 1); // Calculamos entregas a partir de mañana
-
-  // Buscamos las próximas 5 fechas que coincidan con sus días habilitados
-  while (fechasValidas.length < 5) {
-    if (indicesHabilitados.includes(fechaActual.getDay())) {
-      fechasValidas.push(new Date(fechaActual));
-    }
-    fechaActual.setDate(fechaActual.getDate() + 1);
-  }
-  return fechasValidas;
-};
-
-const formatearFecha = (date: Date) => {
-  const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  const diaNombre = dias[date.getDay()];
-  const diaNumero = String(date.getDate()).padStart(2, '0');
-  const mes = String(date.getMonth() + 1).padStart(2, '0');
-  return {
-    completo: `${diaNombre} ${diaNumero}/${mes}`,
-    valor: date.toISOString().split('T')[0] // Formato YYYY-MM-DD para guardar
-  };
-};
-
 export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, cart, setShoppingCart, updateQuantity, user }) => {
   const [isCheckoutStep, setIsCheckoutStep] = useState(false);
   const [minPurchaseB2C, setMinPurchaseB2C] = useState(30000); 
@@ -63,6 +31,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     nombre: '', direccion: '', telefono: '', pago: 'Efectivo',
     tipoEntrega: 'Envio', fechaEntrega: '', observaciones: '' 
   });
+
+  // Estado para controlar el mes del calendario interno
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
   useEffect(() => {
     const savedMin = localStorage.getItem('sul_min_purchase_b2c');
@@ -73,28 +44,19 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     ? (typeof user.dias_entrega === 'string' ? user.dias_entrega.split(',') : user.dias_entrega)
     : ['Martes', 'Viernes'];
 
-  // Calculamos las opciones de fechas solo una vez o cuando cambie el usuario
-  const opcionesFechas = useMemo(() => generarProximasFechas(diasHabilitados), [user]);
-
   const cartTotal = cart.reduce((total, item) => total + (((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity), 0);
   const faltanteEnvio = minPurchaseB2C - cartTotal;
   const debaRetirarEnPlanta = !user && faltanteEnvio > 0;
 
   useEffect(() => {
     if (user) {
-      setCheckoutData(prev => ({ 
-        ...prev, 
-        nombre: user.name || '', 
-        // Pre-seleccionamos la primera fecha disponible calculada
-        fechaEntrega: opcionesFechas.length > 0 ? formatearFecha(opcionesFechas[0]).completo : '',
-        tipoEntrega: 'Envio'
-      }));
+      setCheckoutData(prev => ({ ...prev, nombre: user.name || '', tipoEntrega: 'Envio', fechaEntrega: '' }));
     } else if (debaRetirarEnPlanta) {
       setCheckoutData(prev => ({ ...prev, tipoEntrega: 'Retiro' }));
     } else {
       setCheckoutData(prev => ({ ...prev, tipoEntrega: 'Envio' }));
     }
-  }, [user, debaRetirarEnPlanta, isOpen, opcionesFechas]);
+  }, [user, debaRetirarEnPlanta, isOpen]);
 
   if (!isOpen) return null;
 
@@ -103,12 +65,17 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     setTimeout(() => setIsCheckoutStep(false), 300);
   };
 
-  // 🚀 INTERCEPTAMOS EL FORMULARIO NATIVO PARA OBLIGAR A LLENAR LOS DATOS
   const handleSubmitConfirmacion = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validación extra para cliente fijo
+    if (user && !checkoutData.fechaEntrega) {
+      alert("Por favor, seleccioná una fecha de entrega en el calendario.");
+      return;
+    }
+
     const datosEntregaText = user 
-      ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Fecha de Reparto: ${checkoutData.fechaEntrega}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
+      ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Fecha de Reparto Elegida: ${checkoutData.fechaEntrega}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
       : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono}\n💳 Pago: ${checkoutData.pago}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`;
 
     const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*\n\n${datosEntregaText}`;
@@ -120,18 +87,50 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     handleClose();
   };
 
+  /* 🚀 LÓGICA DEL CALENDARIO COMPACTO EN CUADRÍCULA */
+  const generarDiasCalendario = () => {
+    const año = currentCalendarDate.getFullYear();
+    const mes = currentCalendarDate.getMonth();
+    
+    const primerDiaMes = new Date(año, mes, 1).getDay();
+    const totalDiasMes = new Date(año, mes + 1, 0).getDate();
+    
+    const celdas = [];
+    // Rellenar días vacíos del principio de la semana (ajustado para que empiece en Lunes o Domingo según corresponda)
+    for (let i = 0; i < primerDiaMes; i++) {
+      celdas.push(null);
+    }
+    // Rellenar los días del mes
+    for (let d = 1; d <= totalDiasMes; d++) {
+      celdas.push(new Date(año, mes, d));
+    }
+    return celdas;
+  };
+
+  const nombreMeses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const diasNombresCortos = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const diasSemanaMapa = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+  const cambiarMes = (direccion: number) => {
+    const nuevaFecha = new Date(currentCalendarDate.getFullYear(), currentCalendarDate.getMonth() + direccion, 1);
+    setCurrentCalendarDate(nuevaFecha);
+  };
+
+  const celdasMes = generarDiasCalendario();
+  const hoy = new Date();
+  hoy.setHours(0,0,0,0);
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={handleClose} />
       
-      {/* 🚀 EL CONTENEDOR AHORA ES UN FORMULARIO COMPLETO */}
       <form onSubmit={handleSubmitConfirmacion} className="relative w-full max-w-md bg-white h-dvh shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
           <div className="flex items-center">
             {isCheckoutStep && <button type="button" onClick={() => setIsCheckoutStep(false)} className="mr-3 text-slate-500 hover:text-slate-900 cursor-pointer"><ChevronLeft size={20} /></button>}
             <h2 className="text-lg font-black uppercase text-slate-900 flex items-center">
-              <CartIcon size={20} className="mr-2"/> {isCheckoutStep ? (user ? 'Programar Reparto' : 'Datos de Entrega') : 'Tu Pedido'}
+              <CartIcon size={20} className="mr-2"/> {isCheckoutStep ? (user ? 'Calendario de Reparto' : 'Datos de Entrega') : 'Tu Pedido'}
             </h2>
           </div>
           <button type="button" onClick={handleClose} className="p-2 text-slate-500 hover:text-slate-900 bg-slate-200 rounded-full cursor-pointer"><X size={18} /></button>
@@ -139,6 +138,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
         
         <div className="flex-1 overflow-y-auto p-4">
           {!isCheckoutStep ? (
+            /* 🛒 PASO 1: RESUMEN DE ARTÍCULOS */
             <div className="space-y-4">
               {cart.length === 0 ? (
                 <div className="text-center text-slate-400 mt-10"><CartIcon size={48} className="mx-auto mb-4 opacity-20"/> <p>Tu carrito está vacío.</p></div>
@@ -162,46 +162,72 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
               )}
             </div>
           ) : user ? (
-            /* 📅 CLIENTE REGISTRADO: SELECTOR DE FECHAS SEGURAS */
-            <div className="space-y-6 animate-in fade-in duration-200">
+            /* 📅 CLIENTE REGISTRADO: ALMANAQUE CON BLOQUEO ACTIVO DE DÍAS */
+            <div className="space-y-4 animate-in fade-in duration-200">
               <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800">
                 <p className="text-xs font-bold text-[#deff9a] uppercase tracking-wider mb-1">Franquicia: {user.name}</p>
-                <p className="text-[11px] text-slate-400">Tus datos logísticos están validados. Seleccioná una de las fechas habilitadas para la recepción.</p>
+                <p className="text-[11px] text-slate-400">Tus días de reparto asignados son: <strong className="text-white">{diasHabilitados.join(', ')}</strong>. Seleccioná una fecha activa del almanaque:</p>
               </div>
 
-              <div>
-                <label className="flex text-xs font-black text-slate-700 uppercase mb-3 items-center">
-                  <Calendar size={14} className="mr-1 text-blue-600"/> Próximas Fechas Disponibles
-                </label>
-                
-                <div className="grid grid-cols-1 gap-2">
-                  {opcionesFechas.map((fecha, idx) => {
-                    const objFecha = formatearFecha(fecha);
+              {/* INTERFAZ DEL ALMANAQUE EN CUADRÍCULA */}
+              <div className="border border-slate-200 rounded-2xl p-4 bg-white shadow-xs">
+                <div className="flex justify-between items-center mb-4">
+                  <button type="button" onClick={() => cambiarMes(-1)} className="p-1.5 border rounded-lg hover:bg-slate-50 cursor-pointer"><ChevronLeft size={16}/></button>
+                  <span className="font-black text-sm text-slate-900 uppercase tracking-wider">{nombreMeses[currentCalendarDate.getMonth()]} {currentCalendarDate.getFullYear()}</span>
+                  <button type="button" onClick={() => cambiarMes(1)} className="p-1.5 border rounded-lg hover:bg-slate-50 cursor-pointer"><ChevronRight size={16}/></button>
+                </div>
+
+                {/* Encabezado Días Cortos */}
+                <div className="grid grid-cols-7 gap-1 text-center mb-1">
+                  {diasNombresCortos.map(n => <span key={n} className="text-[10px] font-black uppercase text-slate-400 py-1">{n}</span>)}
+                </div>
+
+                {/* Grilla Numérica */}
+                <div className="grid grid-cols-7 gap-1 text-center">
+                  {celdasMes.map((fechaCell, idx) => {
+                    if (!fechaCell) return <div key={`empty-${idx}`} />;
+
+                    const nombreDiaSemana = diasSemanaMapa[fechaCell.getDay()];
+                    const esDiaPermitido = diasHabilitados.includes(nombreDiaSemana);
+                    const esPasado = fechaCell < hoy;
+                    const puedePedir = esDiaPermitido && !esPasado;
+
+                    const diaNumero = fechaCell.getDate();
+                    const fechaStringFormato = `${nombreDiaSemana} ${String(diaNumero).padStart(2,'0')}/${String(fechaCell.getMonth()+1).padStart(2,'0')}`;
+                    const esSeleccionado = checkoutData.fechaEntrega === fechaStringFormato;
+
                     return (
-                      <label key={idx} className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${checkoutData.fechaEntrega === objFecha.completo ? 'border-slate-900 bg-slate-50 font-bold text-slate-900 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
-                        <span className="text-sm uppercase tracking-wider">{objFecha.completo}</span>
-                        <input 
-                          type="radio" 
-                          name="fechaExacta" 
-                          value={objFecha.completo} 
-                          required
-                          checked={checkoutData.fechaEntrega === objFecha.completo} 
-                          onChange={e => setCheckoutData({...checkoutData, fechaEntrega: e.target.value})} 
-                          className="w-4 h-4 text-slate-900 focus:ring-slate-900 cursor-pointer" 
-                        />
-                      </label>
-                    )
+                      <button
+                        key={idx}
+                        type="button"
+                        disabled={!puedePedir}
+                        onClick={() => setCheckoutData({...checkoutData, fechaEntrega: fechaStringFormato})}
+                        className={`h-9 w-full rounded-xl text-xs font-bold transition-all flex items-center justify-center ${
+                          esSeleccionado ? 'bg-slate-900 text-[#deff9a] font-black ring-2 ring-slate-900' :
+                          puedePedir ? 'bg-green-50 text-green-800 border border-green-200 hover:bg-green-100 cursor-pointer' :
+                          'bg-slate-50 text-slate-300 opacity-30 cursor-not-allowed'
+                        }`}
+                      >
+                        {diaNumero}
+                      </button>
+                    );
                   })}
                 </div>
               </div>
 
+              {checkoutData.fechaEntrega && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-xs font-bold text-green-800">
+                  📍 Fecha confirmada: {checkoutData.fechaEntrega}
+                </div>
+              )}
+
               <div>
                 <label className="flex text-xs font-black text-slate-700 uppercase mb-2"><FileText size={14} className="mr-1"/> Observaciones (Opcional)</label>
-                <textarea rows={3} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Ej: Dejar la mercadería en la cámara..."></textarea>
+                <textarea rows={3} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Ej: Entregar por la mañana..."></textarea>
               </div>
             </div>
           ) : (
-            /* 📝 CONSUMIDOR FINAL (CON DATOS OBLIGATORIOS) */
+            /* 📝 CONSUMIDOR FINAL (TODOS LOS INPUTS REQUIRED) */
             <div className="space-y-4 animate-in fade-in duration-200">
               {debaRetirarEnPlanta ? (
                 <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-amber-900 flex flex-col space-y-2">
@@ -222,16 +248,15 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
                 </div>
               )}
               
-              {/* 🚀 Atributo REQUIRED activo en los inputs */}
-              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Nombre Completo *</label><input type="text" required value={checkoutData.nombre} onChange={e => setCheckoutData({...checkoutData, nombre: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" /></div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Nombre Completo *</label><input type="text" required value={checkoutData.nombre} onChange={e => setCheckoutData({...checkoutData, nombre: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Nombre y Apellido" /></div>
               
               {!debaRetirarEnPlanta && (
                 <div><label className="block text-xs font-black text-slate-700 uppercase mb-1"><MapPin size={12} className="inline mr-1"/> Dirección de Entrega *</label><input type="text" required value={checkoutData.direccion} onChange={e => setCheckoutData({...checkoutData, direccion: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Calle, Número, Barrio" /></div>
               )}
 
-              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Teléfono de Contacto *</label><input type="text" required value={checkoutData.telefono} onChange={e => setCheckoutData({...checkoutData, telefono: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Ej: 351..." /></div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Teléfono de Contacto *</label><input type="text" required value={checkoutData.telefono} onChange={e => setCheckoutData({...checkoutData, telefono: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Ej: 351555555" /></div>
               <div><label className="block text-xs font-black text-slate-700 uppercase mb-1"><CreditCard size={12} className="inline mr-1"/> Forma de Pago *</label><select required value={checkoutData.pago} onChange={e => setCheckoutData({...checkoutData, pago: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900"><option value="Efectivo">Efectivo contra entrega</option><option value="Transferencia">Transferencia Bancaria</option></select></div>
-              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Observaciones / Aclaraciones</label><textarea rows={2} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Notas para la entrega..."></textarea></div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Observaciones / Aclaraciones</label><textarea rows={2} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Notas para la entrega..." /></div>
             </div>
           )}
         </div>
@@ -246,7 +271,6 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
               </div>
             ) : (
               <div className="space-y-3">
-                {/* 🚀 BOTÓN TIPO SUBMIT PARA FORZAR LA VALIDACIÓN HTML DE LOS CAMPOS */}
                 <button type="submit" className="w-full bg-[#25D366] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-[#128C7E] transition cursor-pointer flex items-center justify-center">
                   <MessageCircle size={20} className="mr-2" />
                   {debaRetirarEnPlanta ? 'Confirmar Retiro por Planta' : 'Enviar por WhatsApp'}
