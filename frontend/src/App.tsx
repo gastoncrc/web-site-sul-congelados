@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { api } from './config/api';
 import type { Product } from './types'; 
-import { X, ShoppingCart as CartIcon, Trash2 } from 'lucide-react';
+import { X, ShoppingCart as CartIcon, Trash2, MessageCircle } from 'lucide-react';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -81,7 +81,6 @@ function MainLayout() {
     );
   }
 
-  // 🚀 FUNCIÓN PARA CAMBIAR CANTIDADES
   const updateCartQuantity = (sku: string, delta: number) => {
     setShoppingCart(prev => prev.map(item => {
       if (item.product.sku === sku) {
@@ -91,6 +90,16 @@ function MainLayout() {
       return item;
     }));
   };
+
+  // 🚀 VARIABLES PARA WHATSAPP
+  const cartTotal = shoppingCart.reduce((total, item) => total + (((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity), 0);
+  
+  // Armamos el texto que se va a enviar por WhatsApp
+  const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${shoppingCart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*`;
+  
+  // Reemplazá este número por el de tu negocio (54 = Argentina, 9 = Celular, sin el 15)
+  const WHATSAPP_NUMBER = "5493515166974"; 
+  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-800 overflow-x-hidden relative">
@@ -145,7 +154,6 @@ function MainLayout() {
                     <div className="flex-1">
                       <p className="text-xs font-bold text-slate-900">{item.product.name}</p>
                       
-                      {/* 🚀 BOTONES DE SUMAR Y RESTAR CANTIDADES */}
                       <div className="flex items-center space-x-2 mt-2">
                         <button onClick={() => updateCartQuantity(item.product.sku, -1)} className="w-6 h-6 flex items-center justify-center bg-slate-200 rounded-md text-slate-700 font-bold hover:bg-slate-300 cursor-pointer">-</button>
                         <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
@@ -167,12 +175,31 @@ function MainLayout() {
                 <div className="flex justify-between items-center mb-4">
                   <span className="font-bold text-slate-600">Total Neto:</span>
                   <span className="text-xl font-black text-slate-900">
-                    ${formatPrice(shoppingCart.reduce((total, item) => total + (((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity), 0))}
+                    ${formatPrice(cartTotal)}
                   </span>
                 </div>
-                <button className="w-full bg-[#003366] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-900 transition cursor-pointer">
-                  Confirmar Pedido
-                </button>
+                
+                {/* 🚀 BOTONES DE CONFIRMAR POR WA Y VACIAR CARRITO */}
+                <div className="space-y-3">
+                  <a 
+                    href={whatsappUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-[#25D366] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-[#128C7E] transition cursor-pointer flex items-center justify-center"
+                  >
+                    <MessageCircle size={20} className="mr-2" />
+                    Confirmar por WhatsApp
+                  </a>
+                  
+                  <button 
+                    onClick={() => setShoppingCart([])}
+                    className="w-full bg-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-300 transition cursor-pointer flex items-center justify-center"
+                  >
+                    <Trash2 size={16} className="mr-2" />
+                    Vaciar Carrito
+                  </button>
+                </div>
+
               </div>
             )}
           </div>

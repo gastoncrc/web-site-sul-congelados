@@ -16,17 +16,15 @@ interface CatalogProps {
   setShoppingCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
 }
 
-export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) => {
+export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCart }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODOS');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 12; 
 
-  // 🚀 VARIABLES DEL CARRUSEL INTERACTIVO
   const sliderRef = useRef<HTMLDivElement>(null);
   const [isSliderPaused, setIsSliderPaused] = useState(false);
 
-  // Refs para la lógica de arrastre con el mouse (Mouse Drag)
   const isDragging = useRef(false);
   const startX = useRef(0);
   const scrollLeft = useRef(0);
@@ -49,17 +47,22 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
 
   useEffect(() => setCurrentPage(1), [searchTerm, selectedCategory]);
 
-  // 🚀 LÓGICA DE AUTO-SCROLL INFINITO
+  // 🚀 CARRUSEL MÁS LENTO (Mitad de velocidad)
   useEffect(() => {
     let animationId: number;
     const slider = sliderRef.current;
+    let frameCount = 0; // Agregamos un contador de frames
 
     const step = () => {
       if (slider && !isSliderPaused && !isDragging.current) {
-        slider.scrollLeft += 1; 
-        
-        if (slider.scrollLeft >= slider.scrollWidth / 2) {
-          slider.scrollLeft = 0;
+        frameCount++;
+        // Solo mueve el scroll 1 píxel cada 2 frames (50% más lento)
+        // Si lo querés aún más lento, cambialo a frameCount % 3 === 0
+        if (frameCount % 2 === 0) { 
+          slider.scrollLeft += 1; 
+          if (slider.scrollLeft >= slider.scrollWidth / 2) {
+            slider.scrollLeft = 0;
+          }
         }
       }
       animationId = requestAnimationFrame(step);
@@ -72,7 +75,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
     return () => cancelAnimationFrame(animationId);
   }, [isSliderPaused, sliderProducts.length]);
 
-  // 🚀 FUNCIONES PARA ARRASTRAR CON EL MOUSE
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsSliderPaused(true);
     isDragging.current = true;
@@ -99,7 +101,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
     sliderRef.current.scrollLeft = scrollLeft.current - walk;
   };
 
-  // 🚀 LAS MATEMÁTICAS DE LA PAGINACIÓN RECUPERADAS
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
   const currentProductsForDisplay = filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
@@ -111,6 +112,11 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
     });
   };
 
+  // Función auxiliar para saber cuántos hay en el carrito y cambiar el botón
+  const getQtyInCart = (sku: string) => {
+    return cart.find(item => item.product.sku === sku)?.quantity || 0;
+  };
+
   return (
     <div className="w-full space-y-8 overflow-hidden">
       
@@ -120,7 +126,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
         .no-select { user-select: none; -webkit-user-select: none; }
       `}</style>
 
-      {/* 🌟 CARRUSEL DE DESTACADOS (Interactivo 100%) */}
+      {/* 🌟 CARRUSEL DE DESTACADOS */}
       {sliderProducts.length > 0 && searchTerm === '' && selectedCategory === 'TODOS' && (
         <div className="w-full mb-10 bg-slate-900 rounded-3xl p-6 md:p-8 shadow-xl border border-slate-800">
           <div className="flex items-center space-x-2 text-white text-lg font-black uppercase tracking-wider mb-6">
@@ -132,7 +138,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
             <div className="absolute top-0 bottom-0 left-0 w-12 bg-linear-to-r from-slate-900 to-transparent z-10 pointer-events-none"></div>
             <div className="absolute top-0 bottom-0 right-0 w-12 bg-linear-to-l from-slate-900 to-transparent z-10 pointer-events-none"></div>
             
-            {/* 🚀 CONTENEDOR CON EVENTOS DE MOUSE */}
             <div 
               ref={sliderRef}
               className="flex gap-4 overflow-x-auto hide-scrollbar touch-pan-x py-2 cursor-grab active:cursor-grabbing no-select"
@@ -144,41 +149,45 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
               onMouseUp={handleMouseUp}
               onMouseMove={handleMouseMove}
             >
-              {displaySliders.map((product, idx) => (
-                <div key={`${product.sku}-${idx}`} className="w-64 shrink-0 bg-white rounded-2xl p-5 shadow border border-slate-200 flex flex-col justify-between transition-transform hover:-translate-y-1">
-                  <div>
-                    <div className="flex justify-between items-start mb-1 pointer-events-none">
-                      <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{product.category}</span>
-                      {product.isPromo && <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Promo</span>}
+              {displaySliders.map((product, idx) => {
+                const inCartQty = getQtyInCart(product.sku); // Leemos si está en el carrito
+                return (
+                  <div key={`${product.sku}-${idx}`} className="w-64 shrink-0 bg-white rounded-2xl p-5 shadow border border-slate-200 flex flex-col justify-between transition-transform hover:-translate-y-1">
+                    <div>
+                      <div className="flex justify-between items-start mb-1 pointer-events-none">
+                        <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{product.category}</span>
+                        {product.isPromo && <span className="bg-amber-100 text-amber-700 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider">Promo</span>}
+                      </div>
+                      <h3 className="font-black text-slate-900 text-sm leading-tight mb-2 line-clamp-2 pointer-events-none">{product.name}</h3>
                     </div>
-                    <h3 className="font-black text-slate-900 text-sm leading-tight mb-2 line-clamp-2 pointer-events-none">{product.name}</h3>
-                  </div>
-                  <div className="mt-3">
-                    <div className="mb-3 flex items-baseline space-x-2 pointer-events-none">
-                      <span className="text-xl font-black text-slate-900">
-                        ${formatPrice((product.isPromo ? product.promoPrice : product.unitPrice) ?? 0)}
-                      </span>
-                      {product.isPromo && <span className="text-xs text-slate-400 line-through">${formatPrice(product.unitPrice ?? 0)}</span>}
+                    <div className="mt-3">
+                      <div className="mb-3 flex items-baseline space-x-2 pointer-events-none">
+                        <span className="text-xl font-black text-slate-900">
+                          ${formatPrice((product.isPromo ? product.promoPrice : product.unitPrice) ?? 0)}
+                        </span>
+                        {product.isPromo && <span className="text-xs text-slate-400 line-through">${formatPrice(product.unitPrice ?? 0)}</span>}
+                      </div>
+                      
+                      {/* 🚀 BOTÓN CON FEEDBACK VISUAL (CARRUSEL) */}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleAddToCart(product); }} 
+                        className={`w-full font-bold py-2 rounded-xl text-xs transition-all active:scale-95 flex justify-center items-center space-x-2 cursor-pointer relative z-20 ${
+                          inCartQty > 0 ? 'bg-[#deff9a] text-slate-900 hover:bg-[#cceb88]' : 'bg-slate-900 text-white hover:bg-slate-800'
+                        }`}
+                      >
+                        <ShoppingCart size={14} /> 
+                        <span>{inCartQty > 0 ? `Agregar otro (${inCartQty})` : 'Agregar'}</span>
+                      </button>
                     </div>
-                    {/* Z-index y detención de propagación para que el clic al botón no se confunda con arrastrar */}
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleAddToCart(product); }} 
-                      className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition flex justify-center items-center space-x-2 cursor-pointer relative z-20"
-                    >
-                      <ShoppingCart size={14} /> <span>Agregar</span>
-                    </button>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
       )}
 
-      {/* ========================================= */}
-      {/* SECCIÓN DEL CATÁLOGO NORMAL ABAJO */}
-      {/* ========================================= */}
-
+      {/* BUSCADOR */}
       <div className="relative max-w-2xl mx-auto w-full">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <Search className="text-slate-400" size={20} />
@@ -197,6 +206,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
         )}
       </div>
 
+      {/* FILTROS */}
       <div className="w-full border-b border-slate-200 pb-4">
         <div className="flex items-center space-x-2 text-slate-400 text-xs font-black uppercase tracking-wider mb-3">
           <Filter size={14}/> <span>Filtrar por Rubro</span>
@@ -218,6 +228,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
         </div>
       </div>
 
+      {/* GRILLA */}
       {currentProductsForDisplay.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 p-8">
           <p className="text-slate-400 font-bold text-base">No encontramos productos que coincidan con los filtros seleccionados.</p>
@@ -225,41 +236,50 @@ export const Catalog: React.FC<CatalogProps> = ({ products, setShoppingCart }) =
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {currentProductsForDisplay.map((product) => (
-              <div key={product.sku} className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition relative overflow-hidden">
-                
-                {product.isPromo && <div className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black px-3 py-1 uppercase tracking-widest shadow-sm rounded-bl-xl">OFERTA</div>}
-                
-                <div className={product.isPromo ? "pt-4" : ""}>
-                  <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{product.category}</span>
-                  <h3 className="font-bold text-slate-900 text-sm leading-tight mb-1 mt-1">{product.name}</h3>
-                  <p className="text-slate-400 text-[11px] font-mono mb-3">SKU: {product.sku}</p>
-                  {product.description && <p className="text-slate-500 text-xs line-clamp-2 mb-4">{product.description}</p>}
-                </div>
-
-                <div className="mt-4">
-                  <div className="mb-3">
-                    {product.isPromo ? (
-                      <div className="flex items-baseline space-x-2">
-                        <span className="text-lg font-black text-slate-900">${formatPrice(product.promoPrice ?? 0)}</span>
-                        <span className="text-xs text-slate-400 line-through">${formatPrice(product.unitPrice ?? 0)}</span>
-                      </div>
-                    ) : (
-                      <span className="text-lg font-black text-slate-900">${formatPrice(product.unitPrice ?? 0)}</span>
-                    )}
+            {currentProductsForDisplay.map((product) => {
+              const inCartQty = getQtyInCart(product.sku); // Leemos si está en el carrito
+              
+              return (
+                <div key={product.sku} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden ${inCartQty > 0 ? 'border-slate-400' : 'border-slate-200'}`}>
+                  
+                  {product.isPromo && <div className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black px-3 py-1 uppercase tracking-widest shadow-sm rounded-bl-xl">OFERTA</div>}
+                  
+                  <div className={product.isPromo ? "pt-4" : ""}>
+                    <span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{product.category}</span>
+                    <h3 className="font-bold text-slate-900 text-sm leading-tight mb-1 mt-1">{product.name}</h3>
+                    <p className="text-slate-400 text-[11px] font-mono mb-3">SKU: {product.sku}</p>
+                    {product.description && <p className="text-slate-500 text-xs line-clamp-2 mb-4">{product.description}</p>}
                   </div>
-                  <button
-                    onClick={() => handleAddToCart(product)}
-                    className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center space-x-2 cursor-pointer"
-                  >
-                    <ShoppingCart size={14}/>
-                    <span>Añadir al Pedido</span>
-                  </button>
+
+                  <div className="mt-4">
+                    <div className="mb-3">
+                      {product.isPromo ? (
+                        <div className="flex items-baseline space-x-2">
+                          <span className="text-lg font-black text-slate-900">${formatPrice(product.promoPrice ?? 0)}</span>
+                          <span className="text-xs text-slate-400 line-through">${formatPrice(product.unitPrice ?? 0)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-lg font-black text-slate-900">${formatPrice(product.unitPrice ?? 0)}</span>
+                      )}
+                    </div>
+                    
+                    {/* 🚀 BOTÓN CON FEEDBACK VISUAL (GRILLA) */}
+                    <button
+                      onClick={() => handleAddToCart(product)}
+                      className={`w-full font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center space-x-2 cursor-pointer ${
+                        inCartQty > 0 ? 'bg-[#deff9a] text-slate-900 hover:bg-[#cceb88]' : 'bg-slate-900 text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <ShoppingCart size={14}/>
+                      <span>{inCartQty > 0 ? `Añadir otro (${inCartQty})` : 'Añadir al Pedido'}</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
+          {/* PAGINACIÓN */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center space-x-2 pt-6 border-t border-slate-100">
               <button
