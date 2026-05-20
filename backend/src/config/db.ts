@@ -35,7 +35,8 @@ export const initDB = async () => {
       )
     `);
 
-    // 3. Tabla Avanzada de Usuarios Logísticos (✅ Corrección: Default 'CORDOBA')
+    // 3. Tabla Avanzada de Usuarios Logísticos y Clientes B2B
+    // (Actualizada con los nombres exactos para que coincida con el controlador)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -44,16 +45,46 @@ export const initDB = async () => {
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         role TEXT NOT NULL,
-        convenio_asignado TEXT NOT NULL DEFAULT 'CORDOBA', 
+        convenio TEXT NOT NULL DEFAULT 'CORDOBA', 
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
         require_password_change BOOLEAN NOT NULL DEFAULT FALSE,
         telefono TEXT,
         domicilio_facturacion TEXT,
         lugar_entrega TEXT,
-        dias_entrega_permitidos TEXT,
-        observaciones TEXT
+        dias_entrega TEXT,
+        observaciones TEXT,
+        razon_social TEXT,
+        cuit TEXT,
+        localidad TEXT,
+        provincia TEXT,
+        vendedor TEXT,
+        grupo TEXT
       )
     `);
+
+    // ========================================================
+    // 🚀 INYECTOR DE ACTUALIZACIÓN DE TABLA (MÁGICO)
+    // Esto agrega las columnas a tu DB si ya existía de antes,
+    // evitando el error 500 sin tener que borrar tus datos.
+    // ========================================================
+    const columnasNuevas = [
+      'ALTER TABLE users ADD COLUMN convenio TEXT DEFAULT \'CORDOBA\';',
+      'ALTER TABLE users ADD COLUMN dias_entrega TEXT;',
+      'ALTER TABLE users ADD COLUMN razon_social TEXT;',
+      'ALTER TABLE users ADD COLUMN cuit TEXT;',
+      'ALTER TABLE users ADD COLUMN localidad TEXT;',
+      'ALTER TABLE users ADD COLUMN provincia TEXT;',
+      'ALTER TABLE users ADD COLUMN vendedor TEXT;',
+      'ALTER TABLE users ADD COLUMN grupo TEXT;'
+    ];
+
+    for (const query of columnasNuevas) {
+      try {
+        await pool.query(query);
+      } catch (error) {
+        // Se ignora silenciosamente. Si tira error es porque la columna ya existe (¡lo cual es bueno!)
+      }
+    }
 
     // ========================================================
     // INYECTOR INTELIGENTE (Solo escribe si las cuentas no existen)
@@ -64,7 +95,7 @@ export const initDB = async () => {
     if (adminCheck.rows.length === 0) {
       const adminHash = bcrypt.hashSync('admin123', bcrypt.genSaltSync(10));
       await pool.query(`
-        INSERT INTO users (email, password, role, convenio_asignado, is_active) 
+        INSERT INTO users (email, password, role, convenio, is_active) 
         VALUES ('admin@sul.com', $1, 'Admin', 'CORDOBA', TRUE)
       `, [adminHash]);
       console.log('👤 Admin maestro inicializado en la Red CORDOBA.');
@@ -75,8 +106,8 @@ export const initDB = async () => {
     if (clientCheck.rows.length === 0) {
       const clientHash = bcrypt.hashSync('SULcongelados2026', bcrypt.genSaltSync(10));
       await pool.query(`
-        INSERT INTO users (client_code, name, email, password, role, convenio_asignado, is_active, require_password_change) 
-        VALUES ('999999', 'LOCAL TEST MANUAL', 'cliente@sul.com', $1, 'Cliente', '2X1 CORDOBA', TRUE, TRUE) -- ✅ Cambiado a '2X1 CORDOBA'
+        INSERT INTO users (client_code, name, email, password, role, convenio, is_active, require_password_change) 
+        VALUES ('999999', 'LOCAL TEST MANUAL', 'cliente@sul.com', $1, 'Cliente', '2X1 CORDOBA', TRUE, TRUE)
       `, [clientHash]);
       console.log('👥 Cliente de prueba inicializado en la lista 2X1 CORDOBA.');
     }
