@@ -200,3 +200,46 @@ export const deleteClientAdmin = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error al cambiar estado del cliente.' });
   }
 };
+
+// 🚀 AGREGAR AL FINAL DE authController.ts
+
+export const updateClient = async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, convenio, razon_social, cuit, localidad, 
+      provincia, telefono, vendedor, grupo, 
+      domicilio_facturacion, dias_entrega 
+    } = req.body;
+
+    // Asumiendo que tu tabla en la base de datos se llama 'users'
+    const updateQuery = `
+      UPDATE users 
+      SET 
+        name = $1, convenio = $2, razon_social = $3, cuit = $4, 
+        localidad = $5, provincia = $6, telefono = $7, vendedor = $8, 
+        grupo = $9, domicilio_facturacion = $10, dias_entrega = $11
+      WHERE id = $12
+      RETURNING *;
+    `;
+    
+    const values = [
+      name, convenio, razon_social, cuit, localidad, 
+      provincia, telefono, vendedor, grupo, 
+      domicilio_facturacion, dias_entrega, id
+    ];
+
+    // Ejecuta la consulta (si usás pool de pg)
+    const result = await pool.query(updateQuery, values);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+
+    res.json({ message: 'Datos actualizados correctamente', client: result.rows[0] });
+
+  } catch (error) {
+    console.error('🚨 Error al actualizar el cliente:', error);
+    res.status(500).json({ error: 'Error interno del servidor al guardar los cambios' });
+  }
+};
