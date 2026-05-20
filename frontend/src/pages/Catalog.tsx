@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Filter, ShoppingCart, ChevronLeft, ChevronRight, Zap } from 'lucide-react';
-import type { Product, CartItem } from '../types';
+import type { Product } from '../types'; // 🚀 SACAMOS CartItem de acá
 import { formatPrice } from '../../utils/currency';
 
 interface CatalogProduct extends Product {
@@ -10,10 +10,16 @@ interface CatalogProduct extends Product {
   inSlider?: boolean; 
 }
 
+// 🚀 LO DEFINIMOS LOCALMENTE PARA QUE NO FALLE TYPESCRIPT
+interface CatalogCartItem {
+  product: CatalogProduct;
+  quantity: number;
+}
+
 interface CatalogProps {
   products: CatalogProduct[];
-  cart: CartItem[]; 
-  setShoppingCart: React.Dispatch<React.SetStateAction<CartItem[]>>;
+  cart: CatalogCartItem[]; 
+  setShoppingCart: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCart }) => {
@@ -47,17 +53,14 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
 
   useEffect(() => setCurrentPage(1), [searchTerm, selectedCategory]);
 
-  // 🚀 CARRUSEL MÁS LENTO (Mitad de velocidad)
   useEffect(() => {
     let animationId: number;
     const slider = sliderRef.current;
-    let frameCount = 0; // Agregamos un contador de frames
+    let frameCount = 0; 
 
     const step = () => {
       if (slider && !isSliderPaused && !isDragging.current) {
         frameCount++;
-        // Solo mueve el scroll 1 píxel cada 2 frames (50% más lento)
-        // Si lo querés aún más lento, cambialo a frameCount % 3 === 0
         if (frameCount % 2 === 0) { 
           slider.scrollLeft += 1; 
           if (slider.scrollLeft >= slider.scrollWidth / 2) {
@@ -112,7 +115,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
     });
   };
 
-  // Función auxiliar para saber cuántos hay en el carrito y cambiar el botón
   const getQtyInCart = (sku: string) => {
     return cart.find(item => item.product.sku === sku)?.quantity || 0;
   };
@@ -126,7 +128,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
         .no-select { user-select: none; -webkit-user-select: none; }
       `}</style>
 
-      {/* 🌟 CARRUSEL DE DESTACADOS */}
       {sliderProducts.length > 0 && searchTerm === '' && selectedCategory === 'TODOS' && (
         <div className="w-full mb-10 bg-slate-900 rounded-3xl p-6 md:p-8 shadow-xl border border-slate-800">
           <div className="flex items-center space-x-2 text-white text-lg font-black uppercase tracking-wider mb-6">
@@ -150,7 +151,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
               onMouseMove={handleMouseMove}
             >
               {displaySliders.map((product, idx) => {
-                const inCartQty = getQtyInCart(product.sku); // Leemos si está en el carrito
+                const inCartQty = getQtyInCart(product.sku); 
                 return (
                   <div key={`${product.sku}-${idx}`} className="w-64 shrink-0 bg-white rounded-2xl p-5 shadow border border-slate-200 flex flex-col justify-between transition-transform hover:-translate-y-1">
                     <div>
@@ -168,7 +169,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
                         {product.isPromo && <span className="text-xs text-slate-400 line-through">${formatPrice(product.unitPrice ?? 0)}</span>}
                       </div>
                       
-                      {/* 🚀 BOTÓN CON FEEDBACK VISUAL (CARRUSEL) */}
                       <button 
                         onClick={(e) => { e.stopPropagation(); handleAddToCart(product); }} 
                         className={`w-full font-bold py-2 rounded-xl text-xs transition-all active:scale-95 flex justify-center items-center space-x-2 cursor-pointer relative z-20 ${
@@ -187,7 +187,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
         </div>
       )}
 
-      {/* BUSCADOR */}
       <div className="relative max-w-2xl mx-auto w-full">
         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
           <Search className="text-slate-400" size={20} />
@@ -206,7 +205,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
         )}
       </div>
 
-      {/* FILTROS */}
       <div className="w-full border-b border-slate-200 pb-4">
         <div className="flex items-center space-x-2 text-slate-400 text-xs font-black uppercase tracking-wider mb-3">
           <Filter size={14}/> <span>Filtrar por Rubro</span>
@@ -228,7 +226,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
         </div>
       </div>
 
-      {/* GRILLA */}
       {currentProductsForDisplay.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 p-8">
           <p className="text-slate-400 font-bold text-base">No encontramos productos que coincidan con los filtros seleccionados.</p>
@@ -237,7 +234,7 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {currentProductsForDisplay.map((product) => {
-              const inCartQty = getQtyInCart(product.sku); // Leemos si está en el carrito
+              const inCartQty = getQtyInCart(product.sku); 
               
               return (
                 <div key={product.sku} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden ${inCartQty > 0 ? 'border-slate-400' : 'border-slate-200'}`}>
@@ -263,7 +260,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
                       )}
                     </div>
                     
-                    {/* 🚀 BOTÓN CON FEEDBACK VISUAL (GRILLA) */}
                     <button
                       onClick={() => handleAddToCart(product)}
                       className={`w-full font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center space-x-2 cursor-pointer ${
@@ -279,7 +275,6 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
             })}
           </div>
 
-          {/* PAGINACIÓN */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center space-x-2 pt-6 border-t border-slate-100">
               <button
