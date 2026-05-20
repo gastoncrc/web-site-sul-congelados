@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, Calendar, AlertTriangle, FileText } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import type { Product } from '../types';
@@ -23,19 +23,36 @@ interface CartSidebarProps {
   user: any;
 }
 
-// Helper para saber qué día de la semana cae una fecha (Evita desfasajes de zona horaria)
-const getDiaSemana = (fechaStr: string) => {
-  if (!fechaStr) return '';
-  const date = new Date(fechaStr + 'T12:00:00'); // Forzamos mediodía para no errar el día
-  const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-  return dias[date.getDay()];
+// 🚀 HELPER: Calcula automáticamente las próximas fechas exactas según los días permitidos
+const generarProximasFechas = (diasHabilitados: string[]) => {
+  const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const indicesHabilitados = diasHabilitados.map(d => diasSemana.indexOf(d)).filter(i => i !== -1);
+  
+  if (indicesHabilitados.length === 0) return [];
+
+  const fechasValidas = [];
+  let fechaActual = new Date();
+  fechaActual.setDate(fechaActual.getDate() + 1); // Calculamos entregas a partir de mañana
+
+  // Buscamos las próximas 5 fechas que coincidan con sus días habilitados
+  while (fechasValidas.length < 5) {
+    if (indicesHabilitados.includes(fechaActual.getDay())) {
+      fechasValidas.push(new Date(fechaActual));
+    }
+    fechaActual.setDate(fechaActual.getDate() + 1);
+  }
+  return fechasValidas;
 };
 
-// Helper para formato visual (Ej: 26/05/2026)
-const formatearFecha = (fechaStr: string) => {
-  if (!fechaStr) return '';
-  const [yyyy, mm, dd] = fechaStr.split('-');
-  return `${dd}/${mm}/${yyyy}`;
+const formatearFecha = (date: Date) => {
+  const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  const diaNombre = dias[date.getDay()];
+  const diaNumero = String(date.getDate()).padStart(2, '0');
+  const mes = String(date.getMonth() + 1).padStart(2, '0');
+  return {
+    completo: `${diaNombre} ${diaNumero}/${mes}`,
+    valor: date.toISOString().split('T')[0] // Formato YYYY-MM-DD para guardar
+  };
 };
 
 export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, cart, setShoppingCart, updateQuantity, user }) => {
@@ -56,23 +73,28 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     ? (typeof user.dias_entrega === 'string' ? user.dias_entrega.split(',') : user.dias_entrega)
     : ['Martes', 'Viernes'];
 
+  // Calculamos las opciones de fechas solo una vez o cuando cambie el usuario
+  const opcionesFechas = useMemo(() => generarProximasFechas(diasHabilitados), [user]);
+
   const cartTotal = cart.reduce((total, item) => total + (((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity), 0);
   const faltanteEnvio = minPurchaseB2C - cartTotal;
   const debaRetirarEnPlanta = !user && faltanteEnvio > 0;
 
-  // Validación de fecha en tiempo real para cliente registrado
-  const diaSeleccionado = getDiaSemana(checkoutData.fechaEntrega);
-  const esFechaValida = user ? (checkoutData.fechaEntrega !== '' && diasHabilitados.includes(diaSeleccionado)) : true;
-
   useEffect(() => {
     if (user) {
-      setCheckoutData(prev => ({ ...prev, nombre: user.name || '', tipoEntrega: 'Envio' }));
+      setCheckoutData(prev => ({ 
+        ...prev, 
+        nombre: user.name || '', 
+        // Pre-seleccionamos la primera fecha disponible calculada
+        fechaEntrega: opcionesFechas.length > 0 ? formatearFecha(opcionesFechas[0]).completo : '',
+        tipoEntrega: 'Envio'
+      }));
     } else if (debaRetirarEnPlanta) {
       setCheckoutData(prev => ({ ...prev, tipoEntrega: 'Retiro' }));
     } else {
       setCheckoutData(prev => ({ ...prev, tipoEntrega: 'Envio' }));
     }
-  }, [user, debaRetirarEnPlanta, isOpen]);
+  }, [user, debaRetirarEnPlanta, isOpen, opcionesFechas]);
 
   if (!isOpen) return null;
 
@@ -81,30 +103,38 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     setTimeout(() => setIsCheckoutStep(false), 300);
   };
 
-  const datosEntregaText = user 
-    ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Fecha de Reparto: ${diaSeleccionado} ${formatearFecha(checkoutData.fechaEntrega)}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
-    : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre || 'No especificado'}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono || 'No especificado'}\n💳 Pago: ${checkoutData.pago}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`;
+  // 🚀 INTERCEPTAMOS EL FORMULARIO NATIVO PARA OBLIGAR A LLENAR LOS DATOS
+  const handleSubmitConfirmacion = (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*\n\n${datosEntregaText}`;
-  const WHATSAPP_NUMBER = "5493516135768"; 
-  const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
+    const datosEntregaText = user 
+      ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Fecha de Reparto: ${checkoutData.fechaEntrega}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
+      : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono}\n💳 Pago: ${checkoutData.pago}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`;
 
-  // Obtenemos la fecha de hoy para que no puedan elegir días pasados en el calendario
-  const hoyStr = new Date().toISOString().split('T')[0];
+    const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*\n\n${datosEntregaText}`;
+    
+    const WHATSAPP_NUMBER = "5493510000000"; 
+    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
+
+    window.open(whatsappUrl, '_blank');
+    handleClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
       <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative w-full max-w-md bg-white h-dvh shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      
+      {/* 🚀 EL CONTENEDOR AHORA ES UN FORMULARIO COMPLETO */}
+      <form onSubmit={handleSubmitConfirmacion} className="relative w-full max-w-md bg-white h-dvh shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
         
         <div className="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
           <div className="flex items-center">
-            {isCheckoutStep && <button onClick={() => setIsCheckoutStep(false)} className="mr-3 text-slate-500 hover:text-slate-900 cursor-pointer"><ChevronLeft size={20} /></button>}
+            {isCheckoutStep && <button type="button" onClick={() => setIsCheckoutStep(false)} className="mr-3 text-slate-500 hover:text-slate-900 cursor-pointer"><ChevronLeft size={20} /></button>}
             <h2 className="text-lg font-black uppercase text-slate-900 flex items-center">
               <CartIcon size={20} className="mr-2"/> {isCheckoutStep ? (user ? 'Programar Reparto' : 'Datos de Entrega') : 'Tu Pedido'}
             </h2>
           </div>
-          <button onClick={handleClose} className="p-2 text-slate-500 hover:text-slate-900 bg-slate-200 rounded-full cursor-pointer"><X size={18} /></button>
+          <button type="button" onClick={handleClose} className="p-2 text-slate-500 hover:text-slate-900 bg-slate-200 rounded-full cursor-pointer"><X size={18} /></button>
         </div>
         
         <div className="flex-1 overflow-y-auto p-4">
@@ -118,54 +148,51 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
                     <div className="flex-1">
                       <p className="text-xs font-bold text-slate-900">{item.product.name}</p>
                       <div className="flex items-center space-x-2 mt-2">
-                        <button onClick={() => updateQuantity(item.product.sku, -1)} className="w-6 h-6 flex items-center justify-center bg-slate-200 rounded-md text-slate-700 font-bold hover:bg-slate-300 cursor-pointer">-</button>
+                        <button type="button" onClick={() => updateQuantity(item.product.sku, -1)} className="w-6 h-6 flex items-center justify-center bg-slate-200 rounded-md text-slate-700 font-bold hover:bg-slate-300 cursor-pointer">-</button>
                         <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
-                        <button onClick={() => updateQuantity(item.product.sku, 1)} className="w-6 h-6 flex items-center justify-center bg-slate-200 rounded-md text-slate-700 font-bold hover:bg-slate-300 cursor-pointer">+</button>
+                        <button type="button" onClick={() => updateQuantity(item.product.sku, 1)} className="w-6 h-6 flex items-center justify-center bg-slate-200 rounded-md text-slate-700 font-bold hover:bg-slate-300 cursor-pointer">+</button>
                       </div>
                     </div>
                     <div className="flex items-center space-x-3 ml-2">
                       <span className="font-black text-sm">${formatPrice(((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity)}</span>
-                      <button onClick={() => setShoppingCart(cart.filter(i => i.product.sku !== item.product.sku))} className="text-red-400 hover:text-red-600 cursor-pointer p-1"><Trash2 size={16}/></button>
+                      <button type="button" onClick={() => setShoppingCart(cart.filter(i => i.product.sku !== item.product.sku))} className="text-red-400 hover:text-red-600 cursor-pointer p-1"><Trash2 size={16}/></button>
                     </div>
                   </div>
                 ))
               )}
             </div>
           ) : user ? (
-            /* 📅 CLIENTE REGISTRADO: SELECCIÓN DE FECHA CON CALENDARIO */
+            /* 📅 CLIENTE REGISTRADO: SELECTOR DE FECHAS SEGURAS */
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800">
                 <p className="text-xs font-bold text-[#deff9a] uppercase tracking-wider mb-1">Franquicia: {user.name}</p>
-                <p className="text-[11px] text-slate-400">Tus datos logísticos están validados. Abrí el calendario y elegí la fecha exacta de recepción.</p>
+                <p className="text-[11px] text-slate-400">Tus datos logísticos están validados. Seleccioná una de las fechas habilitadas para la recepción.</p>
               </div>
 
               <div>
                 <label className="flex text-xs font-black text-slate-700 uppercase mb-3 items-center">
-                  <Calendar size={14} className="mr-1 text-blue-600"/> Abrir Calendario
+                  <Calendar size={14} className="mr-1 text-blue-600"/> Próximas Fechas Disponibles
                 </label>
                 
-                <input 
-                  type="date" 
-                  min={hoyStr}
-                  value={checkoutData.fechaEntrega} 
-                  onChange={e => setCheckoutData({...checkoutData, fechaEntrega: e.target.value})} 
-                  className={`w-full p-4 border-2 rounded-xl text-slate-700 font-bold outline-none transition-all cursor-pointer ${
-                    !checkoutData.fechaEntrega ? 'border-slate-200 focus:border-slate-900 bg-white' : 
-                    esFechaValida ? 'border-green-500 bg-green-50 text-green-900' : 'border-red-500 bg-red-50 text-red-900'
-                  }`}
-                />
-                
-                {checkoutData.fechaEntrega && esFechaValida && (
-                  <p className="text-xs text-green-600 font-bold mt-2 flex items-center">
-                    ✅ Entregaremos el {diaSeleccionado} {formatearFecha(checkoutData.fechaEntrega)}
-                  </p>
-                )}
-                
-                {checkoutData.fechaEntrega && !esFechaValida && (
-                  <p className="text-xs text-red-600 font-bold mt-2 bg-red-100 p-2 rounded-lg">
-                    🚨 Fecha no permitida. Solo tenés reparto los días: <strong>{diasHabilitados.join(', ')}</strong>.
-                  </p>
-                )}
+                <div className="grid grid-cols-1 gap-2">
+                  {opcionesFechas.map((fecha, idx) => {
+                    const objFecha = formatearFecha(fecha);
+                    return (
+                      <label key={idx} className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${checkoutData.fechaEntrega === objFecha.completo ? 'border-slate-900 bg-slate-50 font-bold text-slate-900 shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                        <span className="text-sm uppercase tracking-wider">{objFecha.completo}</span>
+                        <input 
+                          type="radio" 
+                          name="fechaExacta" 
+                          value={objFecha.completo} 
+                          required
+                          checked={checkoutData.fechaEntrega === objFecha.completo} 
+                          onChange={e => setCheckoutData({...checkoutData, fechaEntrega: e.target.value})} 
+                          className="w-4 h-4 text-slate-900 focus:ring-slate-900 cursor-pointer" 
+                        />
+                      </label>
+                    )
+                  })}
+                </div>
               </div>
 
               <div>
@@ -174,7 +201,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
               </div>
             </div>
           ) : (
-            /* 📝 CONSUMIDOR FINAL */
+            /* 📝 CONSUMIDOR FINAL (CON DATOS OBLIGATORIOS) */
             <div className="space-y-4 animate-in fade-in duration-200">
               {debaRetirarEnPlanta ? (
                 <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-amber-900 flex flex-col space-y-2">
@@ -195,15 +222,16 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
                 </div>
               )}
               
-              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Nombre Completo *</label><input type="text" required value={checkoutData.nombre} onChange={e => setCheckoutData({...checkoutData, nombre: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" /></div>
+              {/* 🚀 Atributo REQUIRED activo en los inputs */}
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Nombre Completo *</label><input type="text" required value={checkoutData.nombre} onChange={e => setCheckoutData({...checkoutData, nombre: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" /></div>
               
               {!debaRetirarEnPlanta && (
-                <div><label className="block text-xs font-black text-slate-700 uppercase mb-1"><MapPin size={12} className="inline mr-1"/> Dirección de Entrega *</label><input type="text" required value={checkoutData.direccion} onChange={e => setCheckoutData({...checkoutData, direccion: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Calle, Número, Barrio" /></div>
+                <div><label className="block text-xs font-black text-slate-700 uppercase mb-1"><MapPin size={12} className="inline mr-1"/> Dirección de Entrega *</label><input type="text" required value={checkoutData.direccion} onChange={e => setCheckoutData({...checkoutData, direccion: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Calle, Número, Barrio" /></div>
               )}
 
-              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Teléfono de Contacto *</label><input type="text" required value={checkoutData.telefono} onChange={e => setCheckoutData({...checkoutData, telefono: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Ej: 351..." /></div>
-              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1"><CreditCard size={12} className="inline mr-1"/> Forma de Pago</label><select value={checkoutData.pago} onChange={e => setCheckoutData({...checkoutData, pago: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none"><option value="Efectivo">Efectivo contra entrega</option><option value="Transferencia">Transferencia Bancaria</option></select></div>
-              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Observaciones / Aclaraciones</label><textarea rows={2} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Notas para la entrega..."></textarea></div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Teléfono de Contacto *</label><input type="text" required value={checkoutData.telefono} onChange={e => setCheckoutData({...checkoutData, telefono: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Ej: 351..." /></div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1"><CreditCard size={12} className="inline mr-1"/> Forma de Pago *</label><select required value={checkoutData.pago} onChange={e => setCheckoutData({...checkoutData, pago: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900"><option value="Efectivo">Efectivo contra entrega</option><option value="Transferencia">Transferencia Bancaria</option></select></div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Observaciones / Aclaraciones</label><textarea rows={2} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Notas para la entrega..."></textarea></div>
             </div>
           )}
         </div>
@@ -213,25 +241,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
             <div className="flex justify-between items-center mb-4"><span className="font-bold text-slate-600">Total Neto:</span><span className="text-xl font-black text-slate-900">${formatPrice(cartTotal)}</span></div>
             {!isCheckoutStep ? (
               <div className="space-y-3">
-                <button onClick={() => setIsCheckoutStep(true)} className="w-full bg-[#003366] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-900 transition cursor-pointer">Continuar con el Pedido</button>
-                <button onClick={() => setShoppingCart([])} className="w-full bg-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-300 transition cursor-pointer flex items-center justify-center"><Trash2 size={16} className="mr-2" /> Vaciar Carrito</button>
+                <button type="button" onClick={() => setIsCheckoutStep(true)} className="w-full bg-[#003366] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-900 transition cursor-pointer">Continuar con el Pedido</button>
+                <button type="button" onClick={() => setShoppingCart([])} className="w-full bg-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-300 transition cursor-pointer flex items-center justify-center"><Trash2 size={16} className="mr-2" /> Vaciar Carrito</button>
               </div>
             ) : (
               <div className="space-y-3">
-                {/* 🚀 EL BOTÓN DE WHATSAPP SE BLOQUEA SI LA FECHA ES INVÁLIDA */}
-                <button 
-                  onClick={() => {
-                    if (user && !esFechaValida) return; // No hace nada si la fecha está mal
-                    window.open(whatsappUrl, '_blank');
-                    handleClose();
-                  }}
-                  disabled={user && !esFechaValida}
-                  className={`w-full font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center ${
-                    user && !esFechaValida 
-                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
-                      : 'bg-[#25D366] text-white hover:bg-[#128C7E] cursor-pointer'
-                  }`}
-                >
+                {/* 🚀 BOTÓN TIPO SUBMIT PARA FORZAR LA VALIDACIÓN HTML DE LOS CAMPOS */}
+                <button type="submit" className="w-full bg-[#25D366] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-[#128C7E] transition cursor-pointer flex items-center justify-center">
                   <MessageCircle size={20} className="mr-2" />
                   {debaRetirarEnPlanta ? 'Confirmar Retiro por Planta' : 'Enviar por WhatsApp'}
                 </button>
@@ -239,7 +255,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
             )}
           </div>
         )}
-      </div>
+      </form>
     </div>
   );
 };
