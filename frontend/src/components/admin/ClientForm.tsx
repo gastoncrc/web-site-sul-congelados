@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, Save } from 'lucide-react';
+import { UserPlus, Save, Calendar } from 'lucide-react';
 import { api } from '../../config/api';
 
 interface ClientFormProps {
@@ -11,16 +11,32 @@ export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
     tradeName: '', businessName: '', taxId: '', address: '', city: '', 
     province: '', phone: '', email: '', seller: '', agreement: 'CORDOBA', group: ''
   });
+  
+  // 🚀 Estado para los días de entrega seleccionados
+  const [diasEntrega, setDiasEntrega] = useState<string[]>(['Martes', 'Viernes']);
   const [isLoading, setIsLoading] = useState(false);
+
+  const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+  const handleDayToggle = (day: string) => {
+    setDiasEntrega(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    // Unimos los días elegidos en un solo string para mandárselo limpio al backend
+    const payload = {
+      ...formData,
+      diasEntrega: diasEntrega.join(',') 
+    };
+
     try {
-      // 🚀 Apuntamos a la ruta de tu registerClientAdmin
-      await api.post('/auth/register-client-admin', formData);
-      setSystemMessage('✅ Cliente creado exitosamente. La contraseña temporal es SUL2026!');
+      await api.post('/auth/register-client-admin', payload);
+      setSystemMessage('✅ Cliente creado exitosamente. Contraseña temporal: SUL2026!');
       setFormData({ tradeName: '', businessName: '', taxId: '', address: '', city: '', province: '', phone: '', email: '', seller: '', agreement: 'CORDOBA', group: '' });
+      setDiasEntrega(['Martes', 'Viernes']);
     } catch (error: any) {
       setSystemMessage(`🚨 Error: ${error.response?.data?.error || 'No se pudo guardar el cliente'}`);
     } finally {
@@ -34,7 +50,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
         <div className="bg-slate-900 p-3 rounded-xl"><UserPlus className="text-[#deff9a]" size={24} /></div>
         <div>
           <h2 className="text-2xl font-black text-slate-900 uppercase">Alta Manual de Cliente</h2>
-          <p className="text-sm text-slate-500 font-medium">Completá todos los datos para dar de alta un cliente fuera de Excel.</p>
+          <p className="text-sm text-slate-500 font-medium">Completá todos los datos y configurá su ventana de reparto.</p>
         </div>
       </div>
 
@@ -77,8 +93,22 @@ export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
           </div>
         </div>
 
+        {/* 🚀 CONFIGURACIÓN DE DÍAS DE REPARTO ASIGNADOS */}
+        <div className="pt-4 border-t border-slate-100">
+          <label className="flex text-xs font-black text-slate-700 uppercase mb-3 items-center">
+            <Calendar size={14} className="mr-1 text-slate-900" /> Días de Reparto Habilitados para esta Franquicia
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {diasSemana.map(day => (
+              <button key={day} type="button" onClick={() => handleDayToggle(day)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer uppercase ${diasEntrega.includes(day) ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}>
+                {day}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="pt-6 border-t border-slate-100 flex justify-end">
-          <button type="submit" disabled={isLoading} className="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl shadow hover:bg-slate-800 transition disabled:opacity-50 cursor-pointer">
+          <button type="submit" disabled={isLoading} className="bg-slate-900 text-white font-bold py-3 px-8 rounded-xl shadow hover:bg-slate-800 transition尊 disabled:opacity-50 cursor-pointer">
             <Save size={18} className="inline mr-2"/> {isLoading ? 'Guardando...' : 'Crear Cliente'}
           </button>
         </div>

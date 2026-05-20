@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu } from 'lucide-react';
+import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu, Settings } from 'lucide-react';
 import { api } from '../config/api';
 
 // IMPORTAMOS LOS COMPONENTES MODULARIZADOS
@@ -16,8 +16,20 @@ interface AdminProps {
 // 🚀 COMPONENTE PARA ALTA DE USUARIOS/ADMINS
 const UserForm = ({ setSystemMessage }: { setSystemMessage: any }) => {
   const [form, setForm] = useState({ email: '', password: '', role: 'Admin', convenio: 'GENERAL', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' });
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault(); 
+    try { 
+      await api.post('/auth/admin-create-user', form); 
+      setSystemMessage('✅ Usuario creado exitosamente'); 
+      setForm({ email: '', password: '', role: 'Admin', convenio: 'GENERAL', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' }); 
+    } catch(e) { 
+      setSystemMessage('🚨 Error al crear usuario'); 
+    }
+  };
+
   return (
-    <form className="bg-white p-6 rounded-2xl max-w-xl mx-auto space-y-4 shadow-sm border border-slate-200 mt-10" onSubmit={async e => { e.preventDefault(); try { await api.post('/auth/admin-create-user', form); setSystemMessage('✅ Usuario creado exitosamente'); setForm({ email: '', password: '', role: 'Admin', convenio: 'GENERAL', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' }); } catch(e){ setSystemMessage('🚨 Error al crear usuario'); } }}>
+    <form className="bg-white p-6 rounded-2xl max-w-xl mx-auto space-y-4 shadow-sm border border-slate-200 mt-10 animate-in fade-in" onSubmit={handleSubmit}>
       <h2 className="font-black text-xl mb-4 text-slate-900 uppercase">Alta de Usuario</h2>
       <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Email</label><input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" /></div>
       <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Contraseña</label><input type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" /></div>
@@ -30,9 +42,9 @@ const UserForm = ({ setSystemMessage }: { setSystemMessage: any }) => {
 export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefresh }) => {
   const { user, logout } = useAuth(); 
   
-  // Navigation & UI States (Agregado user-form)
-  const [activeModule, setActiveModule] = useState<'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'preview'>('product-list');
-  const [expandedSection, setExpandedSection] = useState<'products' | 'clients' | 'users' | null>('products');
+  // Navigation & UI States
+  const [activeModule, setActiveModule] = useState<'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'config'>('product-list');
+  const [expandedSection, setExpandedSection] = useState<'products' | 'clients' | 'users' | 'settings' | null>('products');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Data States
@@ -41,23 +53,21 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
   const [isLoading, setIsLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
-  // Traer Productos para la tabla del admin
   const fetchAdminData = async () => {
     try {
       const response = await api.get(`/products/admin?t=${new Date().getTime()}`);
       setProductList(response.data);
     } catch (error) { 
-      console.error('Error cargando productos en el admin:', error); 
+      console.error('Error cargando productos:', error); 
     }
   };
 
-  // Traer listado de clientes de la base de datos
   const fetchClientsData = async () => {
     try {
       const response = await api.get(`/auth/clients?t=${new Date().getTime()}`);
       setClientList(response.data);
     } catch (error) {
-      console.error('Error cargando clientes en el admin:', error);
+      console.error('Error cargando clientes:', error);
     }
   };
 
@@ -66,7 +76,6 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
     if (activeModule === 'client-list') fetchClientsData(); 
   }, [activeModule]);
 
-  // Manejador de subidas masivas
   const handleBulkUpload = async (type: 'products' | 'clients') => {
     if (!file) return setSystemMessage('Seleccioná un archivo Excel o CSV.');
     setIsLoading(true);
@@ -90,6 +99,11 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
     }
   };
 
+  const toggleSection = (section: 'products' | 'clients' | 'users' | 'settings') => {
+    if (isSidebarCollapsed) setIsSidebarCollapsed(false);
+    setExpandedSection(expandedSection === section ? null : section);
+  };
+
   if (user?.role !== 'Admin') return null;
 
   return (
@@ -99,10 +113,9 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#020617] border-r border-slate-800 flex flex-col shrink-0 transition-all duration-300`}>
         <div className="flex flex-col h-full">
           
-          {/* TÍTULO PANEL */}
           <div className="h-20 flex items-center justify-between px-4 sm:px-6 border-b border-slate-800 shrink-0">
             {!isSidebarCollapsed ? (
-              <h2 className="text-white text-sm font-black uppercase tracking-widest">PANEL ADMINISTRADOR</h2>
+              <h2 className="text-white text-sm font-black uppercase tracking-widest">PANEL ADMIN</h2>
             ) : (
               <h2 className="text-white text-lg font-black mx-auto">PA</h2>
             )}
@@ -112,9 +125,10 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
           </div>
           
           <nav className="space-y-4 flex-1 overflow-y-auto p-4 sm:p-6">
+            
             {/* PRODUCT MODULE */}
             <div>
-              <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'products' ? null : 'products')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'products' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+              <button onClick={() => toggleSection('products')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'products' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
                 <div className="flex items-center"><Package size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">PRODUCTOS</span>}</div>
                 {!isSidebarCollapsed && (expandedSection === 'products' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
               </button>
@@ -128,7 +142,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
 
             {/* CLIENT MODULE */}
             <div>
-              <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'clients' ? null : 'clients')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'clients' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+              <button onClick={() => toggleSection('clients')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'clients' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
                 <div className="flex items-center"><Users size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">CLIENTES</span>}</div>
                 {!isSidebarCollapsed && (expandedSection === 'clients' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
               </button>
@@ -141,9 +155,9 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               )}
             </div>
 
-            {/* 🚀 USER MODULE (AGREGADO) */}
+            {/* USER MODULE */}
             <div>
-              <button onClick={() => { if(isSidebarCollapsed) setIsSidebarCollapsed(false); setExpandedSection(expandedSection === 'users' ? null : 'users')}} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'users' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+              <button onClick={() => toggleSection('users')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'users' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
                 <div className="flex items-center"><UserIcon size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">USUARIOS</span>}</div>
                 {!isSidebarCollapsed && (expandedSection === 'users' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
               </button>
@@ -153,9 +167,22 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
                 </div>
               )}
             </div>
+
+            {/* 🚀 SETTINGS MODULE */}
+            <div>
+              <button onClick={() => toggleSection('settings')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'settings' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+                <div className="flex items-center"><Settings size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">AJUSTES</span>}</div>
+                {!isSidebarCollapsed && (expandedSection === 'settings' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
+              </button>
+              {expandedSection === 'settings' && !isSidebarCollapsed && (
+                <div className="ml-9 mt-2 space-y-1">
+                  <button onClick={() => setActiveModule('config')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'config' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Reglas B2C</button>
+                </div>
+              )}
+            </div>
+
           </nav>
 
-          {/* FOOTER CON DATOS DE USUARIO Y LOGOUT */}
           <div className="p-4 border-t border-slate-800 shrink-0">
             {!isSidebarCollapsed && (
               <div className="flex items-center space-x-3 mb-4 px-2">
@@ -170,12 +197,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
                 </div>
               </div>
             )}
-            
-            <button 
-              onClick={logout}
-              className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-4'} space-x-2 bg-red-900/20 hover:bg-red-900/50 text-red-400 hover:text-red-300 py-3 rounded-lg transition-colors border border-red-900/30 font-bold text-sm cursor-pointer`}
-              title="Cerrar Sesión"
-            >
+            <button onClick={logout} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-4'} space-x-2 bg-red-900/20 hover:bg-red-900/50 text-red-400 hover:text-red-300 py-3 rounded-lg transition-colors border border-red-900/30 font-bold text-sm cursor-pointer`}>
               <LogOut size={18} className="shrink-0" />
               {!isSidebarCollapsed && <span>Cerrar Sesión</span>}
             </button>
@@ -185,58 +207,59 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       </aside>
 
       {/* 🖥️ MAIN WORKSPACE */}
-      <main className="flex-1 overflow-y-auto bg-slate-50 p-6 sm:p-10">
+      <main className="flex-1 overflow-y-auto bg-slate-50 p-6 sm:p-10 relative">
         
-        {/* RENDER LISTADO PRODUCTOS */}
-        {activeModule === 'product-list' && (
-          <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />
-        )}
+        {activeModule === 'product-list' && <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />}
+        {activeModule === 'client-list' && <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />}
+        {activeModule === 'client-form' && <ClientForm setSystemMessage={setSystemMessage} />}
+        {activeModule === 'user-form' && <UserForm setSystemMessage={setSystemMessage} />}
 
-        {/* RENDER GESTIÓN CRM SEPARADO */}
-        {activeModule === 'client-list' && (
-          <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />
-        )}
-
-        {activeModule === 'client-form' && (
-          <ClientForm setSystemMessage={setSystemMessage} />
-        )}
-
-        {/* 🚀 RENDER DE CREACIÓN DE USUARIO (AGREGADO) */}
-        {activeModule === 'user-form' && (
-          <UserForm setSystemMessage={setSystemMessage} />
-        )}
-
-        {/* PRODUCT BULK UPLOAD */}
-        {activeModule === 'product-bulk' && (
-          <div className="max-w-xl mx-auto space-y-6 mt-10 text-center">
-            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto"><Upload className="text-blue-600" size={28} /></div>
-            <div>
-              <h2 className="text-xl font-black text-slate-900 uppercase">Carga Masiva de Productos</h2>
-              <p className="text-slate-400 text-xs mt-1">Sincronizá tu Excel de inventario y listas.</p>
-            </div>
-            <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200">
-              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" id="prod-file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-              <label htmlFor="prod-file" className="cursor-pointer block text-sm text-slate-500 font-medium py-4">{file ? `Seleccionado: ${file.name}` : "Hacé click para seleccionar matriz Excel"}</label>
-              <button onClick={() => handleBulkUpload('products')} disabled={isLoading || !file} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition disabled:opacity-50 text-sm cursor-pointer">
-                {isLoading ? "Procesando matriz..." : "Actualizar Catálogo B2B"}
-              </button>
+        {/* 🚀 RENDER DE CONFIGURACIÓN B2C */}
+        {activeModule === 'config' && (
+          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto mt-6 animate-in fade-in">
+            <h3 className="font-black text-lg text-slate-900 uppercase tracking-wider mb-2">Configuración Comercial B2C</h3>
+            <p className="text-xs text-slate-500 mb-6 font-medium">Ajustá el límite monetario que deben superar los consumidores finales no registrados para que el sistema les habilite la opción de envío a domicilio logístico.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Mínimo de Compra para Envíos ($)</label>
+                <div className="flex space-x-2">
+                  <input 
+                    type="number" 
+                    id="minPurchaseInput"
+                    defaultValue={localStorage.getItem('sul_min_purchase_b2c') || 30000}
+                    className="p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 w-full font-mono font-bold"
+                    placeholder="Ej: 30000"
+                  />
+                  <button 
+                    onClick={() => {
+                      const val = (document.getElementById('minPurchaseInput') as HTMLInputElement).value;
+                      localStorage.setItem('sul_min_purchase_b2c', val);
+                      setSystemMessage('✅ Mínimo de compra B2C actualizado correctamente.');
+                    }}
+                    className="bg-slate-900 text-white font-bold px-6 rounded-xl text-xs hover:bg-slate-800 transition shadow-sm cursor-pointer shrink-0"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* 🚀 CLIENT BULK UPLOAD (AGREGADO) */}
-        {activeModule === 'client-bulk' && (
-          <div className="max-w-xl mx-auto space-y-6 mt-10 text-center">
+        {/* BULK UPLOADS */}
+        {(activeModule === 'product-bulk' || activeModule === 'client-bulk') && (
+          <div className="max-w-xl mx-auto space-y-6 mt-10 text-center animate-in fade-in">
             <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto"><Upload className="text-blue-600" size={28} /></div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 uppercase">Carga Masiva de Clientes</h2>
-              <p className="text-slate-400 text-xs mt-1">Sincronizá tu listado de clientes mediante Excel/CSV.</p>
+              <h2 className="text-xl font-black text-slate-900 uppercase">Carga Masiva de {activeModule === 'product-bulk' ? 'Productos' : 'Clientes'}</h2>
+              <p className="text-slate-400 text-xs mt-1">Sincronizá tu listado mediante un archivo Excel o CSV.</p>
             </div>
             <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200">
-              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" id="client-file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-              <label htmlFor="client-file" className="cursor-pointer block text-sm text-slate-500 font-medium py-4">{file ? `Seleccionado: ${file.name}` : "Hacé click para seleccionar matriz CSV/Excel"}</label>
-              <button onClick={() => handleBulkUpload('clients')} disabled={isLoading || !file} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition disabled:opacity-50 text-sm cursor-pointer">
-                {isLoading ? "Procesando matriz..." : "Sincronizar Clientes"}
+              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" id="bulk-file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+              <label htmlFor="bulk-file" className="cursor-pointer block text-sm text-slate-500 font-medium py-4 hover:text-slate-800 transition">{file ? `Seleccionado: ${file.name}` : "Hacé click para seleccionar matriz CSV/Excel"}</label>
+              <button onClick={() => handleBulkUpload(activeModule === 'product-bulk' ? 'products' : 'clients')} disabled={isLoading || !file} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition disabled:opacity-50 text-sm cursor-pointer shadow-md">
+                {isLoading ? "Procesando matriz..." : "Sincronizar Base de Datos"}
               </button>
             </div>
           </div>
