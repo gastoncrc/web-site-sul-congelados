@@ -23,13 +23,28 @@ interface CartSidebarProps {
   user: any;
 }
 
+// Helper para saber qué día de la semana cae una fecha (Evita desfasajes de zona horaria)
+const getDiaSemana = (fechaStr: string) => {
+  if (!fechaStr) return '';
+  const date = new Date(fechaStr + 'T12:00:00'); // Forzamos mediodía para no errar el día
+  const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+  return dias[date.getDay()];
+};
+
+// Helper para formato visual (Ej: 26/05/2026)
+const formatearFecha = (fechaStr: string) => {
+  if (!fechaStr) return '';
+  const [yyyy, mm, dd] = fechaStr.split('-');
+  return `${dd}/${mm}/${yyyy}`;
+};
+
 export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, cart, setShoppingCart, updateQuantity, user }) => {
   const [isCheckoutStep, setIsCheckoutStep] = useState(false);
   const [minPurchaseB2C, setMinPurchaseB2C] = useState(30000); 
 
   const [checkoutData, setCheckoutData] = useState({ 
     nombre: '', direccion: '', telefono: '', pago: 'Efectivo',
-    tipoEntrega: 'Envio', diaEntrega: '', observaciones: '' 
+    tipoEntrega: 'Envio', fechaEntrega: '', observaciones: '' 
   });
 
   useEffect(() => {
@@ -45,14 +60,13 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
   const faltanteEnvio = minPurchaseB2C - cartTotal;
   const debaRetirarEnPlanta = !user && faltanteEnvio > 0;
 
+  // Validación de fecha en tiempo real para cliente registrado
+  const diaSeleccionado = getDiaSemana(checkoutData.fechaEntrega);
+  const esFechaValida = user ? (checkoutData.fechaEntrega !== '' && diasHabilitados.includes(diaSeleccionado)) : true;
+
   useEffect(() => {
     if (user) {
-      setCheckoutData(prev => ({ 
-        ...prev, 
-        nombre: user.name || '', 
-        diaEntrega: diasHabilitados[0] || 'Martes',
-        tipoEntrega: 'Envio'
-      }));
+      setCheckoutData(prev => ({ ...prev, nombre: user.name || '', tipoEntrega: 'Envio' }));
     } else if (debaRetirarEnPlanta) {
       setCheckoutData(prev => ({ ...prev, tipoEntrega: 'Retiro' }));
     } else {
@@ -68,12 +82,15 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
   };
 
   const datosEntregaText = user 
-    ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Día de Entrega: ${checkoutData.diaEntrega}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
+    ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Fecha de Reparto: ${diaSeleccionado} ${formatearFecha(checkoutData.fechaEntrega)}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
     : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre || 'No especificado'}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono || 'No especificado'}\n💳 Pago: ${checkoutData.pago}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`;
 
   const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*\n\n${datosEntregaText}`;
-  const WHATSAPP_NUMBER = "5493510000000"; 
+  const WHATSAPP_NUMBER = "5493516135768"; 
   const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
+
+  // Obtenemos la fecha de hoy para que no puedan elegir días pasados en el calendario
+  const hoyStr = new Date().toISOString().split('T')[0];
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -115,32 +132,49 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
               )}
             </div>
           ) : user ? (
-            /* 📅 CLIENTE REGISTRADO */
+            /* 📅 CLIENTE REGISTRADO: SELECCIÓN DE FECHA CON CALENDARIO */
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800">
                 <p className="text-xs font-bold text-[#deff9a] uppercase tracking-wider mb-1">Franquicia: {user.name}</p>
-                <p className="text-[11px] text-slate-400">Tus datos logísticos ya están validados. Seleccioná el día de reparto:</p>
+                <p className="text-[11px] text-slate-400">Tus datos logísticos están validados. Abrí el calendario y elegí la fecha exacta de recepción.</p>
               </div>
 
               <div>
-                <label className="flex text-xs font-black text-slate-700 uppercase mb-3 items-center"><Calendar size={14} className="mr-1 text-blue-600"/> Día de Entrega Habilitado</label>
-                <div className="grid grid-cols-1 gap-3">
-                  {diasHabilitados.map((dia: string) => (
-                    <label key={dia} className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${checkoutData.diaEntrega === dia ? 'border-slate-900 bg-slate-50 font-bold text-slate-900' : 'border-slate-200 bg-white text-slate-600'}`}>
-                      <span className="text-sm uppercase tracking-wider">Recibir el {dia}</span>
-                      <input type="radio" name="diaEntrega" value={dia} checked={checkoutData.diaEntrega === dia} onChange={e => setCheckoutData({...checkoutData, diaEntrega: e.target.value})} className="w-4 h-4 text-slate-900 focus:ring-slate-900 cursor-pointer" />
-                    </label>
-                  ))}
-                </div>
+                <label className="flex text-xs font-black text-slate-700 uppercase mb-3 items-center">
+                  <Calendar size={14} className="mr-1 text-blue-600"/> Abrir Calendario
+                </label>
+                
+                <input 
+                  type="date" 
+                  min={hoyStr}
+                  value={checkoutData.fechaEntrega} 
+                  onChange={e => setCheckoutData({...checkoutData, fechaEntrega: e.target.value})} 
+                  className={`w-full p-4 border-2 rounded-xl text-slate-700 font-bold outline-none transition-all cursor-pointer ${
+                    !checkoutData.fechaEntrega ? 'border-slate-200 focus:border-slate-900 bg-white' : 
+                    esFechaValida ? 'border-green-500 bg-green-50 text-green-900' : 'border-red-500 bg-red-50 text-red-900'
+                  }`}
+                />
+                
+                {checkoutData.fechaEntrega && esFechaValida && (
+                  <p className="text-xs text-green-600 font-bold mt-2 flex items-center">
+                    ✅ Entregaremos el {diaSeleccionado} {formatearFecha(checkoutData.fechaEntrega)}
+                  </p>
+                )}
+                
+                {checkoutData.fechaEntrega && !esFechaValida && (
+                  <p className="text-xs text-red-600 font-bold mt-2 bg-red-100 p-2 rounded-lg">
+                    🚨 Fecha no permitida. Solo tenés reparto los días: <strong>{diasHabilitados.join(', ')}</strong>.
+                  </p>
+                )}
               </div>
 
               <div>
-                <label className="flex text-xs font-black text-slate-700 uppercase mb-2"><FileText size={14} className="mr-1"/> Observaciones del envío</label>
-                <textarea rows={3} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Ej: Dejar la mercadería en la cámara de congelados del fondo..."></textarea>
+                <label className="flex text-xs font-black text-slate-700 uppercase mb-2"><FileText size={14} className="mr-1"/> Observaciones (Opcional)</label>
+                <textarea rows={3} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Ej: Dejar la mercadería en la cámara..."></textarea>
               </div>
             </div>
           ) : (
-            /* 📝 CONSUMIDOR FINAL (CON ALERTA DE MÍNIMO Y PROGRESO) */
+            /* 📝 CONSUMIDOR FINAL */
             <div className="space-y-4 animate-in fade-in duration-200">
               {debaRetirarEnPlanta ? (
                 <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-amber-900 flex flex-col space-y-2">
@@ -184,10 +218,23 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
               </div>
             ) : (
               <div className="space-y-3">
-                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" onClick={handleClose} className="w-full bg-[#25D366] text-white font-bold py-4 rounded-xl shadow-lg hover:bg-[#128C7E] transition cursor-pointer flex items-center justify-center">
+                {/* 🚀 EL BOTÓN DE WHATSAPP SE BLOQUEA SI LA FECHA ES INVÁLIDA */}
+                <button 
+                  onClick={() => {
+                    if (user && !esFechaValida) return; // No hace nada si la fecha está mal
+                    window.open(whatsappUrl, '_blank');
+                    handleClose();
+                  }}
+                  disabled={user && !esFechaValida}
+                  className={`w-full font-bold py-4 rounded-xl shadow-lg transition flex items-center justify-center ${
+                    user && !esFechaValida 
+                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
+                      : 'bg-[#25D366] text-white hover:bg-[#128C7E] cursor-pointer'
+                  }`}
+                >
                   <MessageCircle size={20} className="mr-2" />
                   {debaRetirarEnPlanta ? 'Confirmar Retiro por Planta' : 'Enviar por WhatsApp'}
-                </a>
+                </button>
               </div>
             )}
           </div>
