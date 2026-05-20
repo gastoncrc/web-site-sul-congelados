@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, Calendar, Info } from 'lucide-react';
+import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, Calendar, AlertTriangle, FileText } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import type { Product } from '../types';
 
@@ -7,7 +7,6 @@ interface CartProduct extends Product {
   isPromo?: boolean;
   promoPrice?: number;
   unitPrice: number;
-  inSlider?: boolean; 
 }
 
 interface CartItemType {
@@ -26,40 +25,33 @@ interface CartSidebarProps {
 
 export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, cart, setShoppingCart, updateQuantity, user }) => {
   const [isCheckoutStep, setIsCheckoutStep] = useState(false);
-  const [minPurchaseB2C, setMinPurchaseB2C] = useState(30000); // Valor inicial por defecto
+  const [minPurchaseB2C, setMinPurchaseB2C] = useState(30000); 
 
   const [checkoutData, setCheckoutData] = useState({ 
-    nombre: '', 
-    direccion: '', 
-    telefono: '', 
-    pago: 'Efectivo',
-    tipoEntrega: 'Envio', // 'Envio' o 'Retiro'
-    diaEntrega: '' 
+    nombre: '', direccion: '', telefono: '', pago: 'Efectivo',
+    tipoEntrega: 'Envio', diaEntrega: '', observaciones: '' 
   });
 
-  // Cargar el mínimo de compra configurado en el Admin
   useEffect(() => {
     const savedMin = localStorage.getItem('sul_min_purchase_b2c');
     if (savedMin) setMinPurchaseB2C(Number(savedMin));
   }, [isOpen]);
 
-  // Días habilitados guardados en el usuario (viene en formato string "Martes,Viernes" o array)
   const diasHabilitados = user?.dias_entrega 
     ? (typeof user.dias_entrega === 'string' ? user.dias_entrega.split(',') : user.dias_entrega)
     : ['Martes', 'Viernes'];
 
   const cartTotal = cart.reduce((total, item) => total + (((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity), 0);
-  const alcanzaMinimoB2C = cartTotal >= minPurchaseB2C;
-
-  // Forzar retiro en planta si no es usuario registrado y no llega al mínimo
-  const debaRetirarEnPlanta = !user && !alcanzaMinimoB2C;
+  const faltanteEnvio = minPurchaseB2C - cartTotal;
+  const debaRetirarEnPlanta = !user && faltanteEnvio > 0;
 
   useEffect(() => {
     if (user) {
       setCheckoutData(prev => ({ 
         ...prev, 
-        nombre: user.name || '',
-        diaEntrega: diasHabilitados[0] || 'Martes'
+        nombre: user.name || '', 
+        diaEntrega: diasHabilitados[0] || 'Martes',
+        tipoEntrega: 'Envio'
       }));
     } else if (debaRetirarEnPlanta) {
       setCheckoutData(prev => ({ ...prev, tipoEntrega: 'Retiro' }));
@@ -75,10 +67,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     setTimeout(() => setIsCheckoutStep(false), 300);
   };
 
-  // Construcción del mensaje de WhatsApp estructurado
   const datosEntregaText = user 
-    ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n💼 Convenio: ${user.convenio || 'General'}\n📅 Día de Entrega Elegido: ${checkoutData.diaEntrega}`
-    : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre || 'No especificado'}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono || 'No especificado'}\n💳 Pago: ${checkoutData.pago}`;
+    ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Día de Entrega: ${checkoutData.diaEntrega}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
+    : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre || 'No especificado'}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono || 'No especificado'}\n💳 Pago: ${checkoutData.pago}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`;
 
   const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*\n\n${datosEntregaText}`;
   const WHATSAPP_NUMBER = "5493510000000"; 
@@ -101,7 +92,6 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
         
         <div className="flex-1 overflow-y-auto p-4">
           {!isCheckoutStep ? (
-            /* 🛒 PASO 1: LISTA DE ARTÍCULOS */
             <div className="space-y-4">
               {cart.length === 0 ? (
                 <div className="text-center text-slate-400 mt-10"><CartIcon size={48} className="mx-auto mb-4 opacity-20"/> <p>Tu carrito está vacío.</p></div>
@@ -125,65 +115,61 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
               )}
             </div>
           ) : user ? (
-            /* 📅 PASO 2 (A): CLIENTE FIJO -> ASIGNACIÓN DE DÍA */
+            /* 📅 CLIENTE REGISTRADO */
             <div className="space-y-6 animate-in fade-in duration-200">
               <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800">
                 <p className="text-xs font-bold text-[#deff9a] uppercase tracking-wider mb-1">Franquicia: {user.name}</p>
-                <p className="text-[11px] text-slate-400">Seleccioná cuál de tus días asignados preferís recibir la mercadería.</p>
+                <p className="text-[11px] text-slate-400">Tus datos logísticos ya están validados. Seleccioná el día de reparto:</p>
               </div>
 
               <div>
-                <label className="flex items-center text-xs font-black text-slate-700 uppercase mb-3">
-                  <Calendar size={14} className="mr-1 text-blue-600"/> Días de Reparto Habilitados
-                </label>
+                <label className="flex text-xs font-black text-slate-700 uppercase mb-3 items-center"><Calendar size={14} className="mr-1 text-blue-600"/> Día de Entrega Habilitado</label>
                 <div className="grid grid-cols-1 gap-3">
                   {diasHabilitados.map((dia: string) => (
                     <label key={dia} className={`flex items-center justify-between p-4 border rounded-xl cursor-pointer transition-all ${checkoutData.diaEntrega === dia ? 'border-slate-900 bg-slate-50 font-bold text-slate-900' : 'border-slate-200 bg-white text-slate-600'}`}>
-                      <span className="text-sm uppercase tracking-wider">Entregar el día {dia}</span>
+                      <span className="text-sm uppercase tracking-wider">Recibir el {dia}</span>
                       <input type="radio" name="diaEntrega" value={dia} checked={checkoutData.diaEntrega === dia} onChange={e => setCheckoutData({...checkoutData, diaEntrega: e.target.value})} className="w-4 h-4 text-slate-900 focus:ring-slate-900 cursor-pointer" />
                     </label>
                   ))}
                 </div>
               </div>
+
+              <div>
+                <label className="flex text-xs font-black text-slate-700 uppercase mb-2"><FileText size={14} className="mr-1"/> Observaciones del envío</label>
+                <textarea rows={3} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900" placeholder="Ej: Dejar la mercadería en la cámara de congelados del fondo..."></textarea>
+              </div>
             </div>
           ) : (
-            /* 📝 PASO 2 (B): CONSUMIDOR FINAL -> VALIDACIÓN DE MÍNIMO */
+            /* 📝 CONSUMIDOR FINAL (CON ALERTA DE MÍNIMO Y PROGRESO) */
             <div className="space-y-4 animate-in fade-in duration-200">
               {debaRetirarEnPlanta ? (
-                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-amber-900 flex items-start space-x-2">
-                  <Info size={18} className="shrink-0 mt-0.5 text-amber-600" />
-                  <div className="text-xs font-medium">
-                    <p className="font-bold uppercase tracking-wider text-[10px] text-amber-700 mb-1">Aviso de Compra Mínima</p>
-                    Tu pedido es menor a <span className="font-bold">${formatPrice(minPurchaseB2C)}</span>. No califica para envío logístico. **Se retira por planta obligatoriamente el día hábil posterior**.
+                <div className="bg-amber-50 p-4 rounded-xl border border-amber-200 text-amber-900 flex flex-col space-y-2">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-600" />
+                    <div className="text-xs font-medium">
+                      <p className="font-bold uppercase tracking-wider text-[10px] text-amber-700 mb-1">Retiro en Planta Obligatorio</p>
+                      Tu pedido no alcanza los <span className="font-bold">${formatPrice(minPurchaseB2C)}</span> para envío. Falta agregar <span className="font-bold">${formatPrice(faltanteEnvio)}</span>. **Se retira por fábrica el día hábil posterior**.
+                    </div>
+                  </div>
+                  <div className="w-full bg-amber-200 rounded-full h-1.5 mt-2">
+                    <div className="bg-amber-500 h-1.5 rounded-full transition-all" style={{ width: `${(cartTotal / minPurchaseB2C) * 100}%` }}></div>
                   </div>
                 </div>
               ) : (
                 <div className="bg-green-50 p-3 rounded-xl border border-green-200 text-green-900 text-xs font-medium">
-                  🎉 ¡Excelente! Superaste el mínimo de ${formatPrice(minPurchaseB2C)}. Tu pedido califica para envío a domicilio sin cargo.
+                  🎉 ¡Superaste el mínimo de ${formatPrice(minPurchaseB2C)}! Habilitamos el envío a domicilio sin cargo.
                 </div>
               )}
               
-              <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-1">Nombre o Razón Social *</label>
-                <input type="text" required value={checkoutData.nombre} onChange={e => setCheckoutData({...checkoutData, nombre: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Tu nombre" />
-              </div>
-
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Nombre Completo *</label><input type="text" required value={checkoutData.nombre} onChange={e => setCheckoutData({...checkoutData, nombre: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" /></div>
+              
               {!debaRetirarEnPlanta && (
-                <div>
-                  <label className="block text-xs font-black text-slate-700 uppercase mb-1"><MapPin size={12} className="inline mr-1"/> Dirección de Entrega *</label>
-                  <input type="text" required value={checkoutData.direccion} onChange={e => setCheckoutData({...checkoutData, direccion: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Calle, Número, Barrio" />
-                </div>
+                <div><label className="block text-xs font-black text-slate-700 uppercase mb-1"><MapPin size={12} className="inline mr-1"/> Dirección de Entrega *</label><input type="text" required value={checkoutData.direccion} onChange={e => setCheckoutData({...checkoutData, direccion: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Calle, Número, Barrio" /></div>
               )}
 
-              <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-1">Teléfono de Contacto *</label>
-                <input type="text" required value={checkoutData.telefono} onChange={e => setCheckoutData({...checkoutData, telefono: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Ej: 351..." />
-              </div>
-
-              <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-1"><CreditCard size={12} className="inline mr-1"/> Forma de Pago</label>
-                <select value={checkoutData.pago} onChange={e => setCheckoutData({...checkoutData, pago: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none"><option value="Efectivo">Efectivo contra entrega</option><option value="Transferencia">Transferencia Bancaria</option></select>
-              </div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Teléfono de Contacto *</label><input type="text" required value={checkoutData.telefono} onChange={e => setCheckoutData({...checkoutData, telefono: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Ej: 351..." /></div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1"><CreditCard size={12} className="inline mr-1"/> Forma de Pago</label><select value={checkoutData.pago} onChange={e => setCheckoutData({...checkoutData, pago: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none"><option value="Efectivo">Efectivo contra entrega</option><option value="Transferencia">Transferencia Bancaria</option></select></div>
+              <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Observaciones / Aclaraciones</label><textarea rows={2} value={checkoutData.observaciones} onChange={e => setCheckoutData({...checkoutData, observaciones: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" placeholder="Notas para la entrega..."></textarea></div>
             </div>
           )}
         </div>

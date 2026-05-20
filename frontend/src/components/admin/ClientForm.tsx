@@ -16,8 +16,6 @@ export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
   const [diasEntrega, setDiasEntrega] = useState<string[]>(['Martes', 'Viernes']);
   const [isLoading, setIsLoading] = useState(false);
 
-  const diasSemana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
   const handleDayToggle = (day: string) => {
     setDiasEntrega(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
   };
@@ -93,15 +91,21 @@ export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
           </div>
         </div>
 
-        {/* 🚀 CONFIGURACIÓN DE DÍAS DE REPARTO ASIGNADOS */}
+        {/* 🚀 SELECTOR COMPACTO LU MA MI JU VI SA DO */}
         <div className="pt-4 border-t border-slate-100">
           <label className="flex text-xs font-black text-slate-700 uppercase mb-3 items-center">
-            <Calendar size={14} className="mr-1 text-slate-900" /> Días de Reparto Habilitados para esta Franquicia
+            <Calendar size={14} className="mr-1 text-slate-900" /> Días de Reparto Habilitados
           </label>
-          <div className="flex flex-wrap gap-3">
-            {diasSemana.map(day => (
-              <button key={day} type="button" onClick={() => handleDayToggle(day)} className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer uppercase ${diasEntrega.includes(day) ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}>
-                {day}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: 'Lunes', label: 'LU' }, { id: 'Martes', label: 'MA' }, { id: 'Miércoles', label: 'MI' },
+              { id: 'Jueves', label: 'JU' }, { id: 'Viernes', label: 'VI' }, { id: 'Sábado', label: 'SA' }, { id: 'Domingo', label: 'DO' }
+            ].map(day => (
+              <button 
+                key={day.id} type="button" onClick={() => handleDayToggle(day.id)} 
+                className={`w-10 h-10 rounded-xl text-xs font-black transition-all border cursor-pointer flex items-center justify-center ${diasEntrega.includes(day.id) ? 'bg-slate-900 text-[#deff9a] border-slate-900 shadow-sm' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
+              >
+                {day.label}
               </button>
             ))}
           </div>
