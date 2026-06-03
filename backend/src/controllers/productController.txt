@@ -1,0 +1,210 @@
+import { Request, Response } from 'express';
+import { pool } from '../config/db';
+import * as XLSX from 'xlsx';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
+
+// 1. OBTENER CATÁLOGO (Ahora trae in_slider)
+export const getProductsByConvenio = async (req: Request, res: Response) => {
+let userConvenio = 'CORDOBA';
+const authHeader = req.headers.authorization;
+if (authHeader && authHeader.startsWith('Bearer ')) {
+const token = authHeader.split(' ')[1];
+try {
+const decoded = jwt.verify(token, JWT_SECRET) as any;
+  if (decoded && (decoded.role === 'Admin' || decoded.role === 'Vendedor') && req.query.convenio) {
+    userConvenio = String(req.query.convenio);
+  } else if (decoded && decoded.convenio) {
+    userConvenio = decoded.convenio; 
+  }
+} catch (err) {
+  console.log('Aviso: Token opcional inválido o vencido, usando lista base CORDOBA.');
+}
+} else if (req.query.convenio) {
+// Fallback de seguridad por si se pasa por parámetro sin cabecera (sujeto a validación posterior si se requiere)
+userConvenio = String(req.query.convenio);
+}
+try {
+const query = SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, p.is_active, p.is_promo, p.promo_price, p.in_slider, pr.precio FROM products p INNER JOIN product_prices pr ON p.sku = pr.product_sku WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE ORDER BY p.is_promo DESC, p.name ASC;
+const result = await pool.query(query, [userConvenio]);
+const standardized = result.rows.map(row => ({
+  sku: row.sku,
+  name: row.name,
+  category: row.category,
+  subcategory: row.subcategory,
+  stock: row.stock,
+  description: row.description,
+  isActive: row.is_active,
+  isPromo: row.is_promo,
+  promoPrice: parseFloat(row.promo_price),
+  inSlider: row.in_slider,
+  unitPrice: parseFloat(row.precio)
+}));
+
+res.json(standardized);
+} catch (err) {
+res.status(500).json({ error: 'Error obteniendo catálogo' });
+}
+};
+
+// 2. CARGA MASIVA 
+export const uploadCsvConvenios = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Permisos insuficientes' });
+  if (!req.file) return res.status(400).json({ error: 'Archivo no suministrado' });
+
+  try {
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      let processed = 0;
+
+      for (const rawRow of rows) {
+        const row: any = {};
+        for (const k of Object.keys(rawRow)) {
+          const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          row[cleanKey] = rawRow[k];
+        }
+
+        const codigo = row.codigo || row.code || row.sku;
+        const descrip = row.descrip || row.descripcion || row.name || row.nombre || row.articulo;
+        const preciofinal = row.preciofinal || row.precio || row.precio_final || row.monto;
+        const convenio = row.convenio || row.lista || row.nombre_lista || row.convenios;
+        const rubro = row.rubro_descrip || row.rubro || row.category || 'Varios';
+        const subrubro = row.subrubro_descrip || row.subrubro || 'Varios';
+
+        if (codigo && descrip && preciofinal && convenio) {
+          await client.query(`
+            INSERT INTO products (sku, name, category, subcategory, stock)
+            VALUES ($1, $2, $3, $4, 100)
+            ON CONFLICT (sku) DO UPDATE 
+            SET name = $2, category = $3, subcategory = $4
+          `, [String(codigo).trim(), String(descrip).trim(), String(rubro).trim(), String(subrubro).trim()]);
+
+          await client.query(`
+            INSERT INTO product_prices (product_sku, convenio, precio)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (product_sku, convenio) DO UPDATE 
+            SET precio = $3
+          `, [String(codigo).trim(), String(convenio).trim(), parseFloat(preciofinal)]);
+
+          processed++;
+        }
+      }
+      await client.query('COMMIT');
+      res.json({ message: `Sincronización masiva exitosa. ${processed} registros procesados.` });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      res.status(500).json({ error: 'Error en inyección masiva' });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    res.status(400).json({ error: 'Formato de Excel inválido.' });
+  }
+};
+
+// 3. Crear/Editar un producto individual (Ahora guarda in_slider)
+export const upsertIndividualProduct = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider } = req.body;
+  
+  try {
+    await pool.query(`
+      INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (sku) DO UPDATE 
+      SET name = $2, category = $3, subcategory = $4, is_active = $5, is_promo = $6, promo_price = $7, in_slider = $8
+    `, [sku, name, category, subcategory, is_active ?? true, is_promo ?? false, promo_price ?? 0, in_slider ?? false]);
+    
+    res.json({ message: 'Producto guardado con éxito' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error guardando producto' });
+  }
+};
+
+// 4. Cambiar estado rápido
+export const toggleProductFlags = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku } = req.params;
+  const { is_active, is_promo, promo_price } = req.body; 
+
+  try {
+    const updates = [];
+    const values = [];
+    let counter = 1;
+
+    if (is_active !== undefined) { updates.push(`is_active = $${counter++}`); values.push(is_active); }
+    if (is_promo !== undefined) { updates.push(`is_promo = $${counter++}`); values.push(is_promo); }
+    if (promo_price !== undefined) { updates.push(`promo_price = $${counter++}`); values.push(promo_price); }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'Nada que actualizar' });
+
+    values.push(sku);
+    await pool.query(`UPDATE products SET ${updates.join(', ')} WHERE sku = $${counter}`, values);
+    
+    res.json({ message: 'Estado actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando estado' });
+  }
+};
+
+// 5. Asignar precio manual a un convenio específico 
+export const setIndividualPrice = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku, convenio, precio } = req.body;
+
+  try {
+    await pool.query(`
+      INSERT INTO product_prices (product_sku, convenio, precio)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (product_sku, convenio) DO UPDATE 
+      SET precio = $3
+    `, [sku, convenio, precio]);
+    res.json({ message: 'Precio individual actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando precio' });
+  }
+};
+
+// 6. Obtener TODOS los productos para la tabla del Admin (Incluye in_slider)
+export const getAdminProducts = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  try {
+    const result = await pool.query(`
+      SELECT sku, name, category, is_active, is_promo, promo_price, in_slider 
+      FROM products 
+      ORDER BY name ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo catálogo admin' });
+  }
+};
+
+// 7. Eliminar producto de raíz 
+export const deleteProduct = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku } = req.params;
+  try {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM product_prices WHERE product_sku = $1', [sku]);
+      await client.query('DELETE FROM products WHERE sku = $1', [sku]);
+      await client.query('COMMIT');
+      res.json({ message: 'Producto eliminado correctamente' });
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar el producto' });
+  }
+};

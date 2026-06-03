@@ -2,9 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import productRoutes from './routes/productRoutes';
-import vendorRoutes from './routes/vendorRoutes';
-import orderRoutes from './routes/orderRoutes';
-import settingsRoutes from './routes/settingsRoutes';
 
 const app = express();
 
@@ -24,8 +21,5 @@ app.use(express.json());
 // Declaración de módulos limpios
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api/vendor', vendorRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/settings', settingsRoutes);
 
 export default app;
