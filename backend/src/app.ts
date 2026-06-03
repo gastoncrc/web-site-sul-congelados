@@ -16,10 +16,7 @@ const ALLOWED_ORIGINS = [
 if (process.env.FRONTEND_URL) ALLOWED_ORIGINS.push(process.env.FRONTEND_URL);
 
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) callback(null, true);
-    else callback(new Error('Bloqueado por políticas CORS de SUL'));
-  },
+  origin: ALLOWED_ORIGINS,
   credentials: true
 }));
 
