@@ -6,7 +6,8 @@ import {
   toggleProductFlags, 
   setIndividualPrice,
   getAdminProducts,
-  deleteProduct 
+  deleteProduct,
+  getPriceHistory
 } from '../controllers/productController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 import multer from 'multer';
@@ -27,6 +28,7 @@ router.patch('/:sku/flags', verifyTokenAndStatus, toggleProductFlags);
 
 // Rutas exclusivas para la tabla del Admin
 router.get('/admin', verifyTokenAndStatus, getAdminProducts);
+router.get('/:sku/price-history', verifyTokenAndStatus, getPriceHistory);
 router.delete('/:sku', verifyTokenAndStatus, deleteProduct);
 
 export default router;

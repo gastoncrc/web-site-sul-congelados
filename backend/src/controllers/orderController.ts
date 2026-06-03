@@ -157,3 +157,45 @@ export const getOrderDetails = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error obteniendo detalles del pedido' });
   }
 };
+
+// 4. Estadísticas profesionales para el Dashboard
+export const getDashboardStats = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+
+  try {
+    // A. Ventas de los últimos 7 días
+    const salesOverTime = await pool.query(`
+      SELECT TO_CHAR(created_at, 'DD/MM') as day, SUM(total_amount) as total
+      FROM orders
+      WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+      GROUP BY day
+      ORDER BY MIN(created_at) ASC
+    `);
+
+    // B. Top 5 Productos más vendidos
+    const topProducts = await pool.query(`
+      SELECT product_name as name, SUM(quantity) as value
+      FROM order_items
+      GROUP BY name
+      ORDER BY value DESC
+      LIMIT 5
+    `);
+
+    // C. Resumen general
+    const summary = await pool.query(`
+      SELECT 
+        COUNT(*) as total_orders,
+        SUM(total_amount) as total_revenue,
+        (SELECT COUNT(*) FROM users WHERE role = 'Cliente') as total_clients
+      FROM orders
+    `);
+
+    res.json({
+      salesOverTime: salesOverTime.rows,
+      topProducts: topProducts.rows,
+      summary: summary.rows[0]
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Error generando estadísticas' });
+  }
+};

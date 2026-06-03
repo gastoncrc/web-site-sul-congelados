@@ -106,6 +106,19 @@ export const initDB = async () => {
       )
     `);
 
+    // 7. Tabla de Historial de Precios (Auditoría)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS price_history (
+        id SERIAL PRIMARY KEY,
+        product_sku TEXT REFERENCES products(sku),
+        convenio TEXT NOT NULL,
+        old_price NUMERIC,
+        new_price NUMERIC NOT NULL,
+        changed_by TEXT, -- Email del admin
+        changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Inyectar configuración inicial si no existe
     const wsCheck = await pool.query("SELECT * FROM settings WHERE key = 'whatsapp_number'");
     if (wsCheck.rows.length === 0) {

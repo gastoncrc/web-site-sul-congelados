@@ -83,19 +83,38 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
         const subrubro = row.subrubro_descrip || row.subrubro || 'Varios';
 
         if (codigo && descrip && preciofinal && convenio) {
+          const skuStr = String(codigo).trim();
+          const convenioStr = String(convenio).trim();
+          const newPrice = parseFloat(preciofinal);
+
+          // 🚀 AUDITORÍA: Buscar precio viejo antes de actualizar
+          const oldPriceResult = await client.query(
+            'SELECT precio FROM product_prices WHERE product_sku = $1 AND convenio = $2',
+            [skuStr, convenioStr]
+          );
+          const oldPrice = oldPriceResult.rows.length > 0 ? parseFloat(oldPriceResult.rows[0].precio) : null;
+
           await client.query(`
             INSERT INTO products (sku, name, category, subcategory, stock)
             VALUES ($1, $2, $3, $4, 100)
             ON CONFLICT (sku) DO UPDATE 
             SET name = $2, category = $3, subcategory = $4
-          `, [String(codigo).trim(), String(descrip).trim(), String(rubro).trim(), String(subrubro).trim()]);
+          `, [skuStr, String(descrip).trim(), String(rubro).trim(), String(subrubro).trim()]);
 
           await client.query(`
             INSERT INTO product_prices (product_sku, convenio, precio)
             VALUES ($1, $2, $3)
             ON CONFLICT (product_sku, convenio) DO UPDATE 
             SET precio = $3
-          `, [String(codigo).trim(), String(convenio).trim(), parseFloat(preciofinal)]);
+          `, [skuStr, convenioStr, newPrice]);
+
+          // Solo loguear si el precio cambió
+          if (oldPrice !== newPrice) {
+            await client.query(`
+              INSERT INTO price_history (product_sku, convenio, old_price, new_price, changed_by)
+              VALUES ($1, $2, $3, $4, $5)
+            `, [skuStr, convenioStr, oldPrice, newPrice, (req as any).user?.email || 'Sistema (Excel)']);
+          }
 
           processed++;
         }
@@ -211,5 +230,21 @@ export const deleteProduct = async (req: Request, res: Response) => {
     }
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar el producto' });
+    }
+    };
+
+// 8. Historial de auditoría de precios
+export const getPriceHistory = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku } = req.params;
+  try {
+    const result = await pool.query(`
+      SELECT * FROM price_history 
+      WHERE product_sku = $1 
+      ORDER BY changed_at DESC
+    `, [sku]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo historial de precios' });
   }
 };

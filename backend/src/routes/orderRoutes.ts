@@ -1,11 +1,14 @@
 import { Router } from 'express';
-import { createOrder, getOrders, getOrderDetails, updateOrderStatus } from '../controllers/orderController';
+import { createOrder, getOrders, getOrderDetails, updateOrderStatus, getDashboardStats } from '../controllers/orderController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 
 const router = Router();
 
 // Endpoint público para crear pedidos (para B2C y B2B)
 router.post('/', createOrder);
+
+// Dashboard
+router.get('/stats', verifyTokenAndStatus, getDashboardStats);
 
 // Endpoints protegidos para ver historial
 router.get('/', verifyTokenAndStatus, getOrders);
