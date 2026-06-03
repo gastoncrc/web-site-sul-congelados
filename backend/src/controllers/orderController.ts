@@ -158,19 +158,37 @@ export const getOrderDetails = async (req: Request, res: Response) => {
   }
 };
 
-// 4. Estadísticas profesionales para el Dashboard
+// 4. Estadísticas profesionales para el Dashboard (Business Intelligence)
 export const getDashboardStats = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
 
+  const { startDate, endDate, granularity = 'day' } = req.query;
+
   try {
-    // A. Ventas de los últimos 7 días
+    const start = startDate ? new String(startDate) : 'CURRENT_DATE - INTERVAL \'30 days\'';
+    const end = endDate ? new String(endDate) : 'CURRENT_DATE';
+
+    // A. Ventas por período (Dinámico)
+    let dateTrunc = 'day';
+    if (granularity === 'week') dateTrunc = 'week';
+    if (granularity === 'month') dateTrunc = 'month';
+
     const salesOverTime = await pool.query(`
-      SELECT TO_CHAR(created_at, 'DD/MM') as day, SUM(total_amount) as total
+      SELECT 
+        TO_CHAR(DATE_TRUNC($1, created_at), 
+          CASE 
+            WHEN $1 = 'day' THEN 'DD/MM'
+            WHEN $1 = 'week' THEN '\"Sem \"WW'
+            WHEN $1 = 'month' THEN 'Month'
+          END
+        ) as label,
+        SUM(total_amount) as total,
+        COUNT(*) as orders
       FROM orders
-      WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY day
-      ORDER BY MIN(created_at) ASC
-    `);
+      WHERE created_at BETWEEN ${startDate ? '$2' : 'CURRENT_DATE - INTERVAL \'30 days\''} AND ${endDate ? '$3' : 'CURRENT_DATE'}
+      GROUP BY DATE_TRUNC($1, created_at)
+      ORDER BY DATE_TRUNC($1, created_at) ASC
+    `, startDate && endDate ? [dateTrunc, startDate, endDate] : [dateTrunc]);
 
     // B. Top 5 Productos más vendidos
     const topProducts = await pool.query(`
@@ -181,11 +199,30 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       LIMIT 5
     `);
 
-    // C. Resumen general
+    // C. Comparativa de Listas (Convenios)
+    const listComparison = await pool.query(`
+      SELECT u.convenio, SUM(o.total_amount) as total, COUNT(o.id) as orders
+      FROM orders o
+      JOIN users u ON o.user_id = u.id
+      WHERE o.created_at BETWEEN ${startDate ? '$2' : 'CURRENT_DATE - INTERVAL \'30 days\''} AND ${endDate ? '$3' : 'CURRENT_DATE'}
+      GROUP BY u.convenio
+      ORDER BY total DESC
+    `, startDate && endDate ? [dateTrunc, startDate, endDate] : [dateTrunc]);
+
+    // D. Mejores Clientes
+    const topClients = await pool.query(`
+      SELECT customer_name as name, SUM(total_amount) as total
+      FROM orders
+      GROUP BY customer_name
+      ORDER BY total DESC
+      LIMIT 5
+    `);
+
+    // E. Resumen General
     const summary = await pool.query(`
       SELECT 
         COUNT(*) as total_orders,
-        SUM(total_amount) as total_revenue,
+        COALESCE(SUM(total_amount), 0) as total_revenue,
         (SELECT COUNT(*) FROM users WHERE role = 'Cliente') as total_clients
       FROM orders
     `);
@@ -193,9 +230,12 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     res.json({
       salesOverTime: salesOverTime.rows,
       topProducts: topProducts.rows,
+      listComparison: listComparison.rows,
+      topClients: topClients.rows,
       summary: summary.rows[0]
     });
   } catch (err) {
-    res.status(500).json({ error: 'Error generando estadísticas' });
+    console.error('Error analítica:', err);
+    res.status(500).json({ error: 'Error generando estadísticas avanzadas' });
   }
 };
