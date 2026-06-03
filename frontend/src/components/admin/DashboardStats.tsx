@@ -3,9 +3,9 @@ import { api } from '../../config/api';
 import { formatPrice } from '../../../utils/currency';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, Cell, AreaChart, Area
+  Cell, AreaChart, Area
 } from 'recharts';
-import { TrendingUp, Users, ShoppingCart, DollarSign, Package, Calendar, Filter, RefreshCcw, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, Users, ShoppingCart, DollarSign, Package, Calendar, Filter, RefreshCcw, ArrowUpRight } from 'lucide-react';
 
 export const DashboardStats: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
