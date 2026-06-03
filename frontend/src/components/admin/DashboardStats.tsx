@@ -158,7 +158,7 @@ export const DashboardStats: React.FC = () => {
               <p className="text-[8px] text-slate-500 font-black uppercase">Venta Acumulada</p>
             </div>
           </div>
-          <div className="h-80 w-full">
+          <div className="h-80 min-h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stats?.salesOverTime}>
                 <defs>

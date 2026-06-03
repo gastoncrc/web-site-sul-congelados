@@ -169,17 +169,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     if (granularity === 'week') dateTrunc = 'week';
     if (granularity === 'month') dateTrunc = 'month';
 
-    // Construcción dinámica de filtros de fecha
-    let dateFilter = 'created_at BETWEEN CURRENT_DATE - INTERVAL \'30 days\' AND CURRENT_DATE';
-    const params: any[] = [dateTrunc];
-    
-    if (startDate && endDate) {
-      dateFilter = 'created_at BETWEEN $2 AND $3';
-      params.push(startDate, endDate);
-    }
-
     // A. Ventas por período
-    const salesOverTime = await pool.query(`
+    let salesQuery = `
       SELECT 
         TO_CHAR(DATE_TRUNC($1, created_at), 
           CASE 
@@ -192,10 +183,19 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         COALESCE(SUM(total_amount), 0) as total,
         COUNT(*) as orders
       FROM orders
-      WHERE ${dateFilter}
-      GROUP BY DATE_TRUNC($1, created_at)
-      ORDER BY DATE_TRUNC($1, created_at) ASC
-    `, params);
+      WHERE 1=1
+    `;
+    const salesParams: any[] = [dateTrunc];
+    
+    if (startDate && endDate) {
+      salesQuery += ' AND created_at BETWEEN $2 AND $3';
+      salesParams.push(startDate, endDate);
+    } else {
+      salesQuery += ' AND created_at BETWEEN CURRENT_DATE - INTERVAL \'30 days\' AND CURRENT_DATE';
+    }
+
+    salesQuery += ' GROUP BY DATE_TRUNC($1, created_at) ORDER BY DATE_TRUNC($1, created_at) ASC';
+    const salesOverTime = await pool.query(salesQuery, salesParams);
 
     // B. Top 5 Productos
     const topProducts = await pool.query(`
@@ -207,14 +207,21 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     `);
 
     // C. Comparativa de Listas (Convenios)
-    const listComparison = await pool.query(`
+    let listQuery = `
       SELECT u.convenio, COALESCE(SUM(o.total_amount), 0) as total, COUNT(o.id) as orders
       FROM orders o
       JOIN users u ON o.user_id = u.id
-      WHERE o.${dateFilter.replace('created_at', 'created_at')}
-      GROUP BY u.convenio
-      ORDER BY total DESC
-    `, params.length > 1 ? [params[1], params[2]] : []);
+      WHERE 1=1
+    `;
+    const listParams: any[] = [];
+    if (startDate && endDate) {
+      listQuery += ' AND o.created_at BETWEEN $1 AND $2';
+      listParams.push(startDate, endDate);
+    } else {
+      listQuery += ' AND o.created_at BETWEEN CURRENT_DATE - INTERVAL \'30 days\' AND CURRENT_DATE';
+    }
+    listQuery += ' GROUP BY u.convenio ORDER BY total DESC';
+    const listComparison = await pool.query(listQuery, listParams);
 
     // D. Mejores Clientes
     const topClients = await pool.query(`
