@@ -23,6 +23,21 @@ app.use(cors({
 app.use(express.json());
 
 // Declaración de módulos limpios - Last Deploy: 2026-06-02
+app.get('/api/db-check', async (req, res) => {
+  try {
+    const { pool } = await import('./config/db');
+    const tables = ['orders', 'settings', 'users', 'products'];
+    const counts: Record<string, number> = {};
+    for (const table of tables) {
+      const result = await pool.query(`SELECT COUNT(*) FROM ${table}`);
+      counts[table] = parseInt(result.rows[0].count);
+    }
+    res.json({ database: 'connected', counts, time: new Date().toISOString() });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/ping', (req, res) => res.json({ status: 'ok', time: new Date().toISOString(), routes: ['auth', 'products', 'vendor', 'orders', 'settings'] }));
 
 app.use('/api/auth', authRoutes);
