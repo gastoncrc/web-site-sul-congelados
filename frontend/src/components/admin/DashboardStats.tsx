@@ -93,7 +93,7 @@ export const DashboardStats: React.FC = () => {
                   contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '10px' }}
                 />
                 <Bar dataKey="value" fill="#deff9a" radius={[0, 4, 4, 0]} barSize={20}>
-                  {stats.topProducts.map((entry: any, index: number) => (
+                  {stats.topProducts.map((_: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Bar>

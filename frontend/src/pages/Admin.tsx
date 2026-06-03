@@ -122,7 +122,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
     }
   };
 
-  const toggleSection = (section: 'products' | 'clients' | 'users' | 'settings' | 'orders') => {
+  const toggleSection = (section: 'dashboard' | 'products' | 'clients' | 'users' | 'settings' | 'orders') => {
     if (isSidebarCollapsed) setIsSidebarCollapsed(false);
     setExpandedSection(expandedSection === section ? null : section);
   };
