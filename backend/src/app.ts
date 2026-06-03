@@ -23,6 +23,8 @@ app.use(cors({
 app.use(express.json());
 
 // Declaración de módulos limpios - Last Deploy: 2026-06-02
+app.get('/api/ping', (req, res) => res.json({ status: 'ok', time: new Date().toISOString(), routes: ['auth', 'products', 'vendor', 'orders', 'settings'] }));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/vendor', vendorRoutes);
