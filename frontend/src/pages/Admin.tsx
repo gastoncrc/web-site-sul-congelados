@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu, Settings } from 'lucide-react';
+import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu, Settings, ShoppingBag } from 'lucide-react';
 import { api } from '../config/api';
 
 // IMPORTAMOS LOS COMPONENTES MODULARIZADOS
 import { ProductList } from '../components/admin/ProductList';
 import { ClientForm } from '../components/admin/ClientForm';
 import { ClientList } from '../components/admin/ClientList';
+import { OrderList } from '../components/admin/OrderList';
 
 interface AdminProps {
   setSystemMessage: React.Dispatch<React.SetStateAction<string>>;
@@ -43,13 +44,14 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
   const { user, logout } = useAuth(); 
   
   // Navigation & UI States
-  const [activeModule, setActiveModule] = useState<'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'config'>('product-list');
-  const [expandedSection, setExpandedSection] = useState<'products' | 'clients' | 'users' | 'settings' | null>('products');
+  const [activeModule, setActiveModule] = useState<'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'config' | 'order-list'>('order-list');
+  const [expandedSection, setExpandedSection] = useState<'products' | 'clients' | 'users' | 'settings' | 'orders' | null>('orders');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Data States
   const [productList, setProductList] = useState<any[]>([]);
   const [clientList, setClientList] = useState<any[]>([]); 
+  const [settings, setSettings] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
@@ -71,10 +73,30 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const response = await api.get('/settings');
+      setSettings(response.data);
+    } catch (error) {
+      console.error('Error cargando ajustes:', error);
+    }
+  };
+
   useEffect(() => {
     if (activeModule === 'product-list') fetchAdminData();
     if (activeModule === 'client-list') fetchClientsData(); 
+    if (activeModule === 'config') fetchSettings();
   }, [activeModule]);
+
+  const handleUpdateSetting = async (key: string, value: string) => {
+    try {
+      await api.post('/settings/update', { key, value });
+      setSystemMessage('✅ Ajuste actualizado correctamente.');
+      fetchSettings();
+    } catch (error) {
+      setSystemMessage('🚨 Error al actualizar el ajuste.');
+    }
+  };
 
   const handleBulkUpload = async (type: 'products' | 'clients') => {
     if (!file) return setSystemMessage('Seleccioná un archivo Excel o CSV.');
@@ -99,7 +121,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
     }
   };
 
-  const toggleSection = (section: 'products' | 'clients' | 'users' | 'settings') => {
+  const toggleSection = (section: 'products' | 'clients' | 'users' | 'settings' | 'orders') => {
     if (isSidebarCollapsed) setIsSidebarCollapsed(false);
     setExpandedSection(expandedSection === section ? null : section);
   };
@@ -126,6 +148,19 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
           
           <nav className="space-y-4 flex-1 overflow-y-auto p-4 sm:p-6">
             
+            {/* VENTAS MODULE */}
+            <div>
+              <button onClick={() => toggleSection('orders')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'orders' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+                <div className="flex items-center"><ShoppingBag size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">VENTAS</span>}</div>
+                {!isSidebarCollapsed && (expandedSection === 'orders' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
+              </button>
+              {expandedSection === 'orders' && !isSidebarCollapsed && (
+                <div className="ml-9 mt-2 space-y-1">
+                  <button onClick={() => setActiveModule('order-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'order-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Historial de Pedidos</button>
+                </div>
+              )}
+            </div>
+
             {/* PRODUCT MODULE */}
             <div>
               <button onClick={() => toggleSection('products')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'products' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
@@ -209,6 +244,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       {/* 🖥️ MAIN WORKSPACE */}
       <main className="flex-1 overflow-y-auto bg-slate-50 p-6 sm:p-10 relative">
         
+        {activeModule === 'order-list' && <OrderList />}
         {activeModule === 'product-list' && <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />}
         {activeModule === 'client-list' && <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />}
         {activeModule === 'client-form' && <ClientForm setSystemMessage={setSystemMessage} />}
@@ -217,12 +253,37 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
         {/* 🚀 RENDER DE CONFIGURACIÓN B2C */}
         {activeModule === 'config' && (
           <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto mt-6 animate-in fade-in">
-            <h3 className="font-black text-lg text-slate-900 uppercase tracking-wider mb-2">Configuración Comercial B2C</h3>
-            <p className="text-xs text-slate-500 mb-6 font-medium">Ajustá el límite monetario que deben superar los consumidores finales no registrados para que el sistema les habilite la opción de envío a domicilio logístico.</p>
+            <h3 className="font-black text-lg text-slate-900 uppercase tracking-wider mb-2">Configuración Comercial</h3>
+            <p className="text-xs text-slate-500 mb-6 font-medium">Gestioná los parámetros operativos del sistema sin tocar el código.</p>
             
-            <div className="space-y-4">
+            <div className="space-y-8">
+              {/* WhatsApp Number */}
               <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Mínimo de Compra para Envíos ($)</label>
+                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Número de WhatsApp (Recepción de Pedidos)</label>
+                <div className="flex space-x-2">
+                  <input 
+                    type="text" 
+                    id="whatsappNumberInput"
+                    defaultValue={settings.whatsapp_number || '5493510000000'}
+                    className="p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 w-full font-mono font-bold"
+                    placeholder="Ej: 5493510000000"
+                  />
+                  <button 
+                    onClick={() => {
+                      const val = (document.getElementById('whatsappNumberInput') as HTMLInputElement).value;
+                      handleUpdateSetting('whatsapp_number', val);
+                    }}
+                    className="bg-slate-900 text-white font-bold px-6 rounded-xl text-xs hover:bg-slate-800 transition shadow-sm cursor-pointer shrink-0"
+                  >
+                    Guardar
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">Incluí el código de país (54) y área (9) sin espacios ni guiones.</p>
+              </div>
+
+              {/* Mínimo Compra B2C */}
+              <div>
+                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Mínimo de Compra B2C para Envíos ($)</label>
                 <div className="flex space-x-2">
                   <input 
                     type="number" 

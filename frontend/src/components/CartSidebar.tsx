@@ -26,6 +26,7 @@ interface CartSidebarProps {
 export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, cart, setShoppingCart, updateQuantity, user }) => {
   const [isCheckoutStep, setIsCheckoutStep] = useState(false);
   const [minPurchaseB2C, setMinPurchaseB2C] = useState(30000); 
+  const [whatsappNumber, setWhatsappNumber] = useState("5493510000000");
 
   const [checkoutData, setCheckoutData] = useState({ 
     nombre: '', direccion: '', telefono: '', pago: 'Efectivo',
@@ -38,6 +39,16 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
   useEffect(() => {
     const savedMin = localStorage.getItem('sul_min_purchase_b2c');
     if (savedMin) setMinPurchaseB2C(Number(savedMin));
+    
+    // Fetch WhatsApp from backend settings
+    const fetchSettings = async () => {
+      try {
+        const { api } = await import('../config/api');
+        const response = await api.get('/settings');
+        if (response.data.whatsapp_number) setWhatsappNumber(response.data.whatsapp_number);
+      } catch (e) { console.error('Error al cargar WhatsApp:', e); }
+    };
+    if (isOpen) fetchSettings();
   }, [isOpen]);
 
   const diasHabilitados = user?.dias_entrega 
@@ -65,7 +76,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     setTimeout(() => setIsCheckoutStep(false), 300);
   };
 
-  const handleSubmitConfirmacion = (e: React.FormEvent) => {
+  const handleSubmitConfirmacion = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validación extra para cliente fijo
@@ -74,17 +85,47 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
       return;
     }
 
-    const datosEntregaText = user 
-      ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Fecha de Reparto Elegida: ${checkoutData.fechaEntrega}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
-      : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono}\n💳 Pago: ${checkoutData.pago}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`;
+    try {
+      // 🚀 NUEVO: Guardar en el Historial del Backend antes de ir a WhatsApp
+      const { api } = await import('../config/api');
+      await api.post('/orders', {
+        userId: user?.id,
+        customerName: user ? user.name : checkoutData.nombre,
+        customerEmail: user?.email,
+        customerPhone: checkoutData.telefono,
+        deliveryAddress: checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica',
+        deliveryType: checkoutData.tipoEntrega,
+        deliveryDate: checkoutData.fechaEntrega,
+        paymentMethod: checkoutData.pago,
+        totalAmount: cartTotal,
+        observations: checkoutData.observaciones,
+        items: cart
+      });
 
-    const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*\n\n${datosEntregaText}`;
-    
-    const WHATSAPP_NUMBER = "5493510000000"; 
-    const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappText)}`;
+      const datosEntregaText = user 
+        ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Fecha de Reparto Elegida: ${checkoutData.fechaEntrega}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
+        : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono}\n💳 Pago: ${checkoutData.pago}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`;
 
-    window.open(whatsappUrl, '_blank');
-    handleClose();
+      const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*\n\n${datosEntregaText}`;
+      
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappText)}`;
+
+      window.open(whatsappUrl, '_blank');
+      setShoppingCart([]); // Vaciar carrito después de comprar
+      handleClose();
+    } catch (error) {
+      console.error('Error al guardar el pedido:', error);
+      alert('Hubo un problema al procesar tu pedido, pero podés enviarlo por WhatsApp igualmente.');
+      
+      // Intentar abrir WhatsApp igual para no perder la venta
+      const datosEntregaText = user 
+        ? `*Datos de Franquicia:*\n👤 Cliente: ${user.name}\n📅 Fecha de Reparto Elegida: ${checkoutData.fechaEntrega}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`
+        : `*Datos de Entrega Minorista:*\n👤 Nombre: ${checkoutData.nombre}\n🚚 Modalidad: ${checkoutData.tipoEntrega === 'Envio' ? 'Envío a Domicilio' : 'Retiro en Planta (Día hábil posterior)'}\n📍 Dirección: ${checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica'}\n📞 Teléfono: ${checkoutData.telefono}\n💳 Pago: ${checkoutData.pago}\n📝 Obs: ${checkoutData.observaciones || 'Ninguna'}`;
+
+      const whatsappText = `Hola SUL Congelados, quiero confirmar este pedido:\n\n${cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`).join('\n')}\n\n*Total Neto: $${formatPrice(cartTotal)}*\n\n${datosEntregaText}`;
+      window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(whatsappText)}`, '_blank');
+      handleClose();
+    }
   };
 
   /* 🚀 LÓGICA DEL CALENDARIO COMPACTO EN CUADRÍCULA */
