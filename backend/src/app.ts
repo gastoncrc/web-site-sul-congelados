@@ -8,7 +8,11 @@ import settingsRoutes from './routes/settingsRoutes';
 
 const app = express();
 
-const ALLOWED_ORIGINS = ['http://localhost:5173', 'http://localhost:3000'];
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173', 
+  'http://localhost:3000', 
+  'https://web-site-sul-congelados-1.onrender.com'
+];
 if (process.env.FRONTEND_URL) ALLOWED_ORIGINS.push(process.env.FRONTEND_URL);
 
 app.use(cors({
