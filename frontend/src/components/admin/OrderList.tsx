@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../config/api';
 import { formatPrice } from '../../../utils/currency';
-import { Package, Calendar, User, Phone, MapPin, Eye, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Package, Calendar, Phone, MapPin, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 
 export const OrderList: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
