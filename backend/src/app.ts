@@ -22,7 +22,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Declaración de módulos limpios
+// Declaración de módulos limpios - Last Deploy: 2026-06-02
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/vendor', vendorRoutes);
