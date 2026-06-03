@@ -165,14 +165,20 @@ export const getDashboardStats = async (req: Request, res: Response) => {
   const { startDate, endDate, granularity = 'day' } = req.query;
 
   try {
-    const start = startDate ? new String(startDate) : 'CURRENT_DATE - INTERVAL \'30 days\'';
-    const end = endDate ? new String(endDate) : 'CURRENT_DATE';
-
-    // A. Ventas por período (Dinámico)
     let dateTrunc = 'day';
     if (granularity === 'week') dateTrunc = 'week';
     if (granularity === 'month') dateTrunc = 'month';
 
+    // Construcción dinámica de filtros de fecha
+    let dateFilter = 'created_at BETWEEN CURRENT_DATE - INTERVAL \'30 days\' AND CURRENT_DATE';
+    const params: any[] = [dateTrunc];
+    
+    if (startDate && endDate) {
+      dateFilter = 'created_at BETWEEN $2 AND $3';
+      params.push(startDate, endDate);
+    }
+
+    // A. Ventas por período
     const salesOverTime = await pool.query(`
       SELECT 
         TO_CHAR(DATE_TRUNC($1, created_at), 
@@ -180,17 +186,18 @@ export const getDashboardStats = async (req: Request, res: Response) => {
             WHEN $1 = 'day' THEN 'DD/MM'
             WHEN $1 = 'week' THEN '\"Sem \"WW'
             WHEN $1 = 'month' THEN 'Month'
+            ELSE 'DD/MM'
           END
         ) as label,
-        SUM(total_amount) as total,
+        COALESCE(SUM(total_amount), 0) as total,
         COUNT(*) as orders
       FROM orders
-      WHERE created_at BETWEEN ${startDate ? '$2' : 'CURRENT_DATE - INTERVAL \'30 days\''} AND ${endDate ? '$3' : 'CURRENT_DATE'}
+      WHERE ${dateFilter}
       GROUP BY DATE_TRUNC($1, created_at)
       ORDER BY DATE_TRUNC($1, created_at) ASC
-    `, startDate && endDate ? [dateTrunc, startDate, endDate] : [dateTrunc]);
+    `, params);
 
-    // B. Top 5 Productos más vendidos
+    // B. Top 5 Productos
     const topProducts = await pool.query(`
       SELECT product_name as name, SUM(quantity) as value
       FROM order_items
@@ -201,17 +208,17 @@ export const getDashboardStats = async (req: Request, res: Response) => {
 
     // C. Comparativa de Listas (Convenios)
     const listComparison = await pool.query(`
-      SELECT u.convenio, SUM(o.total_amount) as total, COUNT(o.id) as orders
+      SELECT u.convenio, COALESCE(SUM(o.total_amount), 0) as total, COUNT(o.id) as orders
       FROM orders o
       JOIN users u ON o.user_id = u.id
-      WHERE o.created_at BETWEEN ${startDate ? '$2' : 'CURRENT_DATE - INTERVAL \'30 days\''} AND ${endDate ? '$3' : 'CURRENT_DATE'}
+      WHERE o.${dateFilter.replace('created_at', 'created_at')}
       GROUP BY u.convenio
       ORDER BY total DESC
-    `, startDate && endDate ? [dateTrunc, startDate, endDate] : [dateTrunc]);
+    `, params.length > 1 ? [params[1], params[2]] : []);
 
     // D. Mejores Clientes
     const topClients = await pool.query(`
-      SELECT customer_name as name, SUM(total_amount) as total
+      SELECT customer_name as name, COALESCE(SUM(total_amount), 0) as total
       FROM orders
       GROUP BY customer_name
       ORDER BY total DESC
@@ -235,7 +242,7 @@ export const getDashboardStats = async (req: Request, res: Response) => {
       summary: summary.rows[0]
     });
   } catch (err) {
-    console.error('Error analítica:', err);
-    res.status(500).json({ error: 'Error generando estadísticas avanzadas' });
+    console.error('🚨 Error en getDashboardStats:', err);
+    res.status(500).json({ error: 'Error interno al generar analítica' });
   }
 };
