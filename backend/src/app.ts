@@ -22,6 +22,12 @@ app.use(cors({
 
 app.use(express.json());
 
+// 🚀 LOG DE RUTAS (DEBUG PROFESIONAL)
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // Declaración de módulos limpios - Last Deploy: 2026-06-02
 app.get('/api/db-check', async (req, res) => {
   try {
