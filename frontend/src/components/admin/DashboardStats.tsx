@@ -3,7 +3,7 @@ import { api } from '../../config/api';
 import { formatPrice } from '../../../utils/currency';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-  LineChart, Line, PieChart, Pie, Cell, Legend 
+  LineChart, Line, Cell 
 } from 'recharts';
 import { TrendingUp, Users, ShoppingCart, DollarSign, Package } from 'lucide-react';
 
