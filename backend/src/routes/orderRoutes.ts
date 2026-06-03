@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrder, getOrders, getOrderDetails } from '../controllers/orderController';
+import { createOrder, getOrders, getOrderDetails, updateOrderStatus } from '../controllers/orderController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 
 const router = Router();
@@ -10,5 +10,6 @@ router.post('/', createOrder);
 // Endpoints protegidos para ver historial
 router.get('/', verifyTokenAndStatus, getOrders);
 router.get('/:id', verifyTokenAndStatus, getOrderDetails);
+router.patch('/:id/status', verifyTokenAndStatus, updateOrderStatus);
 
 export default router;

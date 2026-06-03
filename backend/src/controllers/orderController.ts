@@ -75,23 +75,73 @@ export const getOrders = async (req: Request, res: Response) => {
   if (!(req as any).user) {
     return res.status(401).json({ error: 'No autorizado' });
   }
-  const { role, id } = (req as any).user;
+  const { role, id: userId } = (req as any).user;
+  const { customer, startDate, endDate, product, status } = req.query;
 
   try {
-    let query = '';
-    let params: any[] = [];
+    let query = `
+      SELECT DISTINCT o.* 
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      WHERE 1=1
+    `;
+    const params: any[] = [];
+    let paramIndex = 1;
 
-    if (role === 'Admin') {
-      query = `SELECT * FROM orders ORDER BY created_at DESC`;
-    } else {
-      query = `SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC`;
-      params = [id];
+    if (role !== 'Admin') {
+      query += ` AND o.user_id = $${paramIndex++}`;
+      params.push(userId);
     }
+
+    if (customer) {
+      query += ` AND (o.customer_name ILIKE $${paramIndex} OR o.customer_email ILIKE $${paramIndex})`;
+      params.push(`%${customer}%`);
+      paramIndex++;
+    }
+
+    if (startDate) {
+      query += ` AND o.created_at >= $${paramIndex++}`;
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      query += ` AND o.created_at <= $${paramIndex++}`;
+      params.push(endDate);
+    }
+
+    if (product) {
+      query += ` AND (oi.product_name ILIKE $${paramIndex} OR oi.product_sku ILIKE $${paramIndex})`;
+      params.push(`%${product}%`);
+      paramIndex++;
+    }
+
+    if (status) {
+      query += ` AND o.status = $${paramIndex++}`;
+      params.push(status);
+    }
+
+    query += ` ORDER BY o.created_at DESC`;
 
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (err) {
+    console.error('Error filtrando pedidos:', err);
     res.status(500).json({ error: 'Error obteniendo pedidos' });
+  }
+};
+
+export const updateOrderStatus = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') {
+    return res.status(403).json({ error: 'Acceso denegado' });
+  }
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    await pool.query('UPDATE orders SET status = $1 WHERE id = $2', [status, id]);
+    res.json({ message: 'Estado del pedido actualizado' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando estado' });
   }
 };
 
