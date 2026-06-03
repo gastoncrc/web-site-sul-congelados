@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu, Settings, ShoppingBag } from 'lucide-react';
+import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu, Settings, ShoppingBag, TrendingUp } from 'lucide-react';
 import { api } from '../config/api';
 
 // IMPORTAMOS LOS COMPONENTES MODULARIZADOS
@@ -8,6 +8,7 @@ import { ProductList } from '../components/admin/ProductList';
 import { ClientForm } from '../components/admin/ClientForm';
 import { ClientList } from '../components/admin/ClientList';
 import { OrderList } from '../components/admin/OrderList';
+import { DashboardStats } from '../components/admin/DashboardStats';
 
 interface AdminProps {
   setSystemMessage: React.Dispatch<React.SetStateAction<string>>;
@@ -44,8 +45,8 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
   const { user, logout } = useAuth(); 
   
   // Navigation & UI States
-  const [activeModule, setActiveModule] = useState<'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'config' | 'order-list'>('order-list');
-  const [expandedSection, setExpandedSection] = useState<'products' | 'clients' | 'users' | 'settings' | 'orders' | null>('orders');
+  const [activeModule, setActiveModule] = useState<'dashboard' | 'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'config' | 'order-list'>('dashboard');
+  const [expandedSection, setExpandedSection] = useState<'dashboard' | 'products' | 'clients' | 'users' | 'settings' | 'orders' | null>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Data States
@@ -148,6 +149,19 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
           
           <nav className="space-y-4 flex-1 overflow-y-auto p-4 sm:p-6">
             
+            {/* 🚀 DASHBOARD MODULE */}
+            <div>
+              <button onClick={() => toggleSection('dashboard')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'dashboard' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
+                <div className="flex items-center"><TrendingUp size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">ESTADÍSTICAS</span>}</div>
+                {!isSidebarCollapsed && (expandedSection === 'dashboard' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
+              </button>
+              {expandedSection === 'dashboard' && !isSidebarCollapsed && (
+                <div className="ml-9 mt-2 space-y-1">
+                  <button onClick={() => setActiveModule('dashboard')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'dashboard' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Vista General</button>
+                </div>
+              )}
+            </div>
+
             {/* VENTAS MODULE */}
             <div>
               <button onClick={() => toggleSection('orders')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'orders' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
@@ -244,6 +258,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       {/* 🖥️ MAIN WORKSPACE */}
       <main className="flex-1 overflow-y-auto bg-slate-50 p-6 sm:p-10 relative">
         
+        {activeModule === 'dashboard' && <DashboardStats />}
         {activeModule === 'order-list' && <OrderList />}
         {activeModule === 'product-list' && <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />}
         {activeModule === 'client-list' && <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />}

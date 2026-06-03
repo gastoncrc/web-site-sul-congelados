@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Edit3 } from 'lucide-react';
+import { Search, Edit3, History, Calendar, User, ArrowRight } from 'lucide-react';
 import { api } from '../../config/api';
+import { formatPrice } from '../../../utils/currency';
 
 interface ProductListProps {
   products: any[];
@@ -13,6 +14,22 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
   const [isShowingInactive, setIsShowingInactive] = useState(false);
   
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [historyProduct, setHistoryProduct] = useState<any | null>(null);
+  const [priceHistory, setPriceHistory] = useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  const fetchPriceHistory = async (p: any) => {
+    setHistoryProduct(p);
+    setIsLoadingHistory(true);
+    try {
+      const response = await api.get(`/products/${p.sku}/price-history`);
+      setPriceHistory(response.data);
+    } catch (err) {
+      console.error('Error cargando historial:', err);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
 
   const filteredProducts = products.filter(p => {
     const matchesSearch = p.sku.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -81,7 +98,6 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
         </div>
 
         <div className="overflow-x-auto max-h-150 overflow-y-auto">
-          {/* 🚀 ACÁ ESTÁ LA SOLUCIÓN DEL RESPONSIVE: min-w-[800px] */}
           <table className="min-w-200 w-full text-left text-sm border-collapse">
             <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-black tracking-widest border-b border-slate-100 sticky top-0 z-10 shadow-sm">
               <tr>
@@ -116,6 +132,13 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
                       }
                     </td>
                     <td className="px-6 py-4 text-center space-x-2 whitespace-nowrap">
+                      <button 
+                        onClick={() => fetchPriceHistory(p)}
+                        className="p-2 text-slate-400 hover:text-slate-900 transition cursor-pointer"
+                        title="Historial de Precios"
+                      >
+                        <History size={16} />
+                      </button>
                       <button 
                         onClick={() => setEditingProduct({ ...p })}
                         className="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-bold hover:bg-slate-900 hover:text-white transition cursor-pointer"
@@ -222,6 +245,68 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
                 <button type="submit" className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition shadow cursor-pointer">Guardar Cambios</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🚀 MODAL DE HISTORIAL DE PRECIOS */}
+      {historyProduct && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#020617] w-full max-w-lg rounded-3xl shadow-2xl border border-slate-800 overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+              <div>
+                <h3 className="text-white font-black uppercase text-sm tracking-widest flex items-center">
+                  <History size={18} className="mr-2 text-[#deff9a]" /> Auditoría de Precios
+                </h3>
+                <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase tracking-tighter">{historyProduct.name}</p>
+              </div>
+              <button onClick={() => setHistoryProduct(null)} className="text-slate-500 hover:text-white transition cursor-pointer">✕</button>
+            </div>
+
+            <div className="p-6 max-h-[60vh] overflow-y-auto space-y-4">
+              {isLoadingHistory ? (
+                <div className="text-center py-10 text-slate-500 font-bold animate-pulse text-xs">CONSULTANDO LOGS DE SISTEMA...</div>
+              ) : priceHistory.length === 0 ? (
+                <div className="text-center py-10 bg-slate-900/50 rounded-2xl border border-dashed border-slate-800">
+                  <Calendar size={32} className="mx-auto mb-2 text-slate-700" />
+                  <p className="text-slate-500 text-xs font-bold uppercase">No hay cambios registrados todavía.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {priceHistory.map((entry, idx) => (
+                    <div key={idx} className="bg-slate-900/50 border border-slate-800 p-4 rounded-2xl relative overflow-hidden group">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="bg-[#deff9a]/10 p-2 rounded-xl text-[#deff9a]"><User size={12}/></div>
+                          <span className="text-[10px] text-slate-300 font-black uppercase">{entry.changed_by?.split('@')[0] || 'Sistema'}</span>
+                        </div>
+                        <span className="text-[9px] text-slate-500 font-mono">{new Date(entry.changed_at).toLocaleString('es-AR')}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between bg-slate-950 p-3 rounded-xl border border-slate-800/50">
+                        <div className="text-center flex-1">
+                          <p className="text-[8px] text-slate-500 uppercase font-black mb-1">Anterior</p>
+                          <p className="text-xs text-slate-400 font-bold line-through">${formatPrice(parseFloat(entry.old_price || 0))}</p>
+                        </div>
+                        <ArrowRight size={14} className="text-slate-700 mx-2" />
+                        <div className="text-center flex-1">
+                          <p className="text-[8px] text-[#deff9a] uppercase font-black mb-1">Nuevo</p>
+                          <p className="text-sm text-white font-black tracking-tight">${formatPrice(parseFloat(entry.new_price))}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2 flex justify-end">
+                        <span className="text-[8px] bg-slate-800 text-slate-500 px-2 py-0.5 rounded font-black uppercase tracking-widest">{entry.convenio}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 bg-slate-900/30 border-t border-slate-800">
+              <button onClick={() => setHistoryProduct(null)} className="w-full bg-white text-black font-black py-3 rounded-2xl text-xs uppercase hover:bg-slate-200 transition cursor-pointer">Cerrar Auditoría</button>
+            </div>
           </div>
         </div>
       )}
