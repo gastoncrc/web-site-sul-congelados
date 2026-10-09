@@ -10,13 +10,13 @@ Este documento sirve como contexto técnico y funcional para el desarrollo de la
 - **Estilos:** Tailwind CSS v4 (Moderno, sin dependencias de PostCSS pesadas)
 - **Enrutado:** React Router 7
 - **Iconografía:** Lucide React
-- **Gráficos:** Recharts (Para panel administrativo)
+- **Gráficos:** Recharts (Analítica avanzada)
 - **Estado:** Context API (Auth) + Hooks locales
 
 ### Backend
 - **Entorno:** Node.js (TypeScript)
 - **Framework:** Express v5
-- **Base de Datos:** PostgreSQL (Compatible con Neon.tech o local)
+- **Base de Datos:** PostgreSQL (Postgres 16+)
 - **Autenticación:** JSON Web Tokens (JWT) + Bcryptjs
 - **Gestión de Archivos:** Multer (Para subidas de Excel/CSV)
 - **Email:** Nodemailer
@@ -24,19 +24,19 @@ Este documento sirve como contexto técnico y funcional para el desarrollo de la
 
 ---
 
-## 📂 Estructura del Proyecto
+## 📂 Estructura del Proyecto (Monorepo)
 
 ### Backend (`/backend/src`)
 - `config/db.ts`: Inicialización de la base de datos y scripts de migración automática de columnas.
 - `controllers/`:
   - `authController.ts`: Gestión de usuarios, login, registro masivo y cambios de contraseña.
-  - `productController.ts`: CRUD de productos, matriz de precios por convenio e importación masiva.
-  - `orderController.ts`: Gestión de pedidos y flujo de checkout.
+  - `productController.ts`: CRUD de productos, matriz de precios, auditoría e importación masiva.
+  - `orderController.ts`: Gestión de pedidos, flujo de checkout y motor de analítica (BI).
 - `routes/`: Definición de endpoints de la API.
 - `utils/mailer.ts`: Servicio de envío de notificaciones por email.
 
 ### Frontend (`/frontend/src`)
-- `components/`: Componentes modulares (Cart, Header, Admin forms).
+- `components/`: Componentes modulares (Cart, Header, Admin Dashboard, Order History).
 - `context/`: Manejo de estado global de autenticación.
 - `pages/`: Vistas principales (Catálogo, Panel Admin, Nosotros, Contacto).
 - `types/`: Definiciones de interfaces TypeScript para consistencia en todo el proyecto.
@@ -45,74 +45,102 @@ Este documento sirve como contexto técnico y funcional para el desarrollo de la
 
 ## ✅ Funcionalidades Implementadas
 
-### Catálogo y Compra
-- **Catálogo Dinámico:** Precios personalizados según el "Convenio" (Lista de precios) asignado al usuario.
-- **Buscador y Filtros:** Búsqueda por nombre y filtros por categorías/rubros.
-- **Carrito de Compras:** Persistencia en LocalStorage y validación de stock (simulada/base).
-- **Checkout:** Selección de método de pago, tipo de entrega (Envío/Retiro) y dirección.
-- **Promociones:** Soporte para precios promocionales y destacados en slider principal.
+### Inteligencia de Negocios (BI) y Analítica
+- **Dashboard Profesional:** Visualización de KPIs (Facturación, Pedidos, CRM).
+- **Gráficos Dinámicos:** Curva de ventas con filtros de fecha y granularidad (Día, Semana, Mes).
+- **Ranking de Rendimiento:** Top 5 Clientes por facturación y Ranking de rotación de productos.
+- **Comparativa de Listas:** Análisis visual de ventas por Convenio (Lista de precios).
 
-### Administración (Panel Control)
-- **Gestión Logística de Productos:** Carga masiva desde Excel sincronizando SKU, precios y categorías.
-- **Gestión de Clientes:** Importación masiva de clientes desde logística, permitiendo la creación automática de cuentas.
-- **Control de Precios:** Matriz de precios que permite que un mismo SKU tenga distintos valores según el cliente.
-- **Gestión de Pedidos:** Visualización de pedidos entrantes y estados.
-- **Configuración:** Ajustes dinámicos como el número de WhatsApp para contacto.
+### Administración y Logística (Panel Control)
+- **Control de Pedidos Pro:** Historial con filtros avanzados por cliente, producto, fecha y estado.
+- **Gestión de Estados:** Actualización en tiempo real del flujo logístico (Pendiente, Enviado, Completado, Cancelado).
+- **Auditoría de Precios ("Time Machine"):** Historial técnico de cambios de precios indicando autor, fecha, valor anterior y nuevo.
+- **Configuración Comercial:** Ajuste dinámico del número de WhatsApp y mínimos de compra desde el panel.
+- **Gestión de Productos y Clientes:** Carga masiva desde Excel sincronizando SKU, precios y categorías.
+
+### Experiencia de Compra (B2B/B2C)
+- **Catálogo Dinámico:** Precios personalizados según el "Convenio" asignado al usuario.
+- **Carrito de Compras:** Persistencia en LocalStorage y validación de stock base.
+- **Checkout Multi-canal:** Envío de pedidos vía WhatsApp y almacenamiento en base de datos.
 
 ### Seguridad
 - **Roles:** Admin, Cliente, Minorista.
-- **Primer Acceso:** Obligatoriedad de cambiar la contraseña genérica al iniciar sesión por primera vez.
-- **Protección de Rutas:** Middleware de autenticación JWT.
-- **CORS:** Configuración de orígenes permitidos dinámica.
+- **Sesión Robusta:** Protección de rutas con JWT y validación estricta de estado de cuenta.
+- **Primer Acceso:** Obligatoriedad de cambio de contraseña.
 
 ---
 
-## 🛠 Variables de Entorno Necesarias (.env)
+## 🛠 Variables de Envorno Necesarias
 
-### Backend
+### Backend (.env)
 ```env
 PORT=3000
 DATABASE_URL=postgres://...
 JWT_SECRET=tu_secreto_aqui
-FRONTEND_URL=http://localhost:5173
-EMAIL_HOST=smtp.ejemplo.com
-EMAIL_PORT=587
-EMAIL_SECURE=false
-EMAIL_USER=tu-email@sul.com
-EMAIL_PASS=tu-password
-ADMIN_EMAIL=pedidos@sul.com
+FRONTEND_URL=https://web-site-sul-congelados-1.onrender.com
+EMAIL_HOST=smtp.resend.com
+EMAIL_PORT=465
+EMAIL_SECURE=true
+EMAIL_USER=resend
+EMAIL_PASS=tu_api_key_de_resend
+EMAIL_FROM=notificaciones@sulcongelados.com
+ADMIN_EMAIL=sulcongelados.arg@gmail.com
 ```
+
+### Frontend (Render Environment)
+- `VITE_API_URL`: https://web-site-sul-congelados-backend.onrender.com/api
 
 ---
 
 ## 📋 Decisiones Técnicas Importantes
 
-1. **Inyector Automático de DB:** El sistema detecta si faltan columnas en la base de datos PostgreSQL y las crea al iniciar el servidor (`initDB` en `db.ts`), facilitando despliegues continuos sin scripts de migración manuales pesados.
-2. **Matriz de Precios:** Se utiliza una tabla relacional `product_prices` para separar el producto (entidad base) de su valor comercial, permitiendo una escalabilidad infinita de listas de precios (Convenios).
-3. **Login por Email de Sistema:** Para clientes importados masivamente, se genera un email técnico `cl_CODIGO@sul.com` para asegurar que todos tengan una credencial única de acceso inmediata.
-4. **Tailwind 4:** Se optó por la versión 4 para aprovechar el nuevo motor de alto rendimiento y la simplificación de la configuración mediante CSS puro.
-5. **Persistencia Local:** El carrito se mantiene en el navegador del usuario para evitar pérdida de datos por cierres accidentales.
+1. **Inyector Automático de DB:** El sistema detecta cambios en el esquema PostgreSQL y crea tablas/columnas dinámicamente (`initDB`).
+2. **Arquitectura de Auditoría:** Se implementó una tabla `price_history` para garantizar la trazabilidad total de los márgenes comerciales.
+3. **Analítica en Caliente:** Los datos del dashboard se calculan mediante agregaciones SQL optimizadas para responder en milisegundos.
+4. **Monorepo Profesional:** El proyecto se unificó en una estructura única para garantizar la sincronización atómica entre Frontend y Backend.
+5. **CORS Dinámico:** Soporte para múltiples entornos mediante variables de entorno y listas de confianza.
 
 ---
 
 ## 🛡️ Mandatos de Ingeniería y Buenas Prácticas
 
-Para garantizar la integridad y el crecimiento del proyecto, todas las sesiones de desarrollo deben adherirse a los siguientes principios:
-
-1.  **Buenas Prácticas y Estándares:** Se debe seguir un desarrollo profesional utilizando tipado estricto (TypeScript), manejo de errores robusto y convenciones de nombres claras (Conventional Commits).
-2.  **Reutilización Profesional de Código:** Antes de crear una nueva función o componente, se debe auditar el código existente para reutilizar lógica. Se prioriza la composición sobre la duplicación.
-3.  **Eliminación de Código Muerto (Surgical Cleanup):** Es obligatorio identificar y eliminar importaciones, variables, funciones o archivos que ya no se utilicen.
-    *   **Por qué:** Mejora el rendimiento de los builds, reduce la deuda técnica y evita confusiones en futuras sesiones.
-    *   **Seguridad:** La eliminación debe ser validada mediante herramientas de análisis estático (linters/compiladores) para asegurar que no existan dependencias ocultas.
-4.  **Escalabilidad Arquitectónica:** El código debe diseñarse pensando en el futuro. Las APIs deben ser granulares y los componentes de frontend deben ser modulares, permitiendo añadir nuevas funcionalidades sin reescribir la lógica base.
-5.  **Seguridad y Contexto:** El uso de variables de entorno (`.env`) es obligatorio para configuraciones sensibles o dinámicas. Nunca se deben "hardcodear" URLs o credenciales en el código fuente.
+1.  **Buenas Prácticas:** Tipado estricto (TypeScript), manejo de errores robusto y Conventional Commits.
+2.  **Reutilización:** Priorizar la composición y auditación de código previo antes de crear nueva lógica.
+3.  **Eliminación de Código Muerto:** Obligatoriedad de limpiar variables/imports no usados para optimizar el build de producción.
+4.  **Escalabilidad:** Diseño de APIs granulares y componentes modulares.
+5.  **Seguridad:** Uso estricto de variables de entorno; prohibido hardcodear credenciales o URLs.
 
 ---
 
 ## ⏳ Funcionalidades Pendientes / Roadmap
 
-- [ ] Sistema de recuperación de contraseña vía email.
-- [ ] Historial de pedidos detallado para el cliente final.
-- [ ] Dashboard de estadísticas avanzado (ventas por rubro, clientes top).
-- [ ] Gestión real de stock vinculada a facturación.
-- [ ] Integración de pasarela de pago (Mercado Pago / Otros).
+- [ ] Sistema de recuperación de contraseña vía email (Token de reset).
+- [ ] Historial de pedidos detallado para el cliente final (Vista Mis Compras).
+- [ ] Gestión real de stock vinculada a facturación automática.
+- [ ] Integración de pasarela de pago (Mercado Pago).
+- [ ] Sistema de notificaciones en tiempo real vía WebSockets (Socket.io).
+
+---
+
+## 🌐 Estado de Deploy / Infraestructura (actualizado 2026-10-09)
+
+### Dominio — compartido con otro proyecto, cuidado al tocar DNS
+`sulcongelados.com` está registrado y gestionado en **Cloudflare** (misma cuenta que el panel interno de MRC, proyecto completamente aparte). El subdominio `panel.sulcongelados.com` ya está ocupado por un túnel de Cloudflare que sirve ese otro dashboard — **no tocar ese registro DNS**. Este proyecto (SUL ecommerce) debe usar el dominio raíz (`sulcongelados.com` / `www`) u otro subdominio distinto.
+
+### Mail — resuelto, migrado a Resend
+El dominio ya está verificado en **Resend** (cuenta creada, registros DKIM/SPF/DMARC agregados en Cloudflare, API key activa) para mandar desde `notificaciones@sulcongelados.com`. `utils/mailer.ts` y `backend/.env` ya están migrados a SMTP de Resend (`smtp.resend.com`, user `resend`, misma API key que usa el otro proyecto MRC) y se probó con un envío real exitoso a `sulcongelados.arg@gmail.com` (casilla configurada en `ADMIN_EMAIL` para recibir notificaciones de pedidos).
+
+### Base de datos — ya existe, ya persiste
+Postgres real ya provisionado en **Neon** (plan gratis), `DATABASE_URL` ya en `backend/.env`. Los datos ya viven en la nube, no en ninguna PC física — esto ya estaba resuelto antes de pensar en hosting.
+
+`JWT_SECRET` ya generado como secreto real (96 caracteres hex, 48 bytes de entropía) y aplicado en `backend/.env` — pendiente copiar el mismo valor como env var en Render al crear el servicio.
+
+### Plan de hosting (decidido, pendiente de ejecutar)
+Opciones evaluadas: Render+Neon pago (~US$22/mes, caro), Fly.io+Neon gratis (~US$2-8/mes), VPS propio en Hetzner Cloud (CX22, 2vCPU/4GB RAM, ~US$85-92/año todo incluido con backups — sin IVA porque Argentina no está en la lista de países que Hetzner le cobra IVA).
+
+**Plan acordado**: arrancar gratis primero — Render free (backend) + Render Static o Cloudflare Pages (frontend) + Neon free (ya existe) — para probar todo en vivo en `sulcongelados.com` sin gastar nada. Limitación conocida: el backend gratis "duerme" tras 15 min sin uso, primera visita después de eso tarda 30-50s. Migrar a Hetzner (siempre activo, sin ese problema) cuando se decida lanzar en serio a clientes reales — mismo código, sin perder nada.
+
+Incertidumbre sin resolver: pago en euros a Hetzner desde una tarjeta argentina podría generar impuesto PAIS/percepción de Ganancias — depende del banco, no verificable de antemano.
+
+### Relacionado
+"Lomitos 2x1" (otra línea de negocio, de otro proyecto) podría alojarse a futuro en el mismo servidor/VPS que este ecommerce una vez armado el VPS — un servidor admite múltiples dominios distintos, no solo subdominios. No armado todavía, solo planeado.

@@ -26,7 +26,7 @@ export const sendOrderEmail = async (orderData: any, items: any[]) => {
   `).join('');
 
   const mailOptions = {
-    from: `"SUL Congelados" <${process.env.EMAIL_USER}>`,
+    from: `"SUL Congelados" <${process.env.EMAIL_FROM}>`,
     to: adminEmail,
     subject: `Nuevo Pedido: ${orderData.customerName}`,
     html: `
