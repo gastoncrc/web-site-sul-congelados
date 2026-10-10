@@ -39,14 +39,12 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
   useEffect(() => {
-    const savedMin = localStorage.getItem('sul_min_purchase_b2c');
-    if (savedMin) setMinPurchaseB2C(Number(savedMin));
-    
-    // Fetch WhatsApp from backend settings
+    // Fetch mínimo de compra B2C y WhatsApp desde los ajustes reales del backend
     const fetchSettings = async () => {
       try {
         const { api } = await import('../config/api');
         const response = await api.get('/settings');
+        if (response.data.min_purchase_b2c) setMinPurchaseB2C(Number(response.data.min_purchase_b2c));
         if (response.data.whatsapp_number) setWhatsappNumber(response.data.whatsapp_number);
       } catch (e) { console.error('Error al cargar WhatsApp:', e); }
     };

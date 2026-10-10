@@ -124,6 +124,10 @@ export const initDB = async () => {
     if (wsCheck.rows.length === 0) {
       await pool.query("INSERT INTO settings (key, value) VALUES ('whatsapp_number', '5493510000000')");
     }
+    const minPurchaseCheck = await pool.query("SELECT * FROM settings WHERE key = 'min_purchase_b2c'");
+    if (minPurchaseCheck.rows.length === 0) {
+      await pool.query("INSERT INTO settings (key, value) VALUES ('min_purchase_b2c', '30000')");
+    }
 
     // ========================================================
     // 🚀 INYECTOR DE ACTUALIZACIÓN DE TABLA (MÁGICO)
@@ -160,6 +164,22 @@ export const initDB = async () => {
       try {
         await pool.query(query);
       } catch (error) {}
+    }
+
+    // ========================================================
+    // ÍNDICES — columnas que el historial de pedidos y el dashboard
+    // de analítica filtran/agrupan constantemente. Postgres no las
+    // indexa solo por ser foreign key.
+    // ========================================================
+    const indices = [
+      'CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);',
+      'CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);',
+      'CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);',
+      'CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);',
+      'CREATE INDEX IF NOT EXISTS idx_order_items_product_sku ON order_items(product_sku);'
+    ];
+    for (const query of indices) {
+      await pool.query(query);
     }
 
     // ========================================================

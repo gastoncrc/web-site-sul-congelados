@@ -303,15 +303,14 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
                   <input
                     type="number"
                     id="minPurchaseInput"
-                    defaultValue={localStorage.getItem('sul_min_purchase_b2c') || 30000}
+                    defaultValue={settings.min_purchase_b2c || '30000'}
                     className="p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold w-full font-mono font-bold"
                     placeholder="Ej: 30000"
                   />
                   <button
                     onClick={() => {
                       const val = (document.getElementById('minPurchaseInput') as HTMLInputElement).value;
-                      localStorage.setItem('sul_min_purchase_b2c', val);
-                      setSystemMessage('✅ Mínimo de compra B2C actualizado correctamente.');
+                      handleUpdateSetting('min_purchase_b2c', val);
                     }}
                     className="bg-brand-primary text-brand-primary-on font-bold px-6 rounded-xl text-xs hover:bg-brand-accent transition shadow-sm cursor-pointer shrink-0"
                   >
