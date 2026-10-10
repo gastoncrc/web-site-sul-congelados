@@ -3,63 +3,94 @@ import { pool } from '../config/db';
 import { sendOrderEmail } from '../utils/mailer';
 
 export const createOrder = async (req: Request, res: Response) => {
-  const { 
-    userId, 
-    customerName, 
-    customerEmail, 
-    customerPhone, 
-    deliveryAddress, 
-    deliveryType, 
-    deliveryDate, 
-    paymentMethod, 
-    totalAmount, 
-    observations, 
-    items 
+  const {
+    customerName,
+    customerEmail,
+    customerPhone,
+    deliveryAddress,
+    deliveryType,
+    deliveryDate,
+    paymentMethod,
+    observations,
+    items
   } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'El pedido no tiene artículos.' });
+  }
+
+  // El precio y el total NUNCA se toman del cliente: se recalculan contra la
+  // lista de precios real del convenio del usuario (o CORDOBA para invitados,
+  // la misma lista pública que usa getProductsByConvenio sin sesión).
+  const userId = (req as any).user?.id ?? null;
+  const convenio = (req as any).user?.convenio ?? 'CORDOBA';
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
+    const skus = items.map((item: any) => item.product?.sku).filter(Boolean);
+    const priceLookup = await client.query(
+      `SELECT p.sku, p.name, p.is_promo, p.promo_price, pr.precio
+       FROM products p
+       INNER JOIN product_prices pr ON p.sku = pr.product_sku
+       WHERE p.sku = ANY($1) AND UPPER(TRIM(pr.convenio)) = UPPER(TRIM($2)) AND p.is_active = TRUE`,
+      [skus, convenio]
+    );
+
+    const priceBySku: Record<string, { name: string; unitPrice: number }> = {};
+    for (const row of priceLookup.rows) {
+      priceBySku[row.sku] = {
+        name: row.name,
+        unitPrice: row.is_promo ? parseFloat(row.promo_price) : parseFloat(row.precio),
+      };
+    }
+
+    const missingSkus = skus.filter((sku: string) => !priceBySku[sku]);
+    if (missingSkus.length > 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: `Estos productos ya no están disponibles en tu lista de precios: ${missingSkus.join(', ')}` });
+    }
+
+    const resolvedItems = items.map((item: any) => {
+      const real = priceBySku[item.product.sku];
+      const quantity = Number(item.quantity) || 0;
+      return { sku: item.product.sku, name: real.name, quantity, unitPrice: real.unitPrice, subtotal: real.unitPrice * quantity };
+    });
+    const totalAmount = resolvedItems.reduce((sum, i) => sum + i.subtotal, 0);
+
     // 1. Insertar la cabecera del pedido
     const orderQuery = `
       INSERT INTO orders (
-        user_id, customer_name, customer_email, customer_phone, 
-        delivery_address, delivery_type, delivery_date, 
+        user_id, customer_name, customer_email, customer_phone,
+        delivery_address, delivery_type, delivery_date,
         payment_method, total_amount, observations
       )
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
       RETURNING id
     `;
     const orderResult = await client.query(orderQuery, [
-      userId || null, customerName, customerEmail || null, customerPhone || null,
+      userId, customerName, customerEmail || null, customerPhone || null,
       deliveryAddress || null, deliveryType, deliveryDate || null,
       paymentMethod, totalAmount, observations || null
     ]);
     const orderId = orderResult.rows[0].id;
 
-    // 2. Insertar los items del pedido
-    for (const item of items) {
-      const itemQuery = `
-        INSERT INTO order_items (
-          order_id, product_sku, product_name, quantity, unit_price, subtotal
-        )
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `;
-      await client.query(itemQuery, [
-        orderId, 
-        item.product.sku, 
-        item.product.name, 
-        item.quantity, 
-        item.product.isPromo ? item.product.promoPrice : item.product.unitPrice,
-        (item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) * item.quantity
-      ]);
+    // 2. Insertar los items del pedido (con el precio recalculado del servidor)
+    for (const item of resolvedItems) {
+      await client.query(
+        `INSERT INTO order_items (order_id, product_sku, product_name, quantity, unit_price, subtotal)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [orderId, item.sku, item.name, item.quantity, item.unitPrice, item.subtotal]
+      );
     }
 
     await client.query('COMMIT');
 
-    // 🚀 ENVÍO DE EMAIL (No bloquea la respuesta al cliente)
-    sendOrderEmail(req.body, items).catch(err => console.error('Error enviando mail de pedido:', err));
+    // 🚀 ENVÍO DE EMAIL (No bloquea la respuesta al cliente) — con los datos reales, no los del cliente
+    const emailItems = resolvedItems.map(i => ({ product: { name: i.name, isPromo: false, unitPrice: i.unitPrice }, quantity: i.quantity }));
+    sendOrderEmail({ customerName, customerEmail, customerPhone, deliveryAddress, deliveryType, deliveryDate, paymentMethod, observations, totalAmount }, emailItems)
+      .catch(err => console.error('Error enviando mail de pedido:', err));
 
     res.status(201).json({ message: 'Pedido guardado con éxito', orderId });
   } catch (err) {
@@ -149,8 +180,17 @@ export const getOrderDetails = async (req: Request, res: Response) => {
   if (!(req as any).user) {
     return res.status(401).json({ error: 'No autorizado' });
   }
+  const { role, id: requesterId } = (req as any).user;
   const { id } = req.params;
   try {
+    const order = await pool.query(`SELECT user_id FROM orders WHERE id = $1`, [id]);
+    if (order.rows.length === 0) {
+      return res.status(404).json({ error: 'Pedido no encontrado' });
+    }
+    if (role !== 'Admin' && order.rows[0].user_id !== requesterId) {
+      return res.status(403).json({ error: 'Acceso denegado' });
+    }
+
     const orderItems = await pool.query(`SELECT * FROM order_items WHERE order_id = $1`, [id]);
     res.json(orderItems.rows);
   } catch (err) {

@@ -204,6 +204,7 @@ export const deleteClientAdmin = async (req: Request, res: Response) => {
 // 🚀 AGREGAR AL FINAL DE authController.ts
 
 export const updateClient = async (req: any, res: any) => {
+  if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { id } = req.params;
     const { 
