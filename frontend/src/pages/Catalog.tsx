@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Product } from '../types';
-import { formatPrice } from '../../utils/currency';
 import { ProductSlider } from '../components/ProductSlider'; // 🚀 IMPORTAMOS EL CARRUSEL
+import { ProductCard } from '../components/ProductCard';
 
 interface CatalogProduct extends Product {
   isPromo?: boolean;
@@ -60,53 +60,39 @@ export const Catalog: React.FC<CatalogProps> = ({ products, cart, setShoppingCar
       )}
 
       <div className="relative max-w-2xl mx-auto w-full">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Search className="text-slate-400" size={20} /></div>
-        <input type="text" placeholder="Buscar lomitos, hamburguesas, milanesas..." className="w-full pl-12 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-white shadow-sm focus:border-slate-950 focus:ring-4 focus:ring-slate-100 outline-none transition-all text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute inset-y-0 right-0 pr-4 flex items-center text-xs font-black text-slate-400 hover:text-slate-600 transition cursor-pointer">LIMPIAR</button>}
+        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Search className="text-ink-soft" size={20} /></div>
+        <input type="text" placeholder="Buscar lomitos, hamburguesas, milanesas..." className="w-full pl-12 pr-4 py-3.5 rounded-card border border-line bg-paper shadow-sm focus:border-brand-gold focus:ring-4 focus:ring-brand-gold/10 outline-none transition-all text-sm font-medium" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+        {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute inset-y-0 right-0 pr-4 flex items-center text-xs font-black text-ink-soft hover:text-ink transition cursor-pointer">LIMPIAR</button>}
       </div>
 
-      <div className="w-full border-b border-slate-200 pb-4">
-        <div className="flex items-center space-x-2 text-slate-400 text-xs font-black uppercase tracking-wider mb-3"><Filter size={14}/> <span>Filtrar por Rubro</span></div>
+      <div className="w-full border-b border-line pb-4">
+        <div className="flex items-center space-x-2 text-ink-soft text-xs font-black uppercase tracking-wider mb-3"><Filter size={14}/> <span>Filtrar por Rubro</span></div>
         <div className="flex flex-wrap gap-2">
           {categories.map((cat) => (
-            <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition border cursor-pointer ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>{cat}</button>
+            <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition border cursor-pointer ${selectedCategory === cat ? 'bg-brand-primary text-brand-primary-on border-brand-primary shadow-sm' : 'bg-paper text-ink-soft border-line hover:bg-bg'}`}>{cat}</button>
           ))}
         </div>
       </div>
 
       {currentProductsForDisplay.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border p-8"><p className="text-slate-400 font-bold text-base">No encontramos productos.</p></div>
+        <div className="text-center py-16 bg-paper rounded-card border border-line p-8"><p className="text-ink-soft font-bold text-base">No encontramos productos.</p></div>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {currentProductsForDisplay.map((product) => {
-              const inCartQty = getQtyInCart(product.sku); 
-              return (
-                <div key={product.sku} className={`bg-white rounded-2xl border p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden ${inCartQty > 0 ? 'border-slate-400' : 'border-slate-200'}`}>
-                  {product.isPromo && <div className="absolute top-0 right-0 bg-amber-500 text-white text-[9px] font-black px-3 py-1 uppercase tracking-widest shadow-sm rounded-bl-xl">OFERTA</div>}
-                  <div className={product.isPromo ? "pt-4" : ""}><span className="text-[10px] font-black tracking-widest text-slate-400 uppercase">{product.category}</span><h3 className="font-bold text-slate-900 text-sm leading-tight mb-1 mt-1">{product.name}</h3><p className="text-slate-400 text-[11px] font-mono mb-3">SKU: {product.sku}</p>{product.description && <p className="text-slate-500 text-xs line-clamp-2 mb-4">{product.description}</p>}</div>
-                  <div className="mt-4">
-                    <div className="mb-3">
-                      {product.isPromo ? <div className="flex items-baseline space-x-2"><span className="text-lg font-black text-slate-900">${formatPrice(product.promoPrice ?? 0)}</span><span className="text-xs text-slate-400 line-through">${formatPrice(product.unitPrice ?? 0)}</span></div> : <span className="text-lg font-black text-slate-900">${formatPrice(product.unitPrice ?? 0)}</span>}
-                    </div>
-                    <button onClick={() => handleAddToCart(product)} className={`w-full font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center space-x-2 cursor-pointer ${inCartQty > 0 ? 'bg-[#deff9a] text-slate-900 hover:bg-[#cceb88]' : 'bg-slate-900 text-white hover:bg-slate-800'}`}>
-                      <ShoppingCart size={14}/><span>{inCartQty > 0 ? `Añadir otro (${inCartQty})` : 'Añadir al Pedido'}</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {currentProductsForDisplay.map((product) => (
+              <ProductCard key={product.sku} product={product} inCartQty={getQtyInCart(product.sku)} onAdd={handleAddToCart} />
+            ))}
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-center space-x-2 pt-6 border-t border-slate-100">
-              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} className="p-2 rounded-xl border bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"><ChevronLeft size={18} /></button>
+            <div className="flex items-center justify-center space-x-2 pt-6 border-t border-line">
+              <button disabled={currentPage === 1} onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} className="p-2 rounded-xl border border-line bg-paper hover:bg-bg disabled:opacity-40 cursor-pointer"><ChevronLeft size={18} /></button>
               <div className="flex items-center space-x-1">
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button key={page} onClick={() => setCurrentPage(page)} className={`w-9 h-9 text-xs font-black rounded-xl transition cursor-pointer ${currentPage === page ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border hover:bg-slate-50'}`}>{page}</button>
+                  <button key={page} onClick={() => setCurrentPage(page)} className={`w-9 h-9 text-xs font-black rounded-xl transition cursor-pointer ${currentPage === page ? 'bg-brand-primary text-brand-primary-on' : 'bg-paper text-ink-soft border border-line hover:bg-bg'}`}>{page}</button>
                 ))}
               </div>
-              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} className="p-2 rounded-xl border bg-white hover:bg-slate-50 disabled:opacity-40 cursor-pointer"><ChevronRight size={18} /></button>
+              <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} className="p-2 rounded-xl border border-line bg-paper hover:bg-bg disabled:opacity-40 cursor-pointer"><ChevronRight size={18} /></button>
             </div>
           )}
         </>

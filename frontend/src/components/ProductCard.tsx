@@ -1,0 +1,75 @@
+import React from 'react';
+import { ShoppingCart } from 'lucide-react';
+import { formatPrice } from '../../utils/currency';
+import { CategoryIcon } from './CategoryIcon';
+
+interface ProductCardProduct {
+  sku: string;
+  name: string;
+  category: string;
+  description?: string;
+  unitPrice: number;
+  isPromo?: boolean;
+  promoPrice?: number;
+}
+
+interface ProductCardProps {
+  product: ProductCardProduct;
+  inCartQty: number;
+  onAdd: (product: any) => void;
+  /** 'grid' = tarjeta de catálogo completa. 'slider' = versión compacta para el carrusel. */
+  variant?: 'grid' | 'slider';
+}
+
+export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, onAdd, variant = 'grid' }) => {
+  const price = product.isPromo ? product.promoPrice : product.unitPrice;
+  const isSlider = variant === 'slider';
+
+  return (
+    <div
+      className={`bg-paper rounded-card border p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden ${
+        isSlider ? 'w-64 shrink-0' : ''
+      } ${inCartQty > 0 ? 'border-brand-gold' : 'border-line'}`}
+    >
+      {product.isPromo && (
+        <div className="absolute top-0 right-0 bg-brand-gold text-brand-gold-on text-[9px] font-black px-3 py-1 uppercase tracking-widest shadow-sm rounded-bl-xl">
+          OFERTA
+        </div>
+      )}
+
+      <div className={product.isPromo ? 'pt-4' : ''}>
+        <div className="w-full aspect-4/3 mb-3 rounded-lg bg-brand-gold/10 flex items-center justify-center">
+          <CategoryIcon category={product.category} name={product.name} className="text-brand-gold-deep" size={isSlider ? 32 : 40} />
+        </div>
+        <span className="text-[10px] font-black tracking-widest text-ink-soft uppercase">{product.category}</span>
+        <h3 className="font-bold text-ink text-sm leading-tight mb-1 mt-1">{product.name}</h3>
+        {!isSlider && <p className="text-ink-soft text-[11px] font-mono-label mb-3">SKU: {product.sku}</p>}
+        {!isSlider && product.description && (
+          <p className="text-ink-soft text-xs line-clamp-2 mb-4">{product.description}</p>
+        )}
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-3">
+          {product.isPromo ? (
+            <div className="flex items-baseline space-x-2">
+              <span className="text-lg font-black text-ink">${formatPrice(product.promoPrice ?? 0)}</span>
+              <span className="text-xs text-ink-soft line-through">${formatPrice(product.unitPrice ?? 0)}</span>
+            </div>
+          ) : (
+            <span className="text-lg font-black text-ink">${formatPrice(price ?? 0)}</span>
+          )}
+        </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAdd(product); }}
+          className={`w-full font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center space-x-2 cursor-pointer relative z-20 ${
+            inCartQty > 0 ? 'bg-brand-gold text-brand-gold-on hover:bg-brand-gold-deep' : 'bg-brand-primary text-brand-primary-on hover:bg-brand-accent'
+          }`}
+        >
+          <ShoppingCart size={14} />
+          <span>{inCartQty > 0 ? `Añadir otro (${inCartQty})` : 'Añadir al Pedido'}</span>
+        </button>
+      </div>
+    </div>
+  );
+};
