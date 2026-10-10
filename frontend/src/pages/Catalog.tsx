@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight, Factory, Snowflake, Utensils } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, ClipboardCheck, ChefHat, DollarSign, Settings2 } from 'lucide-react';
 import type { Product } from '../types';
 import { api } from '../config/api';
 import { ProductSlider } from '../components/ProductSlider'; // 🚀 IMPORTAMOS EL CARRUSEL
 import { ProductCard } from '../components/ProductCard';
 
+// Mensajes tomados del catálogo comercial real ("¿Por qué elegir SUL?")
 const PILARES = [
-  { Icon: Factory, title: 'Industria seria', desc: 'Proveedor B2B, no consumo masivo' },
-  { Icon: Snowflake, title: 'Cadena de frío', desc: 'Trazabilidad en cada entrega' },
-  { Icon: Utensils, title: 'Apetito real', desc: 'Comida servida en restaurantes' },
+  { Icon: ClipboardCheck, title: 'Estandarización total', desc: 'El mismo sabor, gramaje y calidad todos los días' },
+  { Icon: ChefHat, title: '0% merma', desc: 'Recibís el producto listo para cocinar' },
+  { Icon: DollarSign, title: 'Costos previsibles', desc: 'Más control sobre el costo real de cada plato' },
+  { Icon: Settings2, title: 'A tu medida', desc: 'Nos adaptamos a tu operación y volumen' },
 ];
 
 interface CatalogProduct extends Product {
@@ -97,7 +99,7 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart }) => {
 
       {/* Franja institucional — solo en la vista "home" del catálogo, antes de filtrar/buscar */}
       {isHomeView && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {PILARES.map(({ Icon, title, desc }) => (
             <div key={title} className="bg-paper border border-line rounded-card p-3 flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-brand-gold/10 flex items-center justify-center shrink-0">
