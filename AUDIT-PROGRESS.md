@@ -39,10 +39,12 @@ Scripts de test usados (en el scratchpad de esa sesión, no en el repo): `test-f
 
 ### Tier "Cuando haya lugar"
 
-- [ ] 9. Logout automático cuando el token vence (falta interceptor de response 401 en `frontend/src/config/api.ts`).
-- [ ] 10. Code-splitting del panel Admin (`React.lazy` en `App.tsx`) para no mandarlo a los visitantes del catálogo.
-- [ ] 11. Comprimir el logo (850KB) y hacer que el ranking del dashboard respete el filtro de fecha (`topProducts`/`topClients` en `getDashboardStats` lo ignoran).
-- [ ] 12. Los 3 bocetos visuales del informe (badges de confianza B2B en la tarjeta, franja institucional, indicador de progreso en el checkout) — independientes entre sí.
+- [x] **9. Logout automático cuando el token vence.** Interceptor de respuesta en `frontend/src/config/api.ts`: si el backend rechaza un token con 401 y había sesión activa (y no es el propio login, que maneja su 401 como "credenciales inválidas" aparte), se limpia la sesión y se recarga a `/` con un aviso. Verificado en vivo sin querer: un token de prueba inválido disparó el flujo real durante otra prueba — banner "🔒 Tu sesión venció. Volvé a iniciar sesión para continuar." apareció correctamente.
+- [x] **10. Code-splitting del panel Admin.** `App.tsx` ahora importa `Admin` con `React.lazy` + `Suspense`. Bundle principal bajó de 754KB a 324KB (105KB gzip); Admin quedó en su propio chunk de 438KB que solo bajan quienes entran al panel. Verificado con login real: el panel carga y funciona igual que antes.
+- [x] **11. Logo comprimido + ranking del dashboard respeta el filtro de fecha.** Logo de 851KB → 107KB (87% menos, sin pérdida visible) vía resize a 500×500 + paleta indexada. Las consultas `topProducts`/`topClients` de `getDashboardStats` ahora filtran por fecha igual que el resto del dashboard. **Bonus encontrado al probar el fix**: las 4 consultas con filtro de fecha (las 2 nuevas + las 2 que ya filtraban) tenían un bug de límite — `CURRENT_DATE` en Postgres es medianoche, así que el filtro cortaba a las 00:00 de hoy y excluía TODOS los pedidos del día en curso; un admin filtrando "hoy a hoy" veía 0 resultados aunque hubiera pedidos reales ese mismo día. Corregido en las 4 consultas (límite superior ahora `< fecha + 1 día` en vez de `<= fecha`). Verificado: filtro "hoy a hoy" ahora sí trae los pedidos de hoy.
+- [ ] 12. Los 3 bocetos visuales del informe (badges de confianza B2B en la tarjeta, franja institucional, indicador de progreso en el checkout) — independientes entre sí. **Pendiente, a confirmar con el usuario si se implementan ahora.**
+
+**Puntos 9, 10 y 11 completos.** ✅
 
 ## Otras cosas abiertas de la sesión (no parte del audit)
 

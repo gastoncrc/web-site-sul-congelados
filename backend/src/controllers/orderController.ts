@@ -228,23 +228,34 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     const salesParams: any[] = [dateTrunc];
     
     if (startDate && endDate) {
-      salesQuery += ' AND created_at BETWEEN $2 AND $3';
+      // El límite superior se trata como "hasta el final de ese día" — si no, al ser
+      // una fecha sin hora (medianoche) quedan afuera todos los pedidos del día elegido.
+      salesQuery += ' AND created_at >= $2 AND created_at < ($3::date + INTERVAL \'1 day\')';
       salesParams.push(startDate, endDate);
     } else {
-      salesQuery += ' AND created_at BETWEEN CURRENT_DATE - INTERVAL \'30 days\' AND CURRENT_DATE';
+      salesQuery += ' AND created_at >= CURRENT_DATE - INTERVAL \'30 days\' AND created_at < (CURRENT_DATE + INTERVAL \'1 day\')';
     }
 
     salesQuery += ' GROUP BY DATE_TRUNC($1, created_at) ORDER BY DATE_TRUNC($1, created_at) ASC';
     const salesOverTime = await pool.query(salesQuery, salesParams);
 
-    // B. Top 5 Productos
-    const topProducts = await pool.query(`
-      SELECT product_name as name, SUM(quantity) as value
-      FROM order_items
-      GROUP BY name
-      ORDER BY value DESC
-      LIMIT 5
-    `);
+    // B. Top 5 Productos — respeta el mismo rango de fechas que el resto del dashboard
+    // (antes siempre mostraba el histórico completo, ignorando el filtro elegido en la UI)
+    let topProductsQuery = `
+      SELECT oi.product_name as name, SUM(oi.quantity) as value
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE 1=1
+    `;
+    const topProductsParams: any[] = [];
+    if (startDate && endDate) {
+      topProductsQuery += ' AND o.created_at >= $1 AND o.created_at < ($2::date + INTERVAL \'1 day\')';
+      topProductsParams.push(startDate, endDate);
+    } else {
+      topProductsQuery += ' AND o.created_at >= CURRENT_DATE - INTERVAL \'30 days\' AND o.created_at < (CURRENT_DATE + INTERVAL \'1 day\')';
+    }
+    topProductsQuery += ' GROUP BY oi.product_name ORDER BY value DESC LIMIT 5';
+    const topProducts = await pool.query(topProductsQuery, topProductsParams);
 
     // C. Comparativa de Listas (Convenios)
     let listQuery = `
@@ -255,22 +266,29 @@ export const getDashboardStats = async (req: Request, res: Response) => {
     `;
     const listParams: any[] = [];
     if (startDate && endDate) {
-      listQuery += ' AND o.created_at BETWEEN $1 AND $2';
+      listQuery += ' AND o.created_at >= $1 AND o.created_at < ($2::date + INTERVAL \'1 day\')';
       listParams.push(startDate, endDate);
     } else {
-      listQuery += ' AND o.created_at BETWEEN CURRENT_DATE - INTERVAL \'30 days\' AND CURRENT_DATE';
+      listQuery += ' AND o.created_at >= CURRENT_DATE - INTERVAL \'30 days\' AND o.created_at < (CURRENT_DATE + INTERVAL \'1 day\')';
     }
     listQuery += ' GROUP BY u.convenio ORDER BY total DESC';
     const listComparison = await pool.query(listQuery, listParams);
 
-    // D. Mejores Clientes
-    const topClients = await pool.query(`
+    // D. Mejores Clientes — mismo rango de fechas que el resto (antes ignoraba el filtro)
+    let topClientsQuery = `
       SELECT customer_name as name, COALESCE(SUM(total_amount), 0) as total
       FROM orders
-      GROUP BY customer_name
-      ORDER BY total DESC
-      LIMIT 5
-    `);
+      WHERE 1=1
+    `;
+    const topClientsParams: any[] = [];
+    if (startDate && endDate) {
+      topClientsQuery += ' AND created_at >= $1 AND created_at < ($2::date + INTERVAL \'1 day\')';
+      topClientsParams.push(startDate, endDate);
+    } else {
+      topClientsQuery += ' AND created_at >= CURRENT_DATE - INTERVAL \'30 days\' AND created_at < (CURRENT_DATE + INTERVAL \'1 day\')';
+    }
+    topClientsQuery += ' GROUP BY customer_name ORDER BY total DESC LIMIT 5';
+    const topClients = await pool.query(topClientsQuery, topClientsParams);
 
     // E. Resumen General
     const summary = await pool.query(`
