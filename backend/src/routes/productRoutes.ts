@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { 
-  getProductsByConvenio, 
-  uploadCsvConvenios, 
-  upsertIndividualProduct, 
-  toggleProductFlags, 
+import {
+  getProductsByConvenio,
+  getSliderProducts,
+  uploadCsvConvenios,
+  upsertIndividualProduct,
+  toggleProductFlags,
   setIndividualPrice,
   getAdminProducts,
   deleteProduct,
@@ -15,8 +16,9 @@ import multer from 'multer';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Catálogo (Público / Clientes)
+// Catálogo (Público / Clientes) — paginado vía ?page&limit&search&category
 router.get('/', getProductsByConvenio);
+router.get('/slider', getSliderProducts);
 
 // Carga Masiva (Admin)
 router.post('/upload-prices', verifyTokenAndStatus, upload.single('file'), uploadCsvConvenios);

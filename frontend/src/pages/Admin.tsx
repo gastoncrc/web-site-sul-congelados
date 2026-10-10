@@ -12,7 +12,6 @@ import { DashboardStats } from '../components/admin/DashboardStats';
 
 interface AdminProps {
   setSystemMessage: React.Dispatch<React.SetStateAction<string>>;
-  triggerDataRefresh: () => Promise<void>;
 }
 
 // 🚀 COMPONENTE PARA ALTA DE USUARIOS/ADMINS
@@ -41,7 +40,7 @@ const UserForm = ({ setSystemMessage }: { setSystemMessage: any }) => {
   );
 };
 
-export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefresh }) => {
+export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
   const { user, logout } = useAuth(); 
   
   // Navigation & UI States
@@ -111,7 +110,6 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       setFile(null);
       if (type === 'products') {
         await fetchAdminData();
-        await triggerDataRefresh();
       } else {
         await fetchClientsData();
       }

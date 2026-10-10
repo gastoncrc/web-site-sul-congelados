@@ -30,10 +30,10 @@ Scripts de test usados (en el scratchpad de esa sesión, no en el repo): `test-f
 
 ### Tier "Pronto" — antes de que crezca el volumen
 
-- [ ] 5. Paginar el catálogo del lado del servidor (`getProductsByConvenio` no tiene LIMIT/OFFSET; `Catalog.tsx` filtra todo en memoria).
-- [ ] 6. Agregar índices a `orders.user_id`, `orders.created_at`, `orders.status`, `order_items.order_id` en `backend/src/config/db.ts`.
-- [ ] 7. Reescribir la carga masiva (`uploadCsvConvenios` en `productController.ts`) para no hacer miles de queries secuenciales.
-- [ ] 8. Conectar el "mínimo de compra B2C" del panel admin al backend real (hoy solo se guarda en `localStorage` del propio admin, nunca llega a los clientes — ver `Admin.tsx` config + `CartSidebar.tsx:40-41`).
+- [x] **5. Paginar el catálogo del lado del servidor.** `getProductsByConvenio` ahora acepta `page`/`limit`/`search`/`category` y devuelve `{ products, total, page, totalPages, categories }`. Se agregó un endpoint separado `GET /products/slider` (sin paginar, el admin ya limita a 6 destacados) porque el slider de "Destacados" necesitaba el set completo de productos `in_slider` independiente de la página actual del catálogo — antes ambos se alimentaban del mismo fetch único. `Catalog.tsx` ahora es dueño de su propio fetch (con debounce de 400ms en la búsqueda) en vez de recibir todo el array por props y filtrar en memoria; `App.tsx` ya no hace el fetch global de catálogo (se eliminaron `catalogProducts`/`fetchCatalogData`/`isCatalogLoading`), y se sacó el prop `triggerDataRefresh` de `Admin.tsx` que ya no tenía sentido (Catalog siempre refetchea fresco al montar). Probado en el navegador real: paginación con 16 productos de prueba (2 páginas), búsqueda con debounce, filtro por categoría — los 5 escenarios funcionaron correctamente, incluyendo que el slider de destacados sigue mostrando los 3 productos marcados aunque no estén en la página 1.
+- [ ] 6. Agregar índices a `orders.user_id`, `orders.created_at`, `orders.status`, `order_items.order_id` en `backend/src/config/db.ts`. ✅ YA HECHO (ver commit `25642ff`).
+- [ ] 7. Reescribir la carga masiva (`uploadCsvConvenios` en `productController.ts`) para no hacer miles de queries secuenciales. **Pendiente.**
+- [x] 8. Conectar el "mínimo de compra B2C" del panel admin al backend real. ✅ YA HECHO (ver commit `25642ff`).
 
 ### Tier "Cuando haya lugar"
 

@@ -5,51 +5,114 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
-// 1. OBTENER CATÁLOGO (Ahora trae in_slider)
-export const getProductsByConvenio = async (req: Request, res: Response) => {
-  let userConvenio = 'CORDOBA'; 
-
+const resolveConvenio = (req: Request): string => {
+  let userConvenio = 'CORDOBA';
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
-      if (decoded && decoded.convenio) {
-        userConvenio = decoded.convenio; 
-      }
+      if (decoded && decoded.convenio) userConvenio = decoded.convenio;
     } catch (err) {
       console.log('Aviso: Token opcional inválido o vencido, usando lista base CORDOBA.');
     }
   }
+  return userConvenio;
+};
+
+const standardizeProductRow = (row: any) => ({
+  sku: row.sku,
+  name: row.name,
+  category: row.category,
+  subcategory: row.subcategory,
+  stock: row.stock,
+  description: row.description,
+  isActive: row.is_active,
+  isPromo: row.is_promo,
+  promoPrice: parseFloat(row.promo_price),
+  inSlider: row.in_slider,
+  unitPrice: parseFloat(row.precio)
+});
+
+// 1. OBTENER CATÁLOGO — paginado y filtrado en el servidor (antes traía
+// absolutamente todo el catálogo y el frontend filtraba en memoria).
+export const getProductsByConvenio = async (req: Request, res: Response) => {
+  const userConvenio = resolveConvenio(req);
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(60, Math.max(1, parseInt(req.query.limit as string) || 24));
+  const offset = (page - 1) * limit;
+  const search = (req.query.search as string || '').trim();
+  const category = (req.query.category as string || '').trim();
 
   try {
-    const query = `
-      SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description, 
-             p.is_active, p.is_promo, p.promo_price, p.in_slider, pr.precio
-      FROM products p
-      INNER JOIN product_prices pr ON p.sku = pr.product_sku
-      WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE
-      ORDER BY p.is_promo DESC, p.name ASC
-    `;
-    const result = await pool.query(query, [userConvenio]);
-    
-    const standardized = result.rows.map(row => ({
-      sku: row.sku,
-      name: row.name,
-      category: row.category,
-      subcategory: row.subcategory,
-      stock: row.stock,
-      description: row.description,
-      isActive: row.is_active,
-      isPromo: row.is_promo,
-      promoPrice: parseFloat(row.promo_price),
-      inSlider: row.in_slider, // 🚀 NUEVO: Mapeo de la columna in_slider
-      unitPrice: parseFloat(row.precio)
-    }));
-    
-    res.json(standardized);
+    const filters: string[] = ['UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1))', 'p.is_active = TRUE'];
+    const params: any[] = [userConvenio];
+
+    if (search) {
+      params.push(`%${search}%`);
+      filters.push(`(p.name ILIKE $${params.length} OR p.sku ILIKE $${params.length})`);
+    }
+    if (category && category.toUpperCase() !== 'TODOS') {
+      params.push(category);
+      filters.push(`p.category = $${params.length}`);
+    }
+    const whereClause = filters.join(' AND ');
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM products p INNER JOIN product_prices pr ON p.sku = pr.product_sku WHERE ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    const pageParams = [...params, limit, offset];
+    const result = await pool.query(
+      `SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description,
+              p.is_active, p.is_promo, p.promo_price, p.in_slider, pr.precio
+       FROM products p
+       INNER JOIN product_prices pr ON p.sku = pr.product_sku
+       WHERE ${whereClause}
+       ORDER BY p.is_promo DESC, p.name ASC
+       LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+      pageParams
+    );
+
+    const categoriesResult = await pool.query(
+      `SELECT DISTINCT p.category FROM products p
+       INNER JOIN product_prices pr ON p.sku = pr.product_sku
+       WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE
+       ORDER BY p.category ASC`,
+      [userConvenio]
+    );
+
+    res.json({
+      products: result.rows.map(standardizeProductRow),
+      total,
+      page,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      categories: categoriesResult.rows.map(r => r.category),
+    });
   } catch (err) {
     res.status(500).json({ error: 'Error obteniendo catálogo' });
+  }
+};
+
+// 1b. Productos destacados para el carrusel de la home — no se pagina
+// (el panel admin limita a un máximo de 6 productos destacados).
+export const getSliderProducts = async (req: Request, res: Response) => {
+  const userConvenio = resolveConvenio(req);
+  try {
+    const result = await pool.query(
+      `SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description,
+              p.is_active, p.is_promo, p.promo_price, p.in_slider, pr.precio
+       FROM products p
+       INNER JOIN product_prices pr ON p.sku = pr.product_sku
+       WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE AND p.in_slider = TRUE
+       ORDER BY p.name ASC`,
+      [userConvenio]
+    );
+    res.json(result.rows.map(standardizeProductRow));
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo destacados' });
   }
 };
 

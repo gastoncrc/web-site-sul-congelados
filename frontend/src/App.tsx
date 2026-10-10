@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { api } from './config/api';
-import type { Product } from './types'; 
+import type { Product } from './types';
 
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -32,7 +31,6 @@ function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   
-  const [catalogProducts, setCatalogProducts] = useState<AppProduct[]>([]);
   const [shoppingCart, setShoppingCart] = useState<AppCartItem[]>((() => {
     try {
       const savedCart = localStorage.getItem('sul_shopping_cart');
@@ -46,26 +44,10 @@ function MainLayout() {
     localStorage.setItem('sul_shopping_cart', JSON.stringify(shoppingCart));
   }, [shoppingCart]);
 
-  const [isCatalogLoading, setIsCatalogLoading] = useState(true); 
-  
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [systemMessage, setSystemMessage] = useState('');
-
-  const fetchCatalogData = async () => {
-    setIsCatalogLoading(true);
-    try {
-      const response = await api.get(`/products?t=${new Date().getTime()}`);
-      setCatalogProducts(response.data);
-    } catch (error) {
-      setCatalogProducts([]); 
-    } finally { setIsCatalogLoading(false); }
-  };
-
-  useEffect(() => { 
-    if (location.pathname === '/') fetchCatalogData(); 
-  }, [token, location.pathname]);
 
   useEffect(() => { if (!token) setIsPasswordModalOpen(false); }, [token]);
 
@@ -83,8 +65,8 @@ function MainLayout() {
           <div className="absolute top-4 right-4 z-50 bg-blue-50 border-l-4 border-blue-600 p-4 rounded shadow-lg flex justify-between items-center min-w-75"><span className="text-sm font-medium text-blue-900">{systemMessage}</span><button onClick={() => setSystemMessage('')} className="ml-4 text-blue-500 font-bold text-xs hover:underline cursor-pointer">X</button></div>
         )}
         <Routes>
-          <Route path="/admin" element={<Admin setSystemMessage={setSystemMessage} triggerDataRefresh={fetchCatalogData} />} />
-          <Route path="*" element={<Admin setSystemMessage={setSystemMessage} triggerDataRefresh={fetchCatalogData} />} />
+          <Route path="/admin" element={<Admin setSystemMessage={setSystemMessage} />} />
+          <Route path="*" element={<Admin setSystemMessage={setSystemMessage} />} />
         </Routes>
       </div>
     );
@@ -110,7 +92,7 @@ function MainLayout() {
         )}
         
         <Routes>
-          <Route path="/" element={isCatalogLoading ? <div className="text-center py-24"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-900 mx-auto mb-4"></div><p className="text-slate-800 font-bold">Conectando...</p></div> : <Catalog products={catalogProducts as any} cart={shoppingCart as any} setShoppingCart={setShoppingCart as any} />} />
+          <Route path="/" element={<Catalog cart={shoppingCart as any} setShoppingCart={setShoppingCart as any} />} />
           <Route path="/nosotros" element={<Nosotros />} />
           <Route path="/contacto" element={<Contacto />} />
           {/* Si alguien intenta entrar a /admin no siendo admin, lo mandamos a home */}
