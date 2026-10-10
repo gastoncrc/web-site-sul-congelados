@@ -30,7 +30,7 @@ export const login = async (req: Request, res: Response) => {
 
     res.status(200).json({
       token,
-      user: { email: user.email, role: user.role, convenio: user.convenio, name: user.name, requirePasswordChange: user.require_password_change }
+      user: { email: user.email, role: user.role, convenio: user.convenio, name: user.name, requirePasswordChange: user.require_password_change, diasEntrega: user.dias_entrega }
     });
   } catch (err) {
     res.status(500).json({ error: 'Error en servidor' });

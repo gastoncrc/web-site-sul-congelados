@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, AlertTriangle, FileText } from 'lucide-react';
+import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, AlertTriangle, FileText, ClipboardCheck } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import type { Product } from '../types';
 import { CalendarGrid } from './cart/CalendarGrid';
@@ -51,8 +51,8 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     if (isOpen) fetchSettings();
   }, [isOpen]);
 
-  const diasHabilitados = user?.dias_entrega 
-    ? (typeof user.dias_entrega === 'string' ? user.dias_entrega.split(',') : user.dias_entrega)
+  const diasHabilitados = user?.diasEntrega
+    ? (typeof user.diasEntrega === 'string' ? user.diasEntrega.split(',') : user.diasEntrega)
     : ['Martes', 'Viernes'];
 
   const cartTotal = cart.reduce((total, item) => total + (((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity), 0);
@@ -170,9 +170,17 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
         <div className="p-4 border-b border-line flex justify-between items-center bg-bg shrink-0">
           <div className="flex items-center">
             {isCheckoutStep && <button type="button" onClick={() => setIsCheckoutStep(false)} className="mr-3 text-ink-soft hover:text-ink cursor-pointer"><ChevronLeft size={20} /></button>}
-            <h2 className="text-lg font-black uppercase text-ink flex items-center font-heading">
-              <CartIcon size={20} className="mr-2"/> {isCheckoutStep ? (user ? 'Calendario de Reparto' : 'Datos de Entrega') : 'Tu Pedido'}
-            </h2>
+            <div>
+              <h2 className="text-lg font-black uppercase text-ink flex items-center font-heading">
+                <CartIcon size={20} className="mr-2"/> {isCheckoutStep ? (user ? 'Calendario de Reparto' : 'Datos de Entrega') : 'Tu Pedido'}
+              </h2>
+              {cart.length > 0 && (
+                <div className="flex gap-1 mt-1.5 ml-7">
+                  <div className={`h-1 w-6 rounded-full ${!isCheckoutStep ? 'bg-brand-gold' : 'bg-line'}`} />
+                  <div className={`h-1 w-6 rounded-full ${isCheckoutStep ? 'bg-brand-gold' : 'bg-line'}`} />
+                </div>
+              )}
+            </div>
           </div>
           <button type="button" onClick={handleClose} className="p-2 text-ink-soft hover:text-ink bg-line rounded-full cursor-pointer"><X size={18} /></button>
         </div>
@@ -273,6 +281,10 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
               </div>
             ) : (
               <div className="space-y-3">
+                <div className="flex items-start gap-2 bg-brand-gold/10 border border-brand-gold/20 rounded-xl p-2.5 text-[11px] text-ink-soft leading-snug">
+                  <ClipboardCheck size={14} className="shrink-0 mt-0.5 text-brand-gold-deep" />
+                  <span><b className="text-ink">Al tocar el botón, tu pedido queda guardado en el sistema</b> y se abre WhatsApp para confirmar los detalles — no se pierde aunque cierres la app.</span>
+                </div>
                 {/* WhatsApp brand green — not a theme token, intentional */}
                 <button type="submit" className="w-full bg-whatsapp text-white font-bold py-4 rounded-xl shadow-lg hover:bg-whatsapp-deep transition cursor-pointer flex items-center justify-center">
                   <MessageCircle size={20} className="mr-2" />

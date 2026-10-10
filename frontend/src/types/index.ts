@@ -22,4 +22,5 @@ export interface SULUser {
   convenio?: string;
   name?: string;
   requirePasswordChange?: boolean;
+  diasEntrega?: string | string[];
 }

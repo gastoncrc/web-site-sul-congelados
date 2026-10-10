@@ -1,9 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, Factory, Snowflake, Utensils } from 'lucide-react';
 import type { Product } from '../types';
 import { api } from '../config/api';
 import { ProductSlider } from '../components/ProductSlider'; // 🚀 IMPORTAMOS EL CARRUSEL
 import { ProductCard } from '../components/ProductCard';
+
+const PILARES = [
+  { Icon: Factory, title: 'Industria seria', desc: 'Proveedor B2B, no consumo masivo' },
+  { Icon: Snowflake, title: 'Cadena de frío', desc: 'Trazabilidad en cada entrega' },
+  { Icon: Utensils, title: 'Apetito real', desc: 'Comida servida en restaurantes' },
+];
 
 interface CatalogProduct extends Product {
   isPromo?: boolean;
@@ -78,7 +84,8 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart }) => {
 
   const getQtyInCart = (sku: string) => cart.find(item => item.product.sku === sku)?.quantity || 0;
 
-  const showingSlider = searchTerm === '' && selectedCategory === 'TODOS' && sliderProducts.length > 0;
+  const isHomeView = searchTerm === '' && selectedCategory === 'TODOS';
+  const showingSlider = isHomeView && sliderProducts.length > 0;
 
   return (
     <div className="w-full space-y-8 overflow-hidden">
@@ -87,6 +94,23 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart }) => {
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .no-select { user-select: none; -webkit-user-select: none; }
       `}</style>
+
+      {/* Franja institucional — solo en la vista "home" del catálogo, antes de filtrar/buscar */}
+      {isHomeView && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {PILARES.map(({ Icon, title, desc }) => (
+            <div key={title} className="bg-paper border border-line rounded-card p-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-brand-gold/10 flex items-center justify-center shrink-0">
+                <Icon size={18} className="text-brand-gold-deep" />
+              </div>
+              <div>
+                <p className="text-xs font-black text-ink uppercase tracking-wide">{title}</p>
+                <p className="text-[11px] text-ink-soft leading-tight">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 🚀 COMPONENTE DEL CARRUSEL MODULARIZADO */}
       {showingSlider && (

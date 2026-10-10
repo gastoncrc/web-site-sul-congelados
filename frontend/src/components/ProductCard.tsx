@@ -1,7 +1,12 @@
 import React from 'react';
-import { ShoppingCart } from 'lucide-react';
+import { ShoppingCart, Snowflake, Truck } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import { CategoryIcon } from './CategoryIcon';
+import { useAuth } from '../context/AuthContext';
+
+const DIA_ABREVIADO: Record<string, string> = {
+  Lunes: 'Lun', Martes: 'Mar', Miércoles: 'Mié', Jueves: 'Jue', Viernes: 'Vie', Sábado: 'Sáb', Domingo: 'Dom',
+};
 
 interface ProductCardProduct {
   sku: string;
@@ -22,8 +27,16 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, onAdd, variant = 'grid' }) => {
+  const { user } = useAuth();
   const price = product.isPromo ? product.promoPrice : product.unitPrice;
   const isSlider = variant === 'slider';
+
+  const diasEntregaList = user?.diasEntrega
+    ? (typeof user.diasEntrega === 'string' ? user.diasEntrega.split(',') : user.diasEntrega)
+    : [];
+  const diasEntregaLabel = diasEntregaList.length > 0
+    ? diasEntregaList.map(d => DIA_ABREVIADO[d.trim()] || d.trim()).join(', ')
+    : null;
 
   return (
     <div
@@ -43,6 +56,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
         </div>
         <span className="text-[10px] font-black tracking-widest text-ink-soft uppercase">{product.category}</span>
         <h3 className="font-bold text-ink text-sm leading-tight mb-1 mt-1">{product.name}</h3>
+        {!isSlider && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded bg-line/60 text-ink-soft">
+              <Snowflake size={10} /> Cadena de frío
+            </span>
+            {diasEntregaLabel && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded bg-brand-gold/15 text-brand-gold-deep">
+                <Truck size={10} /> Reparto {diasEntregaLabel}
+              </span>
+            )}
+          </div>
+        )}
         {!isSlider && <p className="text-ink-soft text-[11px] font-mono-label mb-3">SKU: {product.sku}</p>}
         {!isSlider && product.description && (
           <p className="text-ink-soft text-xs line-clamp-2 mb-4">{product.description}</p>
