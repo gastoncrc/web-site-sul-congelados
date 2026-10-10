@@ -1,1 +1,52 @@
 @import "tailwindcss";
+
+/*
+  Sistema de marca SUL Congelados — paleta "Parrilla Cordobesa" del manual de marca
+  (docs/manual-marca-sul.html). El dorado es fijo entre las 3 paletas del manual
+  (isotipo, CTA, estados "activo/seleccionado"). El verde de WhatsApp NO es un
+  token de marca — es el color de la plataforma, se mantiene intacto a propósito.
+
+  Fuentes: Baloo 2 es SOLO para el lockup "SUL" (hoy es una imagen, no texto —
+  no aplicar esta fuente a UI general). Poppins para headings. Inter para
+  body/UI por defecto. Roboto Mono solo para labels técnicos puntuales (SKU, etc).
+*/
+@theme {
+  --color-brand-primary: #7A2A1F;
+  --color-brand-primary-on: #ffffff;
+  --color-brand-accent: #C1592E;
+  --color-brand-accent-on: #ffffff;
+  --color-brand-gold: #C79A4B;
+  --color-brand-gold-deep: #A97F35;
+  --color-brand-gold-on: #2b1f08;
+
+  --color-neutral-dark: #21252B;
+  --color-bg: #F4F1E8;
+  --color-paper: #ffffff;
+  --color-ink: #232323;
+  --color-ink-soft: #5B564C;
+  --color-line: #DDD7C8;
+
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-danger: #dc2626;
+
+  --color-whatsapp: #25D366;
+  --color-whatsapp-deep: #128C7E;
+
+  --color-admin-bg: #0f172a;
+  --color-admin-sidebar: #020617;
+
+  --radius-card: 14px;
+
+  --font-wordmark: 'Baloo 2', sans-serif;
+  --font-heading: 'Poppins', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono-label: 'Roboto Mono', monospace;
+  --font-sans: 'Inter', sans-serif;
+}
+
+@layer base {
+  h1, h2, h3, h4 {
+    font-family: var(--font-heading);
+  }
+}
