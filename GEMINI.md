@@ -122,25 +122,24 @@ ADMIN_EMAIL=sulcongelados.arg@gmail.com
 
 ---
 
-## 🌐 Estado de Deploy / Infraestructura (actualizado 2026-10-09)
+## 🌐 Estado de Deploy / Infraestructura (actualizado 2026-10-10)
+
+### Deploy gratis: EJECUTADO y en producción
+`sulcongelados.com`, `www.sulcongelados.com` (frontend, Render Static Site `web-site-sul-congelados-1`) y `api.sulcongelados.com` (backend, Render Web Service `web-site-sul-congelados-backend`) están live con SSL válido. `VITE_API_URL` del frontend apunta a `https://api.sulcongelados.com/api`, y el backend permite ese origen por CORS (`FRONTEND_URL` ahora acepta lista separada por comas en `app.ts`). DNS en Cloudflare con los tres registros CNAME en modalidad "DNS only" (nube gris) — no proxiados, para no romper la emisión automática de certificados SSL de Render.
 
 ### Dominio — compartido con otro proyecto, cuidado al tocar DNS
-`sulcongelados.com` está registrado y gestionado en **Cloudflare** (misma cuenta que el panel interno de MRC, proyecto completamente aparte). El subdominio `panel.sulcongelados.com` ya está ocupado por un túnel de Cloudflare que sirve ese otro dashboard — **no tocar ese registro DNS**. Este proyecto (SUL ecommerce) debe usar el dominio raíz (`sulcongelados.com` / `www`) u otro subdominio distinto.
+`sulcongelados.com` está registrado y gestionado en **Cloudflare** (misma cuenta que el panel interno de MRC, proyecto completamente aparte). El subdominio `panel.sulcongelados.com` ya está ocupado por un túnel de Cloudflare que sirve ese otro dashboard — **no tocar ese registro DNS**.
 
 ### Mail — resuelto, migrado a Resend
-El dominio ya está verificado en **Resend** (cuenta creada, registros DKIM/SPF/DMARC agregados en Cloudflare, API key activa) para mandar desde `notificaciones@sulcongelados.com`. `utils/mailer.ts` y `backend/.env` ya están migrados a SMTP de Resend (`smtp.resend.com`, user `resend`, misma API key que usa el otro proyecto MRC) y se probó con un envío real exitoso a `sulcongelados.arg@gmail.com` (casilla configurada en `ADMIN_EMAIL` para recibir notificaciones de pedidos).
+El dominio ya está verificado en **Resend** (cuenta creada, registros DKIM/SPF/DMARC agregados en Cloudflare, API key activa) para mandar desde `notificaciones@sulcongelados.com`. `utils/mailer.ts` y `backend/.env` migrados a SMTP de Resend (`smtp.resend.com`, user `resend`, misma API key que usa el otro proyecto MRC), probado con envío real exitoso a `sulcongelados.arg@gmail.com` (`ADMIN_EMAIL`, casilla que recibe las notificaciones de pedidos).
 
 ### Base de datos — ya existe, ya persiste
-Postgres real ya provisionado en **Neon** (plan gratis), `DATABASE_URL` ya en `backend/.env`. Los datos ya viven en la nube, no en ninguna PC física — esto ya estaba resuelto antes de pensar en hosting.
+Postgres real provisionado en **Neon** (plan gratis), `DATABASE_URL` en `backend/.env` y replicado como env var en Render. Los datos viven en la nube, no en ninguna PC física.
 
-`JWT_SECRET` ya generado como secreto real (96 caracteres hex, 48 bytes de entropía) y aplicado en `backend/.env` — pendiente copiar el mismo valor como env var en Render al crear el servicio.
+`JWT_SECRET` real generado (96 caracteres hex, 48 bytes de entropía) y aplicado tanto en `backend/.env` local como en la env var del backend en Render.
 
-### Plan de hosting (decidido, pendiente de ejecutar)
-Opciones evaluadas: Render+Neon pago (~US$22/mes, caro), Fly.io+Neon gratis (~US$2-8/mes), VPS propio en Hetzner Cloud (CX22, 2vCPU/4GB RAM, ~US$85-92/año todo incluido con backups — sin IVA porque Argentina no está en la lista de países que Hetzner le cobra IVA).
-
-**Plan acordado**: arrancar gratis primero — Render free (backend) + Render Static o Cloudflare Pages (frontend) + Neon free (ya existe) — para probar todo en vivo en `sulcongelados.com` sin gastar nada. Limitación conocida: el backend gratis "duerme" tras 15 min sin uso, primera visita después de eso tarda 30-50s. Migrar a Hetzner (siempre activo, sin ese problema) cuando se decida lanzar en serio a clientes reales — mismo código, sin perder nada.
-
-Incertidumbre sin resolver: pago en euros a Hetzner desde una tarjeta argentina podría generar impuesto PAIS/percepción de Ganancias — depende del banco, no verificable de antemano.
+### Limitación conocida (plan free)
+El backend gratis de Render "duerme" tras 15 min sin uso; la primera visita después de eso tarda 30-50s en responder. Migrar a un VPS (Hetzner evaluado: CX22, 2vCPU/4GB RAM, ~US$85-92/año con backups, sin IVA para Argentina) cuando se decida lanzar en serio a clientes reales — mismo código, sin perder nada. Incertidumbre sin resolver: pago en euros a Hetzner desde tarjeta argentina podría generar impuesto PAIS/percepción de Ganancias, depende del banco.
 
 ### Relacionado
 "Lomitos 2x1" (otra línea de negocio, de otro proyecto) podría alojarse a futuro en el mismo servidor/VPS que este ecommerce una vez armado el VPS — un servidor admite múltiples dominios distintos, no solo subdominios. No armado todavía, solo planeado.
