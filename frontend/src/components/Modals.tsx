@@ -54,27 +54,27 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative border border-gray-100">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 p-1"><X size={20} /></button>
+      <div className="bg-paper rounded-card p-6 sm:p-8 max-w-md w-full shadow-2xl relative border border-line">
+        <button onClick={onClose} className="absolute top-4 right-4 text-ink-soft hover:text-ink p-1"><X size={20} /></button>
         <div className="mb-5">
-          <h3 className="text-lg font-black text-[#003366] uppercase tracking-wider">Portal Clientes</h3>
-          <p className="text-xs text-gray-400 mt-0.5">Ingresá tus credenciales autorizadas.</p>
+          <h3 className="text-lg font-black text-brand-primary uppercase tracking-wider">Portal Clientes</h3>
+          <p className="text-xs text-ink-soft mt-0.5">Ingresá tus credenciales autorizadas.</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Email Corporativo</label>
-            <input type="email" placeholder="cl_80000XXX@sul.com o admin@sul.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none" required />
+            <label className="block text-[10px] font-bold text-ink-soft uppercase mb-1">Email Corporativo</label>
+            <input type="email" placeholder="cl_80000XXX@sul.com o admin@sul.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 bg-bg border border-line rounded-lg text-xs sm:text-sm outline-none focus:border-brand-gold" required />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Contraseña</label>
-            <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none" required />
+            <label className="block text-[10px] font-bold text-ink-soft uppercase mb-1">Contraseña</label>
+            <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 bg-bg border border-line rounded-lg text-xs sm:text-sm outline-none focus:border-brand-gold" required />
           </div>
-          
+
           {/* 🚀 Botón dinámico con Spinner */}
-          <button 
-  type="submit" 
+          <button
+  type="submit"
   disabled={isLoggingIn}
-  className="w-full bg-[#003366] text-white py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-blue-800 transition shadow-md disabled:opacity-50 flex items-center justify-center h-11"
+  className="w-full bg-brand-primary text-brand-primary-on py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-brand-accent transition shadow-md disabled:opacity-50 flex items-center justify-center h-11"
 >
             {isLoggingIn ? (
               <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -124,19 +124,19 @@ export const ChangePasswordModal: React.FC<{ isOpen: boolean; setStatusMessage: 
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-md">
-      <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-2xl text-center border-2 border-blue-600">
-        <div className="bg-blue-50 p-3 rounded-full text-[#003366] w-fit mx-auto mb-3"><Lock size={28} /></div>
-        <h3 className="text-lg font-black text-[#003366] uppercase mb-2">Actualización de Seguridad</h3>
-        <p className="text-xs text-gray-500 mb-4">Ingresaste con la credencial genérica de SUL. Debes configurar una contraseña privada.</p>
+      <div className="bg-paper rounded-card p-6 sm:p-8 max-w-md w-full shadow-2xl text-center border-2 border-brand-gold">
+        <div className="bg-brand-gold/15 p-3 rounded-full text-brand-gold-deep w-fit mx-auto mb-3"><Lock size={28} /></div>
+        <h3 className="text-lg font-black text-brand-primary uppercase mb-2">Actualización de Seguridad</h3>
+        <p className="text-xs text-ink-soft mb-4">Ingresaste con la credencial genérica de SUL. Debes configurar una contraseña privada.</p>
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Nueva Contraseña Comercial</label>
-            <input type="password" placeholder="Escribí tu nueva clave" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-3 bg-gray-50 border border-blue-200 rounded-lg text-xs sm:text-sm font-mono outline-none" required />
+            <label className="block text-[10px] font-bold text-ink-soft uppercase mb-1">Nueva Contraseña Comercial</label>
+            <input type="password" placeholder="Escribí tu nueva clave" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-3 bg-bg border border-brand-gold/40 rounded-lg text-xs sm:text-sm font-mono outline-none focus:border-brand-gold" required />
           </div>
-          <button 
-  type="submit" 
+          <button
+  type="submit"
   disabled={isSubmitting}
-  className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-blue-700 transition shadow-md disabled:opacity-50 flex items-center justify-center h-11"
+  className="w-full bg-brand-primary text-brand-primary-on py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-brand-accent transition shadow-md disabled:opacity-50 flex items-center justify-center h-11"
 >
             {isSubmitting ? (
               <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
