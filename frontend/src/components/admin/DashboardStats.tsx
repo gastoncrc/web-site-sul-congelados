@@ -39,15 +39,15 @@ export const DashboardStats: React.FC = () => {
 
   if (loading && !stats) return <div className="text-center py-20 text-slate-400 font-bold animate-pulse text-sm">GENERANDO INTELIGENCIA DE NEGOCIO...</div>;
 
-  const COLORS = ['#deff9a', '#94a3b8', '#475569', '#1e293b', '#0f172a'];
+  const COLORS = ['#C79A4B', '#C1592E', '#7A2A1F', '#94a3b8', '#475569'];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      
+
       {/* 🚀 BARRA DE HERRAMIENTAS DE ANALÍTICA */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-[#020617] p-4 rounded-3xl border border-slate-800 shadow-lg sticky top-0 z-20">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-admin-sidebar p-4 rounded-3xl border border-slate-800 shadow-lg sticky top-0 z-20">
         <div className="flex items-center space-x-4">
-          <div className="bg-[#deff9a] p-2 rounded-xl text-black">
+          <div className="bg-brand-gold p-2 rounded-xl text-brand-gold-on">
             <TrendingUp size={20} />
           </div>
           <div>
@@ -79,7 +79,7 @@ export const DashboardStats: React.FC = () => {
               <button 
                 key={g}
                 onClick={() => setFilters({...filters, granularity: g})}
-                className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${filters.granularity === g ? 'bg-[#deff9a] text-black shadow-sm' : 'text-slate-500 hover:text-white'}`}
+                className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${filters.granularity === g ? 'bg-brand-gold text-brand-gold-on shadow-sm' : 'text-slate-500 hover:text-white'}`}
               >
                 {g === 'day' ? 'Día' : g === 'week' ? 'Semana' : 'Mes'}
               </button>
@@ -97,7 +97,7 @@ export const DashboardStats: React.FC = () => {
 
       {/* 📊 KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-[#020617] p-6 rounded-3xl border border-slate-800 relative overflow-hidden group hover:border-[#deff9a]/30 transition-colors">
+        <div className="bg-admin-sidebar p-6 rounded-3xl border border-slate-800 relative overflow-hidden group hover:border-brand-gold/30 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-green-900/20 p-3 rounded-2xl text-green-400"><DollarSign size={20}/></div>
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Facturación</span>
@@ -109,7 +109,7 @@ export const DashboardStats: React.FC = () => {
           <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/5 blur-3xl rounded-full translate-x-12 -translate-y-12"></div>
         </div>
 
-        <div className="bg-[#020617] p-6 rounded-3xl border border-slate-800 relative overflow-hidden group hover:border-blue-500/30 transition-colors">
+        <div className="bg-admin-sidebar p-6 rounded-3xl border border-slate-800 relative overflow-hidden group hover:border-blue-500/30 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-blue-900/20 p-3 rounded-2xl text-blue-400"><ShoppingCart size={20}/></div>
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Volumen</span>
@@ -120,7 +120,7 @@ export const DashboardStats: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#020617] p-6 rounded-3xl border border-slate-800 relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
+        <div className="bg-admin-sidebar p-6 rounded-3xl border border-slate-800 relative overflow-hidden group hover:border-indigo-500/30 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-indigo-900/20 p-3 rounded-2xl text-indigo-400"><Users size={20}/></div>
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">CRM</span>
@@ -131,7 +131,7 @@ export const DashboardStats: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#020617] p-6 rounded-3xl border border-slate-800 relative overflow-hidden group hover:border-amber-500/30 transition-colors">
+        <div className="bg-admin-sidebar p-6 rounded-3xl border border-slate-800 relative overflow-hidden group hover:border-amber-500/30 transition-colors">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-amber-900/20 p-3 rounded-2xl text-amber-400"><Package size={20}/></div>
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Portfolio</span>
@@ -145,16 +145,16 @@ export const DashboardStats: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* 📉 GRÁFICO DE TENDENCIA DE VENTAS (OCUPA 2 COLUMNAS) */}
-        <div className="lg:col-span-2 bg-[#020617] p-8 rounded-3xl border border-slate-800 shadow-sm">
+        <div className="lg:col-span-2 bg-admin-sidebar p-8 rounded-3xl border border-slate-800 shadow-sm">
           <div className="flex items-center justify-between mb-10">
             <div>
               <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center">
-                <TrendingUp size={14} className="mr-2 text-[#deff9a]" /> Curva de Ventas por Período
+                <TrendingUp size={14} className="mr-2 text-brand-gold" /> Curva de Ventas por Período
               </h3>
               <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase">Visualización por {filters.granularity === 'day' ? 'Día' : filters.granularity === 'week' ? 'Semana' : 'Mes'}</p>
             </div>
             <div className="text-right">
-              <p className="text-lg font-black text-[#deff9a]">${formatPrice(stats?.salesOverTime.reduce((acc: any, curr: any) => acc + parseFloat(curr.total), 0) || 0)}</p>
+              <p className="text-lg font-black text-brand-gold">${formatPrice(stats?.salesOverTime.reduce((acc: any, curr: any) => acc + parseFloat(curr.total), 0) || 0)}</p>
               <p className="text-[8px] text-slate-500 font-black uppercase">Venta Acumulada</p>
             </div>
           </div>
@@ -163,25 +163,25 @@ export const DashboardStats: React.FC = () => {
               <AreaChart data={stats?.salesOverTime}>
                 <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#deff9a" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#deff9a" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#C79A4B" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#C79A4B" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
                 <XAxis dataKey="label" stroke="#475569" fontSize={9} fontWeight="black" axisLine={false} tickLine={false} dy={10} />
                 <YAxis stroke="#475569" fontSize={9} axisLine={false} tickLine={false} tickFormatter={(val) => `$${val/1000}k`} />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '16px', fontSize: '10px', boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)' }}
-                  itemStyle={{ color: '#deff9a', fontWeight: 'black' }}
+                  itemStyle={{ color: '#C79A4B', fontWeight: 'black' }}
                 />
-                <Area type="monotone" dataKey="total" stroke="#deff9a" strokeWidth={4} fillOpacity={1} fill="url(#colorTotal)" activeDot={{ r: 6, fill: '#deff9a' }} />
+                <Area type="monotone" dataKey="total" stroke="#C79A4B" strokeWidth={4} fillOpacity={1} fill="url(#colorTotal)" activeDot={{ r: 6, fill: '#C79A4B' }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* 🏆 TOP CLIENTES VS LISTAS */}
-        <div className="bg-[#020617] p-8 rounded-3xl border border-slate-800 shadow-sm space-y-8">
+        <div className="bg-admin-sidebar p-8 rounded-3xl border border-slate-800 shadow-sm space-y-8">
           <div>
             <h3 className="text-xs font-black text-white uppercase tracking-widest mb-6 flex items-center">
               <Users size={14} className="mr-2 text-indigo-400" /> Top 5 Clientes
@@ -224,9 +224,9 @@ export const DashboardStats: React.FC = () => {
       </div>
 
       {/* 🍰 PRODUCT ANALYTICS */}
-      <div className="bg-[#020617] p-8 rounded-3xl border border-slate-800 shadow-sm">
+      <div className="bg-admin-sidebar p-8 rounded-3xl border border-slate-800 shadow-sm">
         <h3 className="text-xs font-black text-white uppercase tracking-widest mb-10 flex items-center">
-          <Package size={16} className="mr-2 text-[#deff9a]" /> Ranking de Productos por Rotación
+          <Package size={16} className="mr-2 text-brand-gold" /> Ranking de Productos por Rotación
         </h3>
         <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">

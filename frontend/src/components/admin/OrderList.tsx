@@ -98,19 +98,19 @@ export const OrderList: React.FC = () => {
       {/* HEADER & TOP ACTIONS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-white uppercase tracking-tighter flex items-center">
-            <Package className="mr-3 text-[#deff9a]" size={28} /> Control de Logística
+          <h2 className="text-2xl font-black text-ink uppercase tracking-tighter flex items-center">
+            <Package className="mr-3 text-brand-gold-deep" size={28} /> Control de Logística
           </h2>
-          <p className="text-xs text-slate-400 font-medium">Gestioná, filtrá y auditá todos los pedidos del sistema.</p>
+          <p className="text-xs text-ink-soft font-medium">Gestioná, filtrá y auditá todos los pedidos del sistema.</p>
         </div>
         <div className="flex items-center space-x-2">
-          <button 
-            onClick={() => setShowFilters(!showFilters)} 
-            className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all border ${showFilters ? 'bg-[#deff9a] text-black border-[#deff9a]' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'} cursor-pointer`}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${showFilters ? 'bg-brand-gold text-brand-gold-on border-brand-gold' : 'bg-paper text-ink-soft border-line hover:bg-bg'}`}
           >
             <Filter size={14} className="mr-2" /> {showFilters ? 'Ocultar Filtros' : 'Filtrar Historial'}
           </button>
-          <button onClick={fetchOrders} className="p-2 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 transition border border-slate-700 cursor-pointer">
+          <button onClick={fetchOrders} className="p-2 bg-paper text-ink-soft rounded-xl hover:bg-bg transition border border-line cursor-pointer">
             <Clock size={18} />
           </button>
         </div>
@@ -128,7 +128,7 @@ export const OrderList: React.FC = () => {
                   type="text" 
                   value={filters.customer}
                   onChange={e => setFilters({...filters, customer: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 pl-10 text-xs text-white outline-none focus:border-[#deff9a] transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 pl-10 text-xs text-white outline-none focus:border-brand-gold transition-all"
                   placeholder="Ej: Juan Pérez..."
                 />
               </div>
@@ -141,7 +141,7 @@ export const OrderList: React.FC = () => {
                   type="text" 
                   value={filters.product}
                   onChange={e => setFilters({...filters, product: e.target.value})}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 pl-10 text-xs text-white outline-none focus:border-[#deff9a] transition-all"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 pl-10 text-xs text-white outline-none focus:border-brand-gold transition-all"
                   placeholder="Ej: Hamburguesa..."
                 />
               </div>
@@ -151,7 +151,7 @@ export const OrderList: React.FC = () => {
               <select 
                 value={filters.status}
                 onChange={e => setFilters({...filters, status: e.target.value})}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-[#deff9a] transition-all"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-brand-gold transition-all"
               >
                 <option value="">Todos los estados</option>
                 <option value="Pendiente">Pendiente</option>
@@ -166,7 +166,7 @@ export const OrderList: React.FC = () => {
                 type="date" 
                 value={filters.startDate}
                 onChange={e => setFilters({...filters, startDate: e.target.value})}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-[#deff9a] transition-all"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-brand-gold transition-all"
               />
             </div>
             <div>
@@ -175,7 +175,7 @@ export const OrderList: React.FC = () => {
                 type="date" 
                 value={filters.endDate}
                 onChange={e => setFilters({...filters, endDate: e.target.value})}
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-[#deff9a] transition-all"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white outline-none focus:border-brand-gold transition-all"
               />
             </div>
             <div className="flex items-end">
@@ -207,14 +207,14 @@ export const OrderList: React.FC = () => {
             {orders.map((order) => (
               <div 
                 key={order.id} 
-                className={`group bg-[#020617] border rounded-3xl overflow-hidden transition-all duration-300 ${expandedOrderId === order.id ? 'border-[#deff9a] ring-4 ring-[#deff9a]/5' : 'border-slate-800 hover:border-slate-700 shadow-sm'}`}
+                className={`group bg-admin-sidebar border rounded-3xl overflow-hidden transition-all duration-300 ${expandedOrderId === order.id ? 'border-brand-gold ring-4 ring-brand-gold/5' : 'border-slate-800 hover:border-slate-700 shadow-sm'}`}
               >
                 <div 
                   className="p-5 cursor-pointer flex flex-wrap items-center justify-between gap-6"
                   onClick={() => toggleExpand(order.id)}
                 >
                   <div className="flex items-center space-x-5">
-                    <div className={`p-4 rounded-2xl transition-colors ${expandedOrderId === order.id ? 'bg-[#deff9a] text-black' : 'bg-slate-900 text-slate-400 group-hover:bg-slate-800'}`}>
+                    <div className={`p-4 rounded-2xl transition-colors ${expandedOrderId === order.id ? 'bg-brand-gold text-brand-gold-on' : 'bg-slate-900 text-slate-400 group-hover:bg-slate-800'}`}>
                       <Package size={22} />
                     </div>
                     <div>
@@ -237,9 +237,9 @@ export const OrderList: React.FC = () => {
                     </div>
                     <div className="text-right min-w-24">
                       <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Monto Total</p>
-                      <p className="text-base font-black text-[#deff9a]">${formatPrice(parseFloat(order.total_amount))}</p>
+                      <p className="text-base font-black text-brand-gold">${formatPrice(parseFloat(order.total_amount))}</p>
                     </div>
-                    <div className={`p-2 rounded-full transition-transform duration-300 ${expandedOrderId === order.id ? 'rotate-180 bg-[#deff9a]/10 text-[#deff9a]' : 'text-slate-600'}`}>
+                    <div className={`p-2 rounded-full transition-transform duration-300 ${expandedOrderId === order.id ? 'rotate-180 bg-brand-gold/10 text-brand-gold' : 'text-slate-600'}`}>
                       <ChevronDown size={20} />
                     </div>
                   </div>
@@ -275,7 +275,7 @@ export const OrderList: React.FC = () => {
                                 <Calendar size={14} className="mt-0.5 mr-3 text-slate-500 shrink-0" />
                                 <div>
                                   <p className="text-[10px] text-slate-500 uppercase font-bold">Fecha Pactada</p>
-                                  <p className="text-xs text-[#deff9a] font-black">{order.delivery_date}</p>
+                                  <p className="text-xs text-brand-gold font-black">{order.delivery_date}</p>
                                 </div>
                               </div>
                             )}
@@ -341,7 +341,7 @@ export const OrderList: React.FC = () => {
                                     <p className="text-[9px] text-slate-500 font-mono uppercase">{item.product_sku}</p>
                                   </td>
                                   <td className="p-3 text-center">
-                                    <span className="px-2 py-0.5 bg-slate-800 rounded text-xs font-black text-[#deff9a]">{item.quantity}</span>
+                                    <span className="px-2 py-0.5 bg-slate-800 rounded text-xs font-black text-brand-gold">{item.quantity}</span>
                                   </td>
                                   <td className="p-3 text-xs text-slate-400 text-right font-medium">${formatPrice(parseFloat(item.unit_price))}</td>
                                   <td className="p-3 text-xs text-white text-right font-black">${formatPrice(parseFloat(item.subtotal))}</td>
@@ -354,15 +354,15 @@ export const OrderList: React.FC = () => {
                                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total del Pedido:</span>
                                 </td>
                                 <td className="p-4 text-right">
-                                  <span className="text-base font-black text-[#deff9a]">${formatPrice(parseFloat(order.total_amount))}</span>
+                                  <span className="text-base font-black text-brand-gold">${formatPrice(parseFloat(order.total_amount))}</span>
                                 </td>
                               </tr>
                             </tfoot>
                           </table>
                         </div>
                         {order.observations && (
-                          <div className="bg-[#deff9a]/5 border border-[#deff9a]/20 p-4 rounded-2xl">
-                            <p className="text-[10px] font-black text-[#deff9a] uppercase mb-1 tracking-widest">Notas del Cliente:</p>
+                          <div className="bg-brand-gold/5 border border-brand-gold/20 p-4 rounded-2xl">
+                            <p className="text-[10px] font-black text-brand-gold uppercase mb-1 tracking-widest">Notas del Cliente:</p>
                             <p className="text-xs text-slate-300 italic leading-relaxed">"{order.observations}"</p>
                           </div>
                         )}

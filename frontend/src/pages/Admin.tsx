@@ -31,12 +31,12 @@ const UserForm = ({ setSystemMessage }: { setSystemMessage: any }) => {
   };
 
   return (
-    <form className="bg-white p-6 rounded-2xl max-w-xl mx-auto space-y-4 shadow-sm border border-slate-200 mt-10 animate-in fade-in" onSubmit={handleSubmit}>
-      <h2 className="font-black text-xl mb-4 text-slate-900 uppercase">Alta de Usuario</h2>
-      <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Email</label><input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" /></div>
-      <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Contraseña</label><input type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none" /></div>
-      <div><label className="block text-xs font-black text-slate-700 uppercase mb-1">Rol</label><select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none"><option value="Admin">Administrador</option><option value="Minorista">Minorista</option></select></div>
-      <button type="submit" className="w-full bg-slate-900 text-white p-3 rounded-xl font-bold hover:bg-slate-800 transition cursor-pointer">Crear Usuario</button>
+    <form className="bg-paper p-6 rounded-card max-w-xl mx-auto space-y-4 shadow-sm border border-line mt-10 animate-in fade-in" onSubmit={handleSubmit}>
+      <h2 className="font-black text-xl mb-4 text-ink uppercase">Alta de Usuario</h2>
+      <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Email</label><input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none" /></div>
+      <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Contraseña</label><input type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none" /></div>
+      <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Rol</label><select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none"><option value="Admin">Administrador</option><option value="Minorista">Minorista</option></select></div>
+      <button type="submit" className="w-full bg-brand-primary text-brand-primary-on p-3 rounded-xl font-bold hover:bg-brand-accent transition cursor-pointer">Crear Usuario</button>
     </form>
   );
 };
@@ -130,10 +130,10 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
   if (user?.role !== 'Admin') return null;
 
   return (
-    <div className="flex h-full w-full bg-[#0f172a] overflow-hidden">
-      
+    <div className="flex h-full w-full bg-admin-bg overflow-hidden">
+
       {/* 🌑 SIDEBAR */}
-      <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-[#020617] border-r border-slate-800 flex flex-col shrink-0 transition-all duration-300`}>
+      <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-admin-sidebar border-r border-slate-800 flex flex-col shrink-0 transition-all duration-300`}>
         <div className="flex flex-col h-full">
           
           <div className="h-20 flex items-center justify-between px-4 sm:px-6 border-b border-slate-800 shrink-0">
@@ -157,7 +157,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               </button>
               {expandedSection === 'dashboard' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('dashboard')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'dashboard' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Vista General</button>
+                  <button onClick={() => setActiveModule('dashboard')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'dashboard' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Vista General</button>
                 </div>
               )}
             </div>
@@ -170,7 +170,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               </button>
               {expandedSection === 'orders' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('order-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'order-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Historial de Pedidos</button>
+                  <button onClick={() => setActiveModule('order-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'order-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Historial de Pedidos</button>
                 </div>
               )}
             </div>
@@ -183,8 +183,8 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               </button>
               {expandedSection === 'products' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('product-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Listado de Productos</button>
-                  <button onClick={() => setActiveModule('product-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-bulk' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Carga Masiva</button>
+                  <button onClick={() => setActiveModule('product-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Listado de Productos</button>
+                  <button onClick={() => setActiveModule('product-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-bulk' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Carga Masiva</button>
                 </div>
               )}
             </div>
@@ -197,9 +197,9 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               </button>
               {expandedSection === 'clients' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('client-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-list' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Gestión CRM</button>
-                  <button onClick={() => setActiveModule('client-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-form' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Alta Individual</button>
-                  <button onClick={() => setActiveModule('client-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-bulk' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Sincronizar ERP</button>
+                  <button onClick={() => setActiveModule('client-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Gestión CRM</button>
+                  <button onClick={() => setActiveModule('client-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-form' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Alta Individual</button>
+                  <button onClick={() => setActiveModule('client-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-bulk' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Sincronizar ERP</button>
                 </div>
               )}
             </div>
@@ -212,7 +212,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               </button>
               {expandedSection === 'users' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('user-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'user-form' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Crear Admin / Minorista</button>
+                  <button onClick={() => setActiveModule('user-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'user-form' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Crear Admin / Minorista</button>
                 </div>
               )}
             </div>
@@ -225,7 +225,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
               </button>
               {expandedSection === 'settings' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('config')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'config' ? 'text-[#deff9a]' : 'text-slate-400 hover:text-white'}`}>Reglas B2C</button>
+                  <button onClick={() => setActiveModule('config')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'config' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Reglas B2C</button>
                 </div>
               )}
             </div>
@@ -256,7 +256,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
       </aside>
 
       {/* 🖥️ MAIN WORKSPACE */}
-      <main className="flex-1 overflow-y-auto bg-slate-50 p-6 sm:p-10 relative">
+      <main className="flex-1 overflow-y-auto bg-bg p-6 sm:p-10 relative">
         
         {activeModule === 'dashboard' && <DashboardStats />}
         {activeModule === 'order-list' && <OrderList />}
@@ -267,53 +267,53 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
 
         {/* 🚀 RENDER DE CONFIGURACIÓN B2C */}
         {activeModule === 'config' && (
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto mt-6 animate-in fade-in">
-            <h3 className="font-black text-lg text-slate-900 uppercase tracking-wider mb-2">Configuración Comercial</h3>
-            <p className="text-xs text-slate-500 mb-6 font-medium">Gestioná los parámetros operativos del sistema sin tocar el código.</p>
-            
+          <div className="bg-paper p-8 rounded-card border border-line shadow-sm max-w-xl mx-auto mt-6 animate-in fade-in">
+            <h3 className="font-black text-lg text-ink uppercase tracking-wider mb-2">Configuración Comercial</h3>
+            <p className="text-xs text-ink-soft mb-6 font-medium">Gestioná los parámetros operativos del sistema sin tocar el código.</p>
+
             <div className="space-y-8">
               {/* WhatsApp Number */}
               <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Número de WhatsApp (Recepción de Pedidos)</label>
+                <label className="block text-xs font-black text-ink-soft uppercase mb-2">Número de WhatsApp (Recepción de Pedidos)</label>
                 <div className="flex space-x-2">
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     id="whatsappNumberInput"
                     defaultValue={settings.whatsapp_number || '5493510000000'}
-                    className="p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 w-full font-mono font-bold"
+                    className="p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold w-full font-mono font-bold"
                     placeholder="Ej: 5493510000000"
                   />
-                  <button 
+                  <button
                     onClick={() => {
                       const val = (document.getElementById('whatsappNumberInput') as HTMLInputElement).value;
                       handleUpdateSetting('whatsapp_number', val);
                     }}
-                    className="bg-slate-900 text-white font-bold px-6 rounded-xl text-xs hover:bg-slate-800 transition shadow-sm cursor-pointer shrink-0"
+                    className="bg-brand-primary text-brand-primary-on font-bold px-6 rounded-xl text-xs hover:bg-brand-accent transition shadow-sm cursor-pointer shrink-0"
                   >
                     Guardar
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">Incluí el código de país (54) y área (9) sin espacios ni guiones.</p>
+                <p className="text-[10px] text-ink-soft mt-1">Incluí el código de país (54) y área (9) sin espacios ni guiones.</p>
               </div>
 
               {/* Mínimo Compra B2C */}
               <div>
-                <label className="block text-xs font-black text-slate-700 uppercase mb-2">Mínimo de Compra B2C para Envíos ($)</label>
+                <label className="block text-xs font-black text-ink-soft uppercase mb-2">Mínimo de Compra B2C para Envíos ($)</label>
                 <div className="flex space-x-2">
-                  <input 
-                    type="number" 
+                  <input
+                    type="number"
                     id="minPurchaseInput"
                     defaultValue={localStorage.getItem('sul_min_purchase_b2c') || 30000}
-                    className="p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 w-full font-mono font-bold"
+                    className="p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold w-full font-mono font-bold"
                     placeholder="Ej: 30000"
                   />
-                  <button 
+                  <button
                     onClick={() => {
                       const val = (document.getElementById('minPurchaseInput') as HTMLInputElement).value;
                       localStorage.setItem('sul_min_purchase_b2c', val);
                       setSystemMessage('✅ Mínimo de compra B2C actualizado correctamente.');
                     }}
-                    className="bg-slate-900 text-white font-bold px-6 rounded-xl text-xs hover:bg-slate-800 transition shadow-sm cursor-pointer shrink-0"
+                    className="bg-brand-primary text-brand-primary-on font-bold px-6 rounded-xl text-xs hover:bg-brand-accent transition shadow-sm cursor-pointer shrink-0"
                   >
                     Guardar
                   </button>
@@ -326,15 +326,15 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage, triggerDataRefre
         {/* BULK UPLOADS */}
         {(activeModule === 'product-bulk' || activeModule === 'client-bulk') && (
           <div className="max-w-xl mx-auto space-y-6 mt-10 text-center animate-in fade-in">
-            <div className="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto"><Upload className="text-blue-600" size={28} /></div>
+            <div className="bg-brand-accent/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto"><Upload className="text-brand-accent" size={28} /></div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 uppercase">Carga Masiva de {activeModule === 'product-bulk' ? 'Productos' : 'Clientes'}</h2>
-              <p className="text-slate-400 text-xs mt-1">Sincronizá tu listado mediante un archivo Excel o CSV.</p>
+              <h2 className="text-xl font-black text-ink uppercase">Carga Masiva de {activeModule === 'product-bulk' ? 'Productos' : 'Clientes'}</h2>
+              <p className="text-ink-soft text-xs mt-1">Sincronizá tu listado mediante un archivo Excel o CSV.</p>
             </div>
-            <div className="bg-white p-8 rounded-2xl border-2 border-dashed border-slate-200">
+            <div className="bg-paper p-8 rounded-card border-2 border-dashed border-line">
               <input type="file" accept=".xlsx,.xls,.csv" className="hidden" id="bulk-file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-              <label htmlFor="bulk-file" className="cursor-pointer block text-sm text-slate-500 font-medium py-4 hover:text-slate-800 transition">{file ? `Seleccionado: ${file.name}` : "Hacé click para seleccionar matriz CSV/Excel"}</label>
-              <button onClick={() => handleBulkUpload(activeModule === 'product-bulk' ? 'products' : 'clients')} disabled={isLoading || !file} className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-slate-800 transition disabled:opacity-50 text-sm cursor-pointer shadow-md">
+              <label htmlFor="bulk-file" className="cursor-pointer block text-sm text-ink-soft font-medium py-4 hover:text-ink transition">{file ? `Seleccionado: ${file.name}` : "Hacé click para seleccionar matriz CSV/Excel"}</label>
+              <button onClick={() => handleBulkUpload(activeModule === 'product-bulk' ? 'products' : 'clients')} disabled={isLoading || !file} className="w-full bg-brand-primary text-brand-primary-on py-3 rounded-xl font-bold hover:bg-brand-accent transition disabled:opacity-50 text-sm cursor-pointer shadow-md">
                 {isLoading ? "Procesando matriz..." : "Sincronizar Base de Datos"}
               </button>
             </div>
