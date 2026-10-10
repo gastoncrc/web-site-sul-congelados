@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import type { Product } from './types';
@@ -9,9 +9,13 @@ import { LoginModal, ChangePasswordModal } from './components/Modals';
 import { CartSidebar } from './components/CartSidebar';
 
 import { Catalog } from './pages/Catalog';
-import { Admin } from './pages/Admin';
 import { Nosotros } from './pages/Nosotros';
 import { Contacto } from './pages/Contacto';
+
+// El panel Admin (gráficos de Recharts, tablas CRUD completas) solo lo usa el
+// personal de SUL — separado en su propio chunk para que los visitantes del
+// catálogo no lo descarguen en el bundle principal.
+const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
 
 interface AppProduct extends Product { isPromo?: boolean; promoPrice?: number; unitPrice: number; inSlider?: boolean; }
 interface AppCartItem { product: AppProduct; quantity: number; }
@@ -49,6 +53,13 @@ function MainLayout() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [systemMessage, setSystemMessage] = useState('');
 
+  useEffect(() => {
+    if (sessionStorage.getItem('sul_session_expired')) {
+      sessionStorage.removeItem('sul_session_expired');
+      setSystemMessage('🔒 Tu sesión venció. Volvé a iniciar sesión para continuar.');
+    }
+  }, []);
+
   useEffect(() => { if (!token) setIsPasswordModalOpen(false); }, [token]);
 
   // Si el usuario es Admin, lo mandamos a la ruta /admin (o manejamos su vista especial)
@@ -64,10 +75,12 @@ function MainLayout() {
         {systemMessage && (
           <div className="absolute top-4 right-4 z-50 bg-blue-50 border-l-4 border-blue-600 p-4 rounded shadow-lg flex justify-between items-center min-w-75"><span className="text-sm font-medium text-blue-900">{systemMessage}</span><button onClick={() => setSystemMessage('')} className="ml-4 text-blue-500 font-bold text-xs hover:underline cursor-pointer">X</button></div>
         )}
-        <Routes>
-          <Route path="/admin" element={<Admin setSystemMessage={setSystemMessage} />} />
-          <Route path="*" element={<Admin setSystemMessage={setSystemMessage} />} />
-        </Routes>
+        <Suspense fallback={<div className="flex items-center justify-center h-full text-white font-bold">Cargando panel...</div>}>
+          <Routes>
+            <Route path="/admin" element={<Admin setSystemMessage={setSystemMessage} />} />
+            <Route path="*" element={<Admin setSystemMessage={setSystemMessage} />} />
+          </Routes>
+        </Suspense>
       </div>
     );
   }
