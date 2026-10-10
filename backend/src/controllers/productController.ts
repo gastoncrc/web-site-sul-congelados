@@ -116,7 +116,10 @@ export const getSliderProducts = async (req: Request, res: Response) => {
   }
 };
 
-// 2. CARGA MASIVA 
+// 2. CARGA MASIVA — en lotes (antes hacía 3-4 consultas secuenciales POR FILA,
+// con un archivo de 500 filas eso eran miles de viajes uno atrás del otro).
+const BATCH_SIZE = 500;
+
 export const uploadCsvConvenios = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Permisos insuficientes' });
   if (!req.file) return res.status(400).json({ error: 'Archivo no suministrado' });
@@ -126,66 +129,109 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
 
+    // 1. Parsear y validar todas las filas en memoria (igual que antes, sin tocar la DB todavía)
+    interface ParsedRow { sku: string; name: string; category: string; subcategory: string; convenio: string; price: number; }
+    const parsedRows: ParsedRow[] = [];
+    for (const rawRow of rows) {
+      const row: any = {};
+      for (const k of Object.keys(rawRow)) {
+        const cleanKey = k.toLowerCase().trim().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        row[cleanKey] = rawRow[k];
+      }
+      const codigo = row.codigo || row.code || row.sku;
+      const descrip = row.descrip || row.descripcion || row.name || row.nombre || row.articulo;
+      const preciofinal = row.preciofinal || row.precio || row.precio_final || row.monto;
+      const convenio = row.convenio || row.lista || row.nombre_lista || row.convenios;
+      const rubro = row.rubro_descrip || row.rubro || row.category || 'Varios';
+      const subrubro = row.subrubro_descrip || row.subrubro || 'Varios';
+
+      if (codigo && descrip && preciofinal && convenio) {
+        parsedRows.push({
+          sku: String(codigo).trim(),
+          name: String(descrip).trim(),
+          category: String(rubro).trim(),
+          subcategory: String(subrubro).trim(),
+          convenio: String(convenio).trim(),
+          price: parseFloat(preciofinal),
+        });
+      }
+    }
+
+    // 2. Deduplicar (si el archivo repite un mismo SKU/convenio, se queda con la última
+    // aparición — mismo comportamiento efectivo que el loop secuencial de antes)
+    const productsBySku = new Map<string, ParsedRow>();
+    const pricesByKey = new Map<string, ParsedRow>();
+    for (const row of parsedRows) {
+      productsBySku.set(row.sku, row);
+      pricesByKey.set(`${row.sku}||${row.convenio}`, row);
+    }
+    const uniqueProducts = [...productsBySku.values()];
+    const uniquePrices = [...pricesByKey.values()];
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      let processed = 0;
 
-      for (const rawRow of rows) {
-        const row: any = {};
-        for (const k of Object.keys(rawRow)) {
-          const cleanKey = k.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-          row[cleanKey] = rawRow[k];
-        }
-
-        const codigo = row.codigo || row.code || row.sku;
-        const descrip = row.descrip || row.descripcion || row.name || row.nombre || row.articulo;
-        const preciofinal = row.preciofinal || row.precio || row.precio_final || row.monto;
-        const convenio = row.convenio || row.lista || row.nombre_lista || row.convenios;
-        const rubro = row.rubro_descrip || row.rubro || row.category || 'Varios';
-        const subrubro = row.subrubro_descrip || row.subrubro || 'Varios';
-
-        if (codigo && descrip && preciofinal && convenio) {
-          const skuStr = String(codigo).trim();
-          const convenioStr = String(convenio).trim();
-          const newPrice = parseFloat(preciofinal);
-
-          // 🚀 AUDITORÍA: Buscar precio viejo antes de actualizar
-          const oldPriceResult = await client.query(
-            'SELECT precio FROM product_prices WHERE product_sku = $1 AND convenio = $2',
-            [skuStr, convenioStr]
-          );
-          const oldPrice = oldPriceResult.rows.length > 0 ? parseFloat(oldPriceResult.rows[0].precio) : null;
-
-          await client.query(`
-            INSERT INTO products (sku, name, category, subcategory, stock)
-            VALUES ($1, $2, $3, $4, 100)
-            ON CONFLICT (sku) DO UPDATE 
-            SET name = $2, category = $3, subcategory = $4
-          `, [skuStr, String(descrip).trim(), String(rubro).trim(), String(subrubro).trim()]);
-
-          await client.query(`
-            INSERT INTO product_prices (product_sku, convenio, precio)
-            VALUES ($1, $2, $3)
-            ON CONFLICT (product_sku, convenio) DO UPDATE 
-            SET precio = $3
-          `, [skuStr, convenioStr, newPrice]);
-
-          // Solo loguear si el precio cambió
-          if (oldPrice !== newPrice) {
-            await client.query(`
-              INSERT INTO price_history (product_sku, convenio, old_price, new_price, changed_by)
-              VALUES ($1, $2, $3, $4, $5)
-            `, [skuStr, convenioStr, oldPrice, newPrice, (req as any).user?.email || 'Sistema (Excel)']);
-          }
-
-          processed++;
+      // 3. Precio anterior de cada (sku, convenio) — una sola consulta por lote, no una por fila
+      const oldPriceMap = new Map<string, number | null>();
+      for (let i = 0; i < uniquePrices.length; i += BATCH_SIZE) {
+        const chunk = uniquePrices.slice(i, i + BATCH_SIZE);
+        const existing = await client.query(
+          `SELECT pp.product_sku, pp.convenio, pp.precio
+           FROM product_prices pp
+           JOIN (SELECT unnest($1::text[]) AS sku, unnest($2::text[]) AS convenio) k
+             ON pp.product_sku = k.sku AND pp.convenio = k.convenio`,
+          [chunk.map(r => r.sku), chunk.map(r => r.convenio)]
+        );
+        for (const row of existing.rows) {
+          oldPriceMap.set(`${row.product_sku}||${row.convenio}`, parseFloat(row.precio));
         }
       }
+
+      for (let i = 0; i < uniqueProducts.length; i += BATCH_SIZE) {
+        const chunk = uniqueProducts.slice(i, i + BATCH_SIZE);
+        await client.query(
+          `INSERT INTO products (sku, name, category, subcategory, stock)
+           SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[])
+           ON CONFLICT (sku) DO UPDATE SET name = EXCLUDED.name, category = EXCLUDED.category, subcategory = EXCLUDED.subcategory`,
+          [chunk.map(r => r.sku), chunk.map(r => r.name), chunk.map(r => r.category), chunk.map(r => r.subcategory), chunk.map(() => 100)]
+        );
+      }
+
+      let processed = 0;
+      const changedBy = (req as any).user?.email || 'Sistema (Excel)';
+      for (let i = 0; i < uniquePrices.length; i += BATCH_SIZE) {
+        const chunk = uniquePrices.slice(i, i + BATCH_SIZE);
+        await client.query(
+          `INSERT INTO product_prices (product_sku, convenio, precio)
+           SELECT * FROM unnest($1::text[], $2::text[], $3::numeric[])
+           ON CONFLICT (product_sku, convenio) DO UPDATE SET precio = EXCLUDED.precio`,
+          [chunk.map(r => r.sku), chunk.map(r => r.convenio), chunk.map(r => r.price)]
+        );
+
+        // Historial solo para los que realmente cambiaron de precio
+        const changed = chunk.filter(r => oldPriceMap.get(`${r.sku}||${r.convenio}`) !== r.price);
+        if (changed.length > 0) {
+          await client.query(
+            `INSERT INTO price_history (product_sku, convenio, old_price, new_price, changed_by)
+             SELECT * FROM unnest($1::text[], $2::text[], $3::numeric[], $4::numeric[], $5::text[])`,
+            [
+              changed.map(r => r.sku),
+              changed.map(r => r.convenio),
+              changed.map(r => oldPriceMap.get(`${r.sku}||${r.convenio}`) ?? null),
+              changed.map(r => r.price),
+              changed.map(() => changedBy),
+            ]
+          );
+        }
+        processed += chunk.length;
+      }
+
       await client.query('COMMIT');
       res.json({ message: `Sincronización masiva exitosa. ${processed} registros procesados.` });
     } catch (err) {
       await client.query('ROLLBACK');
+      console.error('Error en carga masiva:', err);
       res.status(500).json({ error: 'Error en inyección masiva' });
     } finally {
       client.release();
