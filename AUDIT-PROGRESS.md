@@ -26,7 +26,7 @@ auditoría técnica y de producto").
 
 Scripts de test usados (en el scratchpad de esa sesión, no en el repo): `test-fixes.js`, `test-own-order.js` (este último no llegó a correr por corte de cuota, pero no es crítico — la lógica de "ver mi propio pedido" es la misma función ya probada con el caso negativo, solo falta el caso espejo positivo).
 
-**Falta**: commitear estos 4 fixes (`backend/src/controllers/orderController.ts`, `authController.ts`, `routes/authRoutes.ts`, `routes/orderRoutes.ts`, `package.json`/`package-lock.json` por la dependencia nueva `express-rate-limit`).
+**Falta**: nada — los 4 fixes ya están commiteados (`66ce902`).
 
 ### Tier "Pronto" — antes de que crezca el volumen
 
@@ -51,8 +51,45 @@ Scripts de test usados (en el scratchpad de esa sesión, no en el repo): `test-f
 
 **Las 4 secciones del plan de acción están completas (12 de 12).** ✅
 
-## Otras cosas abiertas de la sesión (no parte del audit)
+## Herramientas comerciales y recompra (sesión 2026-10-10, posterior al audit)
+
+No es parte del audit — es una tanda nueva de feature work, pedida directamente en la
+conversación en vez de salir de un informe. Todo lo de abajo está commiteado y pusheado a
+`main`, deployado en producción (sulcongelados.com vía Render).
+
+- [x] **Pedido Rápido** (`/pedido-rapido`) y **Mis Pedidos** (`/mis-pedidos`, con "Repetir
+  pedido" a precio actual). Commit `d0c4b04`.
+- [x] **Plan de mejora de UI comercial** — informe completo en un Artifact publicado en esa
+  conversación ("SUL Congelados — Plan de mejora de UI comercial", favicon 🧭):
+  https://claude.ai/code/artifact/4d53b8aa-7b15-4a13-a0ec-548b75beadf8
+  Decisión de negocio que planteaba el plan, ya resuelta: **Opción A** — la lista `CORDOBA`
+  sigue pública para invitados (sostiene la venta de consumidor final sin cuenta), las listas
+  mayoristas siguen atadas al JWT como siempre. No requirió cambios de código porque
+  `resolveConvenio` ya funcionaba así.
+- [x] Las 11 acciones del plan, implementadas y commiteadas (`1721db0`): slider segmentado en
+  pestañas Ofertas/Combos/Nuevos, selector Unidad/Caja en Pedido Rápido, favoritos ("Mis
+  habituales"), hint "última vez pediste X", aviso de stock bajo (`settings.low_stock_threshold`),
+  chip de lista de precios activa, compartir resumen del pedido antes de confirmar, franja de
+  marca en el Footer site-wide, hero de invitado con copy estacional, y la base para fotos
+  reales de producto (`products.image_url`, admin pega una URL; sin foto cae al ícono de
+  categoría de siempre).
+- [x] Ajuste de tamaño del slider y sus pestañas (`62a92b5`) — las tarjetas del carrusel
+  reusaban el layout completo de la grilla (256px de ancho, precio y botón a tamaño completo) y
+  las pestañas de segmento envolvían a una segunda línea en pantallas angostas, lo que hacía
+  sentir el bloque entero desproporcionado. Tarjetas de slider ahora en ~130-145px de ancho,
+  imagen cuadrada, texto/botón compactos; pestañas en una tira con scroll horizontal propio que
+  nunca empuja la altura del bloque.
+
+**Falta**: nada pendiente de este tramo. Próximo paso natural si se retoma: probar en vivo la
+estrella de favoritos, el selector Caja en Pedido Rápido y el badge de stock bajo (este último
+puede no verse todavía si ningún producto real tiene stock por debajo de 10 — umbral
+configurable en `settings`).
+
+## Otras cosas abiertas de la sesión original del audit
 
 - El rebrand visual completo (paleta "Parrilla Cordobesa") ya está aplicado y pusheado a `main` en commits previos (`git log` tiene el detalle).
 - Entorno de prueba local aislado documentado en `backend/scripts/README-local-dev.md` — usar SIEMPRE para probar cambios, nunca contra Neon/producción directamente.
 - `frontend/.env.local` (gitignored) puede estar apuntando al backend de prueba local (`http://127.0.0.1:4001/api`) — si se retoma la sesión y el catálogo en `localhost:5173` aparece vacío o no conecta, revisar si el backend/Docker de prueba sigue corriendo (`docker ps`, contenedor `sul-test-db`) y si no, levantarlo de nuevo según el README.
+  **Atención**: en la sesión del 2026-10-10, Docker Desktop colgó la PC del usuario al intentar
+  levantarlo — no arrancar Docker de forma proactiva; si hace falta probar contra la base local,
+  preguntar primero.
