@@ -83,18 +83,18 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({ sliderProducts, ge
   if (sliderProducts.length === 0) return null;
 
   return (
-    <div className="w-full mb-10 bg-brand-primary rounded-3xl p-6 md:p-8 shadow-xl">
-      <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
-        <div className="flex items-center space-x-2 text-white text-lg font-black uppercase tracking-wider">
-          <Zap className="text-brand-gold fill-brand-gold" size={22}/>
-          <span>Destacados de la Semana</span>
+    <div className="w-full mb-8 bg-brand-primary rounded-3xl p-4 sm:p-5 shadow-xl">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-1.5 text-white text-sm sm:text-base font-black uppercase tracking-wider shrink-0">
+          <Zap className="text-brand-gold fill-brand-gold" size={18}/>
+          <span>Destacados</span>
         </div>
         {segmentos.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setSegmento('TODOS')} className={`px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition cursor-pointer ${segmento === 'TODOS' ? 'bg-brand-gold text-brand-gold-on' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>Todos</button>
+          <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar flex-nowrap min-w-0">
+            <button onClick={() => setSegmento('TODOS')} className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition cursor-pointer ${segmento === 'TODOS' ? 'bg-brand-gold text-brand-gold-on' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>Todos</button>
             {segmentos.map(({ key, label, Icon }) => (
-              <button key={key} onClick={() => setSegmento(key)} className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wide transition cursor-pointer ${segmento === key ? 'bg-brand-gold text-brand-gold-on' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
-                <Icon size={11} /> {label}
+              <button key={key} onClick={() => setSegmento(key)} className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition cursor-pointer ${segmento === key ? 'bg-brand-gold text-brand-gold-on' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
+                <Icon size={10} /> {label}
               </button>
             ))}
           </div>

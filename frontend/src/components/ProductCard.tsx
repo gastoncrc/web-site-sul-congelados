@@ -49,12 +49,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
 
   return (
     <div
-      className={`bg-paper rounded-card border p-4 shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden ${
-        isSlider ? 'w-64 shrink-0' : ''
+      className={`bg-paper rounded-card border shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden ${
+        isSlider ? 'w-32 sm:w-36 shrink-0 p-2' : 'p-4'
       } ${inCartQty > 0 ? 'border-brand-gold' : 'border-line'}`}
     >
       {product.isPromo && (
-        <div className="absolute top-0 right-0 bg-brand-gold text-brand-gold-on text-[9px] font-black px-3 py-1 uppercase tracking-widest shadow-sm rounded-bl-xl">
+        <div className={`absolute top-0 right-0 bg-brand-gold text-brand-gold-on font-black uppercase tracking-widest shadow-sm rounded-bl-xl ${isSlider ? 'text-[7px] px-1.5 py-0.5' : 'text-[9px] px-3 py-1'}`}>
           OFERTA
         </div>
       )}
@@ -63,23 +63,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleFavorite(product.sku); }}
-          className="absolute top-2 left-2 z-20 w-7 h-7 rounded-full bg-paper/90 shadow-sm flex items-center justify-center text-ink-soft hover:text-brand-gold-deep transition cursor-pointer"
+          className={`absolute z-20 rounded-full bg-paper/90 shadow-sm flex items-center justify-center text-ink-soft hover:text-brand-gold-deep transition cursor-pointer ${isSlider ? 'top-1 left-1 w-5 h-5' : 'top-2 left-2 w-7 h-7'}`}
           title="Marcar como habitual"
         >
-          <Star size={14} className={isFavorite ? 'fill-brand-gold text-brand-gold-deep' : ''} />
+          <Star size={isSlider ? 10 : 14} className={isFavorite ? 'fill-brand-gold text-brand-gold-deep' : ''} />
         </button>
       )}
 
-      <div className={product.isPromo ? 'pt-4' : ''}>
-        <div className="w-full aspect-4/3 mb-3 rounded-lg bg-brand-gold/10 flex items-center justify-center overflow-hidden">
+      <div className={product.isPromo && !isSlider ? 'pt-4' : ''}>
+        <div className={`w-full rounded-lg bg-brand-gold/10 flex items-center justify-center overflow-hidden ${isSlider ? 'aspect-square mb-1.5' : 'aspect-4/3 mb-3'}`}>
           {product.imageUrl ? (
             <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
           ) : (
-            <CategoryIcon category={product.category} name={product.name} className="text-brand-gold-deep" size={isSlider ? 32 : 40} />
+            <CategoryIcon category={product.category} name={product.name} className="text-brand-gold-deep" size={isSlider ? 22 : 40} />
           )}
         </div>
-        <span className="text-[10px] font-black tracking-widest text-ink-soft uppercase">{product.category}</span>
-        <h3 className="font-bold text-ink text-sm leading-tight mb-1 mt-1">{product.name}</h3>
+        {!isSlider && <span className="text-[10px] font-black tracking-widest text-ink-soft uppercase">{product.category}</span>}
+        <h3 className={isSlider ? 'font-bold text-ink text-[11px] leading-tight line-clamp-2' : 'font-bold text-ink text-sm leading-tight mb-1 mt-1'}>{product.name}</h3>
         {!isSlider && (
           <div className="flex flex-wrap gap-1 mb-2">
             {isCombo && (
@@ -118,25 +118,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
         )}
       </div>
 
-      <div className="mt-4">
-        <div className="mb-3">
+      <div className={isSlider ? 'mt-1.5' : 'mt-4'}>
+        <div className={isSlider ? 'mb-1.5' : 'mb-3'}>
           {product.isPromo ? (
-            <div className="flex items-baseline space-x-2">
-              <span className="text-lg font-black text-ink">${formatPrice(product.promoPrice ?? 0)}</span>
-              <span className="text-xs text-ink-soft line-through">${formatPrice(product.unitPrice ?? 0)}</span>
+            <div className={`flex items-baseline ${isSlider ? 'gap-1 flex-wrap' : 'space-x-2'}`}>
+              <span className={isSlider ? 'text-xs font-black text-ink' : 'text-lg font-black text-ink'}>${formatPrice(product.promoPrice ?? 0)}</span>
+              <span className={isSlider ? 'text-[9px] text-ink-soft line-through' : 'text-xs text-ink-soft line-through'}>${formatPrice(product.unitPrice ?? 0)}</span>
             </div>
           ) : (
-            <span className="text-lg font-black text-ink">${formatPrice(price ?? 0)}</span>
+            <span className={isSlider ? 'text-xs font-black text-ink' : 'text-lg font-black text-ink'}>${formatPrice(price ?? 0)}</span>
           )}
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onAdd(product); }}
-          className={`w-full font-bold py-2.5 rounded-xl text-xs transition-all active:scale-95 flex items-center justify-center space-x-2 cursor-pointer relative z-20 ${
+          className={`w-full font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center cursor-pointer relative z-20 ${
+            isSlider ? 'py-1.5 text-[10px] gap-1' : 'py-2.5 text-xs space-x-2'
+          } ${
             inCartQty > 0 ? 'bg-brand-gold text-brand-gold-on hover:bg-brand-gold-deep' : 'bg-brand-primary text-brand-primary-on hover:bg-brand-accent'
           }`}
         >
-          <ShoppingCart size={14} />
-          <span>{inCartQty > 0 ? `Añadir otro (${inCartQty})` : 'Añadir al Pedido'}</span>
+          <ShoppingCart size={isSlider ? 11 : 14} />
+          <span>{isSlider ? (inCartQty > 0 ? `En pedido (${inCartQty})` : 'Agregar') : (inCartQty > 0 ? `Añadir otro (${inCartQty})` : 'Añadir al Pedido')}</span>
         </button>
       </div>
     </div>
