@@ -9,6 +9,7 @@ export interface Product {
   isActive?: boolean;
   isPromo?: boolean;
   promoPrice?: number;
+  packageSize?: number;
 }
 
 export interface CartItem {

@@ -61,7 +61,8 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
         is_active: editingProduct.is_active,
         is_promo: editingProduct.is_promo,
         promo_price: parseFloat(editingProduct.promo_price) || 0,
-        in_slider: editingProduct.in_slider 
+        in_slider: editingProduct.in_slider,
+        package_size: editingProduct.package_size ? parseInt(editingProduct.package_size) : null
       });
       
       setSystemMessage(`✅ Datos del producto actualizados.`);
@@ -200,6 +201,11 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
               <div>
                 <label className="block text-[11px] font-black text-ink-soft uppercase">Sub-Categoría</label>
                 <input type="text" value={editingProduct.subcategory || ''} onChange={e => setEditingProduct({...editingProduct, subcategory: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-ink-soft uppercase">Unidades por Caja (Presentación)</label>
+                <input type="number" min={0} placeholder="Ej: 30" value={editingProduct.package_size || ''} onChange={e => setEditingProduct({...editingProduct, package_size: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" />
               </div>
 
               <div className="md:col-span-2 mt-4"><h4 className="text-xs font-bold text-ink-soft uppercase">Configuración Comercial y Destacados</h4><hr className="mt-1 border-line"/></div>

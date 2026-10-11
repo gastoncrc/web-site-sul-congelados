@@ -4,6 +4,9 @@ import type { Product } from '../types';
 import { api } from '../config/api';
 import { ProductSlider } from '../components/ProductSlider'; // 🚀 IMPORTAMOS EL CARRUSEL
 import { ProductCard } from '../components/ProductCard';
+import { useAuth } from '../context/AuthContext';
+
+const NUEVO_CLIENTE_WHATSAPP = 'https://wa.me/5493518042031?text=' + encodeURIComponent('Hola SUL, quiero información para abrir una cuenta mayorista.');
 
 // Mensajes tomados del catálogo comercial real ("¿Por qué elegir SUL?")
 const PILARES = [
@@ -23,12 +26,14 @@ interface CatalogProduct extends Product {
 interface CatalogProps {
   cart: any[];
   setShoppingCart: React.Dispatch<React.SetStateAction<any[]>>;
+  openLogin: () => void;
 }
 
 const ITEMS_PER_PAGE = 12;
 const SEARCH_DEBOUNCE_MS = 400;
 
-export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart }) => {
+export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLogin }) => {
+  const { user } = useAuth();
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODOS');
@@ -96,6 +101,18 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart }) => {
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .no-select { user-select: none; -webkit-user-select: none; }
       `}</style>
+
+      {/* Hero con doble camino: cliente actual vs. cliente nuevo — solo para visitantes sin sesión */}
+      {isHomeView && !user && (
+        <div className="bg-brand-primary rounded-card p-6 sm:p-8 text-white">
+          <p className="text-[10px] font-black uppercase tracking-widest text-brand-gold mb-2">Soluciones integrales para gastronomía</p>
+          <h1 className="text-xl sm:text-2xl font-black font-heading leading-tight mb-5 max-w-lg">Calidad estandarizada y 0% merma para tu cocina</h1>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button onClick={openLogin} className="bg-brand-gold text-brand-gold-on font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-gold-deep transition cursor-pointer">Ya soy cliente →</button>
+            <a href={NUEVO_CLIENTE_WHATSAPP} target="_blank" rel="noopener noreferrer" className="border-2 border-white/40 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white/10 transition text-center">Quiero una cuenta mayorista</a>
+          </div>
+        </div>
+      )}
 
       {/* Franja institucional — solo en la vista "home" del catálogo, antes de filtrar/buscar */}
       {isHomeView && (

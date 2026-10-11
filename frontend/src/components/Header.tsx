@@ -40,6 +40,8 @@ export const Header: React.FC<HeaderProps> = ({ openLogin, cartCount = 0, onOpen
         {/* 🖥️ NAVEGACIÓN DESKTOP */}
         <nav className="hidden md:flex items-center space-x-8 font-heading font-medium text-base">
           <Link to="/" className={`hover:text-brand-gold transition ${isActive('/') ? 'text-brand-gold' : ''}`}>Catálogo</Link>
+          <Link to="/pedido-rapido" className={`hover:text-brand-gold transition ${isActive('/pedido-rapido') ? 'text-brand-gold' : ''}`}>Pedido Rápido</Link>
+          {user && <Link to="/mis-pedidos" className={`hover:text-brand-gold transition ${isActive('/mis-pedidos') ? 'text-brand-gold' : ''}`}>Mis Pedidos</Link>}
           <Link to="/nosotros" className={`hover:text-brand-gold transition ${isActive('/nosotros') ? 'text-brand-gold' : ''}`}>Nosotros</Link>
           <Link to="/contacto" className={`hover:text-brand-gold transition ${isActive('/contacto') ? 'text-brand-gold' : ''}`}>Contacto</Link>
         </nav>
@@ -81,6 +83,8 @@ export const Header: React.FC<HeaderProps> = ({ openLogin, cartCount = 0, onOpen
         <div className="md:hidden bg-neutral-dark border-t border-white/10 absolute w-full left-0 top-20 shadow-xl z-40">
           <div className="px-4 pt-2 pb-6 space-y-3 flex flex-col font-heading">
             <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className={`text-left block px-3 py-2 rounded-md text-base font-medium ${isActive('/') ? 'bg-brand-primary text-white' : 'text-white/80 hover:bg-white/10'}`}>Catálogo</Link>
+            <Link to="/pedido-rapido" onClick={() => setIsMobileMenuOpen(false)} className={`text-left block px-3 py-2 rounded-md text-base font-medium ${isActive('/pedido-rapido') ? 'bg-brand-primary text-white' : 'text-white/80 hover:bg-white/10'}`}>Pedido Rápido</Link>
+            {user && <Link to="/mis-pedidos" onClick={() => setIsMobileMenuOpen(false)} className={`text-left block px-3 py-2 rounded-md text-base font-medium ${isActive('/mis-pedidos') ? 'bg-brand-primary text-white' : 'text-white/80 hover:bg-white/10'}`}>Mis Pedidos</Link>}
             <Link to="/nosotros" onClick={() => setIsMobileMenuOpen(false)} className={`text-left block px-3 py-2 rounded-md text-base font-medium ${isActive('/nosotros') ? 'bg-brand-primary text-white' : 'text-white/80 hover:bg-white/10'}`}>Nosotros</Link>
             <Link to="/contacto" onClick={() => setIsMobileMenuOpen(false)} className={`text-left block px-3 py-2 rounded-md text-base font-medium ${isActive('/contacto') ? 'bg-brand-primary text-white' : 'text-white/80 hover:bg-white/10'}`}>Contacto</Link>
 

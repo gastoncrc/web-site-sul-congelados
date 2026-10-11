@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, Snowflake, Truck } from 'lucide-react';
+import { ShoppingCart, Snowflake, Truck, Package } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import { CategoryIcon } from './CategoryIcon';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +16,7 @@ interface ProductCardProduct {
   unitPrice: number;
   isPromo?: boolean;
   promoPrice?: number;
+  packageSize?: number;
 }
 
 interface ProductCardProps {
@@ -37,6 +38,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
   const diasEntregaLabel = diasEntregaList.length > 0
     ? diasEntregaList.map(d => DIA_ABREVIADO[d.trim()] || d.trim()).join(', ')
     : null;
+  const isCombo = product.category?.toLowerCase() === 'combos';
 
   return (
     <div
@@ -58,6 +60,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
         <h3 className="font-bold text-ink text-sm leading-tight mb-1 mt-1">{product.name}</h3>
         {!isSlider && (
           <div className="flex flex-wrap gap-1 mb-2">
+            {isCombo && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded bg-brand-accent text-white">
+                Combo
+              </span>
+            )}
+            {!!product.packageSize && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded bg-line/60 text-ink-soft">
+                <Package size={10} /> Caja x{product.packageSize}
+              </span>
+            )}
             <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded bg-line/60 text-ink-soft">
               <Snowflake size={10} /> Cadena de frío
             </span>

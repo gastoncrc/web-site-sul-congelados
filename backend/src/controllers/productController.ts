@@ -31,20 +31,40 @@ const standardizeProductRow = (row: any) => ({
   isPromo: row.is_promo,
   promoPrice: parseFloat(row.promo_price),
   inSlider: row.in_slider,
+  packageSize: row.package_size,
   unitPrice: parseFloat(row.precio)
 });
+
+const PRODUCT_SELECT_COLUMNS = `p.sku, p.name, p.category, p.subcategory, p.stock, p.description,
+       p.is_active, p.is_promo, p.promo_price, p.in_slider, p.package_size, pr.precio`;
 
 // 1. OBTENER CATÁLOGO — paginado y filtrado en el servidor (antes traía
 // absolutamente todo el catálogo y el frontend filtraba en memoria).
 export const getProductsByConvenio = async (req: Request, res: Response) => {
   const userConvenio = resolveConvenio(req);
-  const page = Math.max(1, parseInt(req.query.page as string) || 1);
-  const limit = Math.min(60, Math.max(1, parseInt(req.query.limit as string) || 24));
-  const offset = (page - 1) * limit;
   const search = (req.query.search as string || '').trim();
   const category = (req.query.category as string || '').trim();
+  const skusParam = (req.query.skus as string || '').trim();
 
   try {
+    // Modo "lookup por SKU exacto" — usado por "repetir pedido" para traer el
+    // precio ACTUAL (no el histórico) de una lista puntual de productos, sin paginar.
+    if (skusParam) {
+      const skuList = skusParam.split(',').map(s => s.trim()).filter(Boolean);
+      const result = await pool.query(
+        `SELECT ${PRODUCT_SELECT_COLUMNS}
+         FROM products p
+         INNER JOIN product_prices pr ON p.sku = pr.product_sku
+         WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE AND p.sku = ANY($2)`,
+        [userConvenio, skuList]
+      );
+      return res.json({ products: result.rows.map(standardizeProductRow), total: result.rows.length, page: 1, totalPages: 1, categories: [] });
+    }
+
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(60, Math.max(1, parseInt(req.query.limit as string) || 24));
+    const offset = (page - 1) * limit;
+
     const filters: string[] = ['UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1))', 'p.is_active = TRUE'];
     const params: any[] = [userConvenio];
 
@@ -66,8 +86,7 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
 
     const pageParams = [...params, limit, offset];
     const result = await pool.query(
-      `SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description,
-              p.is_active, p.is_promo, p.promo_price, p.in_slider, pr.precio
+      `SELECT ${PRODUCT_SELECT_COLUMNS}
        FROM products p
        INNER JOIN product_prices pr ON p.sku = pr.product_sku
        WHERE ${whereClause}
@@ -102,8 +121,7 @@ export const getSliderProducts = async (req: Request, res: Response) => {
   const userConvenio = resolveConvenio(req);
   try {
     const result = await pool.query(
-      `SELECT p.sku, p.name, p.category, p.subcategory, p.stock, p.description,
-              p.is_active, p.is_promo, p.promo_price, p.in_slider, pr.precio
+      `SELECT ${PRODUCT_SELECT_COLUMNS}
        FROM products p
        INNER JOIN product_prices pr ON p.sku = pr.product_sku
        WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE AND p.in_slider = TRUE
@@ -241,19 +259,19 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
   }
 };
 
-// 3. Crear/Editar un producto individual (Ahora guarda in_slider)
+// 3. Crear/Editar un producto individual (Ahora guarda in_slider y package_size)
 export const upsertIndividualProduct = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
-  const { sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider } = req.body;
-  
+  const { sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider, package_size } = req.body;
+
   try {
     await pool.query(`
-      INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      ON CONFLICT (sku) DO UPDATE 
-      SET name = $2, category = $3, subcategory = $4, is_active = $5, is_promo = $6, promo_price = $7, in_slider = $8
-    `, [sku, name, category, subcategory, is_active ?? true, is_promo ?? false, promo_price ?? 0, in_slider ?? false]);
-    
+      INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider, package_size)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (sku) DO UPDATE
+      SET name = $2, category = $3, subcategory = $4, is_active = $5, is_promo = $6, promo_price = $7, in_slider = $8, package_size = $9
+    `, [sku, name, category, subcategory, is_active ?? true, is_promo ?? false, promo_price ?? 0, in_slider ?? false, package_size || null]);
+
     res.json({ message: 'Producto guardado con éxito' });
   } catch (err) {
     res.status(500).json({ error: 'Error guardando producto' });
@@ -309,8 +327,8 @@ export const getAdminProducts = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
   try {
     const result = await pool.query(`
-      SELECT sku, name, category, is_active, is_promo, promo_price, in_slider 
-      FROM products 
+      SELECT sku, name, category, is_active, is_promo, promo_price, in_slider, package_size
+      FROM products
       ORDER BY name ASC
     `);
     res.json(result.rows);

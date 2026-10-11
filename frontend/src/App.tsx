@@ -11,6 +11,8 @@ import { CartSidebar } from './components/CartSidebar';
 import { Catalog } from './pages/Catalog';
 import { Nosotros } from './pages/Nosotros';
 import { Contacto } from './pages/Contacto';
+import { PedidoRapido } from './pages/PedidoRapido';
+import { MisPedidos } from './pages/MisPedidos';
 
 // El panel Admin (gráficos de Recharts, tablas CRUD completas) solo lo usa el
 // personal de SUL — separado en su propio chunk para que los visitantes del
@@ -105,7 +107,9 @@ function MainLayout() {
         )}
         
         <Routes>
-          <Route path="/" element={<Catalog cart={shoppingCart as any} setShoppingCart={setShoppingCart as any} />} />
+          <Route path="/" element={<Catalog cart={shoppingCart as any} setShoppingCart={setShoppingCart as any} openLogin={() => setIsLoginModalOpen(true)} />} />
+          <Route path="/pedido-rapido" element={<PedidoRapido cart={shoppingCart as any} setShoppingCart={setShoppingCart as any} />} />
+          <Route path="/mis-pedidos" element={<MisPedidos setShoppingCart={setShoppingCart as any} openLogin={() => setIsLoginModalOpen(true)} />} />
           <Route path="/nosotros" element={<Nosotros />} />
           <Route path="/contacto" element={<Contacto />} />
           {/* Si alguien intenta entrar a /admin no siendo admin, lo mandamos a home */}

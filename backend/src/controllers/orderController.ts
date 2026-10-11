@@ -111,7 +111,8 @@ export const getOrders = async (req: Request, res: Response) => {
 
   try {
     let query = `
-      SELECT DISTINCT o.* 
+      SELECT DISTINCT o.*,
+        (SELECT COUNT(*) FROM order_items oi2 WHERE oi2.order_id = o.id) as item_count
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       WHERE 1=1

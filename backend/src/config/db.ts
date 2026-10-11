@@ -157,7 +157,9 @@ export const initDB = async () => {
       'ALTER TABLE products ADD COLUMN is_active BOOLEAN DEFAULT TRUE;',
       'ALTER TABLE products ADD COLUMN is_promo BOOLEAN DEFAULT FALSE;',
       'ALTER TABLE products ADD COLUMN promo_price NUMERIC DEFAULT 0;',
-      'ALTER TABLE products ADD COLUMN in_slider BOOLEAN DEFAULT FALSE;'
+      'ALTER TABLE products ADD COLUMN in_slider BOOLEAN DEFAULT FALSE;',
+      // Unidades por caja/presentación comercial (ej. "Caja x30") — nulo si no se cargó todavía.
+      'ALTER TABLE products ADD COLUMN package_size INTEGER;'
     ];
 
     for (const query of columnasNuevasProducts) {
