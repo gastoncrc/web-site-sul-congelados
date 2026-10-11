@@ -159,13 +159,37 @@ export const initDB = async () => {
       'ALTER TABLE products ADD COLUMN promo_price NUMERIC DEFAULT 0;',
       'ALTER TABLE products ADD COLUMN in_slider BOOLEAN DEFAULT FALSE;',
       // Unidades por caja/presentación comercial (ej. "Caja x30") — nulo si no se cargó todavía.
-      'ALTER TABLE products ADD COLUMN package_size INTEGER;'
+      'ALTER TABLE products ADD COLUMN package_size INTEGER;',
+      // Flag manual (igual a is_promo/in_slider) para la pestaña "Nuevos" del slider — no es
+      // automático por fecha porque backfilling con CURRENT_TIMESTAMP marcaría como "nuevo"
+      // todo el catálogo histórico el día que se agrega la columna.
+      'ALTER TABLE products ADD COLUMN is_new BOOLEAN DEFAULT FALSE;',
+      // URL de foto real del producto (hosteada afuera, ej. Cloudinary) — nulo cae al ícono
+      // de categoría genérico que ya se usa.
+      'ALTER TABLE products ADD COLUMN image_url TEXT;'
     ];
 
     for (const query of columnasNuevasProducts) {
       try {
         await pool.query(query);
       } catch (error) {}
+    }
+
+    // Favoritos / "Mis habituales" — recompra rápida para clientes logueados.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS favorite_products (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        product_sku TEXT NOT NULL REFERENCES products(sku) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, product_sku)
+      )
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_favorite_products_user_id ON favorite_products(user_id);');
+
+    // Umbral de "últimas unidades" — mismo patrón que min_purchase_b2c/whatsapp_number.
+    const lowStockCheck = await pool.query("SELECT * FROM settings WHERE key = 'low_stock_threshold'");
+    if (lowStockCheck.rows.length === 0) {
+      await pool.query("INSERT INTO settings (key, value) VALUES ('low_stock_threshold', '10')");
     }
 
     // ========================================================

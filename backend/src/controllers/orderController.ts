@@ -162,6 +162,28 @@ export const getOrders = async (req: Request, res: Response) => {
   }
 };
 
+// Última cantidad pedida por SKU — para el hint "la última vez pediste X"
+// en el catálogo y Pedido Rápido.
+export const getLastOrderedQuantities = async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT ON (oi.product_sku) oi.product_sku, oi.quantity
+       FROM order_items oi
+       JOIN orders o ON o.id = oi.order_id
+       WHERE o.user_id = $1
+       ORDER BY oi.product_sku, o.created_at DESC`,
+      [userId]
+    );
+    const bySku: Record<string, number> = {};
+    for (const row of result.rows) bySku[row.product_sku] = row.quantity;
+    res.json(bySku);
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo historial de cantidades' });
+  }
+};
+
 export const updateOrderStatus = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') {
     return res.status(403).json({ error: 'Acceso denegado' });

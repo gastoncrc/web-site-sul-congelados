@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, AlertTriangle, FileText, ClipboardCheck } from 'lucide-react';
+import { X, ShoppingCart as CartIcon, Trash2, MessageCircle, MapPin, CreditCard, ChevronLeft, AlertTriangle, FileText, ClipboardCheck, Share2 } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import type { Product } from '../types';
 import { CalendarGrid } from './cart/CalendarGrid';
@@ -37,6 +37,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
 
   // Estado para controlar el mes del calendario interno
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
+  const [shareMessage, setShareMessage] = useState('');
 
   useEffect(() => {
     // Fetch mínimo de compra B2C y WhatsApp desde los ajustes reales del backend
@@ -56,6 +57,32 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
     : ['Martes', 'Viernes'];
 
   const cartTotal = cart.reduce((total, item) => total + (((item.product.isPromo ? item.product.promoPrice : item.product.unitPrice) ?? 0) * item.quantity), 0);
+
+  // Resumen compartible ANTES de confirmar — para cuentas donde quien arma el
+  // pedido no es quien lo aprueba (ej. cocinero -> encargado de compras).
+  const buildResumenTexto = () => {
+    const lineas = cart.map(i => `• ${i.quantity}x ${i.product.name} ($${formatPrice(((i.product.isPromo ? i.product.promoPrice : i.product.unitPrice) ?? 0) * i.quantity)})`);
+    return `Resumen de pedido SUL Congelados:\n\n${lineas.join('\n')}\n\n*Total: $${formatPrice(cartTotal)}*`;
+  };
+
+  const handleShareResumen = async () => {
+    const texto = buildResumenTexto();
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Resumen de pedido SUL Congelados', text: texto });
+        return;
+      } catch {
+        // Usuario canceló el share nativo o no está disponible — cae al clipboard.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(texto);
+      setShareMessage('📋 Resumen copiado — pegalo donde lo necesites para aprobarlo.');
+    } catch {
+      setShareMessage('No pudimos copiar el resumen automáticamente.');
+    }
+    setTimeout(() => setShareMessage(''), 4000);
+  };
   const faltanteEnvio = minPurchaseB2C - cartTotal;
   const debaRetirarEnPlanta = !user && faltanteEnvio > 0;
 
@@ -276,7 +303,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
             <div className="flex justify-between items-center mb-4"><span className="font-bold text-ink-soft">Total Neto:</span><span className="text-xl font-black text-ink">${formatPrice(cartTotal)}</span></div>
             {!isCheckoutStep ? (
               <div className="space-y-3">
+                {shareMessage && <div className="bg-brand-gold/10 border border-brand-gold/30 text-ink text-xs rounded-xl p-2.5">{shareMessage}</div>}
                 <button type="button" onClick={() => setIsCheckoutStep(true)} className="w-full bg-brand-primary text-brand-primary-on font-bold py-4 rounded-xl shadow-lg hover:bg-brand-accent transition cursor-pointer">Continuar con el Pedido</button>
+                <button type="button" onClick={handleShareResumen} className="w-full border border-line text-ink-soft font-bold py-2.5 rounded-xl hover:bg-bg transition cursor-pointer flex items-center justify-center text-sm"><Share2 size={15} className="mr-2" /> Compartir resumen</button>
                 <button type="button" onClick={() => setShoppingCart([])} className="w-full bg-line text-ink-soft font-bold py-3 rounded-xl hover:bg-ink-soft/20 transition cursor-pointer flex items-center justify-center"><Trash2 size={16} className="mr-2" /> Vaciar Carrito</button>
               </div>
             ) : (

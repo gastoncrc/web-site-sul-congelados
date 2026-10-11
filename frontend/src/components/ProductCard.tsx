@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShoppingCart, Snowflake, Truck, Package } from 'lucide-react';
+import { ShoppingCart, Snowflake, Truck, Package, Star, AlertTriangle } from 'lucide-react';
 import { formatPrice } from '../../utils/currency';
 import { CategoryIcon } from './CategoryIcon';
 import { useAuth } from '../context/AuthContext';
@@ -17,6 +17,8 @@ interface ProductCardProduct {
   isPromo?: boolean;
   promoPrice?: number;
   packageSize?: number;
+  stock?: number;
+  imageUrl?: string;
 }
 
 interface ProductCardProps {
@@ -25,12 +27,17 @@ interface ProductCardProps {
   onAdd: (product: any) => void;
   /** 'grid' = tarjeta de catálogo completa. 'slider' = versión compacta para el carrusel. */
   variant?: 'grid' | 'slider';
+  isFavorite?: boolean;
+  onToggleFavorite?: (sku: string) => void;
+  lastOrderedQty?: number;
+  lowStockThreshold?: number;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, onAdd, variant = 'grid' }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, onAdd, variant = 'grid', isFavorite, onToggleFavorite, lastOrderedQty, lowStockThreshold }) => {
   const { user } = useAuth();
   const price = product.isPromo ? product.promoPrice : product.unitPrice;
   const isSlider = variant === 'slider';
+  const isLowStock = typeof product.stock === 'number' && typeof lowStockThreshold === 'number' && product.stock > 0 && product.stock < lowStockThreshold;
 
   const diasEntregaList = user?.diasEntrega
     ? (typeof user.diasEntrega === 'string' ? user.diasEntrega.split(',') : user.diasEntrega)
@@ -52,9 +59,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
         </div>
       )}
 
+      {user && onToggleFavorite && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(product.sku); }}
+          className="absolute top-2 left-2 z-20 w-7 h-7 rounded-full bg-paper/90 shadow-sm flex items-center justify-center text-ink-soft hover:text-brand-gold-deep transition cursor-pointer"
+          title="Marcar como habitual"
+        >
+          <Star size={14} className={isFavorite ? 'fill-brand-gold text-brand-gold-deep' : ''} />
+        </button>
+      )}
+
       <div className={product.isPromo ? 'pt-4' : ''}>
-        <div className="w-full aspect-4/3 mb-3 rounded-lg bg-brand-gold/10 flex items-center justify-center">
-          <CategoryIcon category={product.category} name={product.name} className="text-brand-gold-deep" size={isSlider ? 32 : 40} />
+        <div className="w-full aspect-4/3 mb-3 rounded-lg bg-brand-gold/10 flex items-center justify-center overflow-hidden">
+          {product.imageUrl ? (
+            <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          ) : (
+            <CategoryIcon category={product.category} name={product.name} className="text-brand-gold-deep" size={isSlider ? 32 : 40} />
+          )}
         </div>
         <span className="text-[10px] font-black tracking-widest text-ink-soft uppercase">{product.category}</span>
         <h3 className="font-bold text-ink text-sm leading-tight mb-1 mt-1">{product.name}</h3>
@@ -78,9 +100,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
                 <Truck size={10} /> Reparto {diasEntregaLabel}
               </span>
             )}
+            {isLowStock && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded bg-warning/15 text-warning">
+                <AlertTriangle size={10} /> Últimas unidades
+              </span>
+            )}
           </div>
         )}
-        {!isSlider && <p className="text-ink-soft text-[11px] font-mono-label mb-3">SKU: {product.sku}</p>}
+        {!isSlider && (
+          <p className="text-ink-soft text-[11px] font-mono-label mb-3">
+            SKU: {product.sku}
+            {lastOrderedQty ? ` · Última vez: ${lastOrderedQty}` : ''}
+          </p>
+        )}
         {!isSlider && product.description && (
           <p className="text-ink-soft text-xs line-clamp-2 mb-4">{product.description}</p>
         )}

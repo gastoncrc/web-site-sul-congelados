@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrder, getOrders, getOrderDetails, updateOrderStatus, getDashboardStats } from '../controllers/orderController';
+import { createOrder, getOrders, getOrderDetails, updateOrderStatus, getDashboardStats, getLastOrderedQuantities } from '../controllers/orderController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 
 const router = Router();
@@ -14,6 +14,8 @@ router.get('/stats', verifyTokenAndStatus, getDashboardStats);
 
 // Endpoints protegidos para ver historial
 router.get('/', verifyTokenAndStatus, getOrders);
+// Antes de "/:id" — si no, Express la toma como un id de pedido literal "last-quantities".
+router.get('/last-quantities', verifyTokenAndStatus, getLastOrderedQuantities);
 router.get('/:id', verifyTokenAndStatus, getOrderDetails);
 router.patch('/:id/status', verifyTokenAndStatus, updateOrderStatus);
 

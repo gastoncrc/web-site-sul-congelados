@@ -32,11 +32,13 @@ const standardizeProductRow = (row: any) => ({
   promoPrice: parseFloat(row.promo_price),
   inSlider: row.in_slider,
   packageSize: row.package_size,
+  isNew: row.is_new,
+  imageUrl: row.image_url,
   unitPrice: parseFloat(row.precio)
 });
 
 const PRODUCT_SELECT_COLUMNS = `p.sku, p.name, p.category, p.subcategory, p.stock, p.description,
-       p.is_active, p.is_promo, p.promo_price, p.in_slider, p.package_size, pr.precio`;
+       p.is_active, p.is_promo, p.promo_price, p.in_slider, p.package_size, p.is_new, p.image_url, pr.precio`;
 
 // 1. OBTENER CATÁLOGO — paginado y filtrado en el servidor (antes traía
 // absolutamente todo el catálogo y el frontend filtraba en memoria).
@@ -259,18 +261,18 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
   }
 };
 
-// 3. Crear/Editar un producto individual (Ahora guarda in_slider y package_size)
+// 3. Crear/Editar un producto individual (Ahora guarda in_slider, package_size, is_new e image_url)
 export const upsertIndividualProduct = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
-  const { sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider, package_size } = req.body;
+  const { sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider, package_size, is_new, image_url } = req.body;
 
   try {
     await pool.query(`
-      INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider, package_size)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider, package_size, is_new, image_url)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       ON CONFLICT (sku) DO UPDATE
-      SET name = $2, category = $3, subcategory = $4, is_active = $5, is_promo = $6, promo_price = $7, in_slider = $8, package_size = $9
-    `, [sku, name, category, subcategory, is_active ?? true, is_promo ?? false, promo_price ?? 0, in_slider ?? false, package_size || null]);
+      SET name = $2, category = $3, subcategory = $4, is_active = $5, is_promo = $6, promo_price = $7, in_slider = $8, package_size = $9, is_new = $10, image_url = $11
+    `, [sku, name, category, subcategory, is_active ?? true, is_promo ?? false, promo_price ?? 0, in_slider ?? false, package_size || null, is_new ?? false, image_url || null]);
 
     res.json({ message: 'Producto guardado con éxito' });
   } catch (err) {
@@ -327,7 +329,7 @@ export const getAdminProducts = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
   try {
     const result = await pool.query(`
-      SELECT sku, name, category, is_active, is_promo, promo_price, in_slider, package_size
+      SELECT sku, name, category, is_active, is_promo, promo_price, in_slider, package_size, is_new, image_url
       FROM products
       ORDER BY name ASC
     `);
@@ -359,6 +361,35 @@ export const deleteProduct = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error al eliminar el producto' });
     }
     };
+
+// 9. Favoritos ("Mis habituales") — recompra rápida para clientes logueados
+export const getFavorites = async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const result = await pool.query('SELECT product_sku FROM favorite_products WHERE user_id = $1', [userId]);
+    res.json(result.rows.map(r => r.product_sku));
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo favoritos' });
+  }
+};
+
+export const toggleFavorite = async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id;
+  if (!userId) return res.status(401).json({ error: 'No autorizado' });
+  const { sku } = req.params;
+  try {
+    const existing = await pool.query('SELECT 1 FROM favorite_products WHERE user_id = $1 AND product_sku = $2', [userId, sku]);
+    if (existing.rows.length > 0) {
+      await pool.query('DELETE FROM favorite_products WHERE user_id = $1 AND product_sku = $2', [userId, sku]);
+      return res.json({ favorite: false });
+    }
+    await pool.query('INSERT INTO favorite_products (user_id, product_sku) VALUES ($1, $2)', [userId, sku]);
+    res.json({ favorite: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error actualizando favorito' });
+  }
+};
 
 // 8. Historial de auditoría de precios
 export const getPriceHistory = async (req: Request, res: Response) => {

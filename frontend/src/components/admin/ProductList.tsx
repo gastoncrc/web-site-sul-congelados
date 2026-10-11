@@ -62,7 +62,9 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
         is_promo: editingProduct.is_promo,
         promo_price: parseFloat(editingProduct.promo_price) || 0,
         in_slider: editingProduct.in_slider,
-        package_size: editingProduct.package_size ? parseInt(editingProduct.package_size) : null
+        package_size: editingProduct.package_size ? parseInt(editingProduct.package_size) : null,
+        is_new: editingProduct.is_new,
+        image_url: editingProduct.image_url || null
       });
       
       setSystemMessage(`✅ Datos del producto actualizados.`);
@@ -123,6 +125,7 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
                       <div className="flex space-x-1 mt-1">
                         {p.is_promo && <span className="text-[9px] bg-brand-gold/15 text-brand-gold-deep font-black px-1.5 py-0.5 rounded uppercase">Oferta</span>}
                         {p.in_slider && <span className="text-[9px] bg-brand-accent/15 text-brand-accent font-black px-1.5 py-0.5 rounded uppercase">Destacado</span>}
+                        {p.is_new && <span className="text-[9px] bg-success/15 text-success font-black px-1.5 py-0.5 rounded uppercase">Nuevo</span>}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-xs font-bold text-ink-soft uppercase tracking-wider">{p.category}</td>
@@ -208,6 +211,12 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
                 <input type="number" min={0} placeholder="Ej: 30" value={editingProduct.package_size || ''} onChange={e => setEditingProduct({...editingProduct, package_size: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" />
               </div>
 
+              <div className="md:col-span-2">
+                <label className="block text-[11px] font-black text-ink-soft uppercase">URL de Foto Real (Opcional)</label>
+                <input type="text" placeholder="https://..." value={editingProduct.image_url || ''} onChange={e => setEditingProduct({...editingProduct, image_url: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" />
+                <p className="text-[10px] text-ink-soft mt-1">Si queda vacío, se usa el ícono genérico de la categoría.</p>
+              </div>
+
               <div className="md:col-span-2 mt-4"><h4 className="text-xs font-bold text-ink-soft uppercase">Configuración Comercial y Destacados</h4><hr className="mt-1 border-line"/></div>
 
               <div className="flex flex-col justify-center space-y-4 pt-2">
@@ -230,6 +239,11 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
                       <span className="text-[10px] text-danger font-bold">Límite alcanzado (Máx 6). Quitá uno primero.</span>
                     )}
                   </div>
+                </label>
+
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input type="checkbox" checked={editingProduct.is_new || false} onChange={e => setEditingProduct({...editingProduct, is_new: e.target.checked})} className="rounded border-line w-5 h-5 text-brand-accent focus:ring-brand-accent" />
+                  <span className="text-sm font-bold text-ink-soft uppercase">3. Marcar como Nuevo Ingreso</span>
                 </label>
               </div>
 

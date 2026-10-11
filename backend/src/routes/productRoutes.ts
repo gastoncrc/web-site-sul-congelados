@@ -8,7 +8,9 @@ import {
   setIndividualPrice,
   getAdminProducts,
   deleteProduct,
-  getPriceHistory
+  getPriceHistory,
+  getFavorites,
+  toggleFavorite
 } from '../controllers/productController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 import multer from 'multer';
@@ -19,6 +21,10 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Catálogo (Público / Clientes) — paginado vía ?page&limit&search&category
 router.get('/', getProductsByConvenio);
 router.get('/slider', getSliderProducts);
+
+// Favoritos ("Mis habituales") — solo clientes logueados
+router.get('/favorites', verifyTokenAndStatus, getFavorites);
+router.post('/favorites/:sku', verifyTokenAndStatus, toggleFavorite);
 
 // Carga Masiva (Admin)
 router.post('/upload-prices', verifyTokenAndStatus, upload.single('file'), uploadCsvConvenios);

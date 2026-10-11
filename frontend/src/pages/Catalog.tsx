@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight, ClipboardCheck, ChefHat, DollarSign, Settings2 } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, ClipboardCheck, ChefHat, DollarSign, Settings2, Tag, Flame, Soup, Sun } from 'lucide-react';
 import type { Product } from '../types';
 import { api } from '../config/api';
 import { ProductSlider } from '../components/ProductSlider'; // 🚀 IMPORTAMOS EL CARRUSEL
@@ -15,6 +15,19 @@ const PILARES = [
   { Icon: DollarSign, title: 'Costos previsibles', desc: 'Más control sobre el costo real de cada plato' },
   { Icon: Settings2, title: 'A tu medida', desc: 'Nos adaptamos a tu operación y volumen' },
 ];
+
+// Hero del visitante — rota según la época del año con la voz "Parrilla Cordobesa",
+// sin tocar la paleta ni el layout. getMonth(): 0=enero.
+const HERO_ESTACIONAL = [
+  { meses: [11, 0, 1], Icon: Sun, eyebrow: 'Temporada de parrilla y verano', titulo: 'Lomitos, hamburguesas y achuras listas para la parrillada de cada finde' },
+  { meses: [5, 6, 7], Icon: Soup, eyebrow: 'Temporada de guisos y cazuelas', titulo: 'Carnes y bases congeladas para que tu cocina no pare en los días fríos' },
+  { meses: [8, 9, 10], Icon: Flame, eyebrow: 'Soluciones integrales para gastronomía', titulo: 'Calidad estandarizada y 0% merma para tu cocina' },
+  { meses: [2, 3, 4], Icon: Flame, eyebrow: 'Soluciones integrales para gastronomía', titulo: 'Calidad estandarizada y 0% merma para tu cocina' },
+];
+const getHeroEstacional = () => {
+  const mes = new Date().getMonth();
+  return HERO_ESTACIONAL.find(h => h.meses.includes(mes)) || HERO_ESTACIONAL[2];
+};
 
 interface CatalogProduct extends Product {
   isPromo?: boolean;
@@ -45,6 +58,26 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
   const [isLoading, setIsLoading] = useState(true);
 
   const [sliderProducts, setSliderProducts] = useState<CatalogProduct[]>([]);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [lastQtyBySku, setLastQtyBySku] = useState<Record<string, number>>({});
+  const [lowStockThreshold, setLowStockThreshold] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!user) { setFavorites([]); setLastQtyBySku({}); return; }
+    api.get('/products/favorites').then(res => setFavorites(res.data)).catch(() => setFavorites([]));
+    api.get('/orders/last-quantities').then(res => setLastQtyBySku(res.data)).catch(() => setLastQtyBySku({}));
+  }, [user]);
+
+  useEffect(() => {
+    api.get('/settings').then(res => {
+      if (res.data.low_stock_threshold) setLowStockThreshold(Number(res.data.low_stock_threshold));
+    }).catch(() => {});
+  }, []);
+
+  const toggleFavorite = async (sku: string) => {
+    setFavorites(prev => prev.includes(sku) ? prev.filter(s => s !== sku) : [...prev, sku]);
+    try { await api.post(`/products/favorites/${sku}`); } catch { /* UI ya se actualizó; se resincroniza en el próximo fetch */ }
+  };
 
   // Debounce: espera a que el usuario deje de tipear antes de pegarle al servidor
   useEffect(() => {
@@ -102,17 +135,23 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
         .no-select { user-select: none; -webkit-user-select: none; }
       `}</style>
 
-      {/* Hero con doble camino: cliente actual vs. cliente nuevo — solo para visitantes sin sesión */}
-      {isHomeView && !user && (
-        <div className="bg-brand-primary rounded-card p-6 sm:p-8 text-white">
-          <p className="text-[10px] font-black uppercase tracking-widest text-brand-gold mb-2">Soluciones integrales para gastronomía</p>
-          <h1 className="text-xl sm:text-2xl font-black font-heading leading-tight mb-5 max-w-lg">Calidad estandarizada y 0% merma para tu cocina</h1>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button onClick={openLogin} className="bg-brand-gold text-brand-gold-on font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-gold-deep transition cursor-pointer">Ya soy cliente →</button>
-            <a href={NUEVO_CLIENTE_WHATSAPP} target="_blank" rel="noopener noreferrer" className="border-2 border-white/40 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white/10 transition text-center">Quiero una cuenta mayorista</a>
+      {/* Hero con doble camino: cliente actual vs. cliente nuevo — solo para visitantes sin sesión.
+          El copy rota por estación del año (ver HERO_ESTACIONAL arriba). */}
+      {isHomeView && !user && (() => {
+        const hero = getHeroEstacional();
+        return (
+          <div className="bg-brand-primary rounded-card p-6 sm:p-8 text-white">
+            <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-brand-gold mb-2">
+              <hero.Icon size={13} /> {hero.eyebrow}
+            </p>
+            <h1 className="text-xl sm:text-2xl font-black font-heading leading-tight mb-5 max-w-lg">{hero.titulo}</h1>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button onClick={openLogin} className="bg-brand-gold text-brand-gold-on font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-gold-deep transition cursor-pointer">Ya soy cliente →</button>
+              <a href={NUEVO_CLIENTE_WHATSAPP} target="_blank" rel="noopener noreferrer" className="border-2 border-white/40 text-white font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-white/10 transition text-center">Quiero una cuenta mayorista</a>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Franja institucional — solo en la vista "home" del catálogo, antes de filtrar/buscar */}
       {isHomeView && (
@@ -133,7 +172,23 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
 
       {/* 🚀 COMPONENTE DEL CARRUSEL MODULARIZADO */}
       {showingSlider && (
-        <ProductSlider sliderProducts={sliderProducts} getQtyInCart={getQtyInCart} handleAddToCart={handleAddToCart} />
+        <ProductSlider
+          sliderProducts={sliderProducts}
+          getQtyInCart={getQtyInCart}
+          handleAddToCart={handleAddToCart}
+          favorites={favorites}
+          onToggleFavorite={toggleFavorite}
+          lastQtyBySku={lastQtyBySku}
+          lowStockThreshold={lowStockThreshold}
+        />
+      )}
+
+      {user && (
+        <div className="flex justify-center">
+          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide px-3 py-1.5 rounded-full bg-brand-gold/15 text-brand-gold-deep border border-brand-gold/30">
+            <Tag size={11} /> Lista de precios: {user.convenio || 'CORDOBA'}
+          </span>
+        </div>
       )}
 
       <div className="relative max-w-2xl mx-auto w-full">
@@ -159,7 +214,16 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((product) => (
-              <ProductCard key={product.sku} product={product} inCartQty={getQtyInCart(product.sku)} onAdd={handleAddToCart} />
+              <ProductCard
+                key={product.sku}
+                product={product}
+                inCartQty={getQtyInCart(product.sku)}
+                onAdd={handleAddToCart}
+                isFavorite={favorites.includes(product.sku)}
+                onToggleFavorite={toggleFavorite}
+                lastOrderedQty={lastQtyBySku[product.sku]}
+                lowStockThreshold={lowStockThreshold}
+              />
             ))}
           </div>
 

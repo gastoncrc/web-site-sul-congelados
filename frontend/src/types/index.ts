@@ -10,6 +10,8 @@ export interface Product {
   isPromo?: boolean;
   promoPrice?: number;
   packageSize?: number;
+  isNew?: boolean;
+  imageUrl?: string;
 }
 
 export interface CartItem {
