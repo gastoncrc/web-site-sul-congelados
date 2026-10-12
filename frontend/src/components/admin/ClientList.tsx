@@ -97,6 +97,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
       const payload = {
         name: editingClient.name,
         email: editingClient.email,
+        role: editingClient.role,
         convenio: editingClient.convenio,
         razon_social: editingClient.razon_social,
         cuit: editingClient.cuit,
@@ -278,6 +279,12 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
                 <label className="block text-[11px] font-black text-ink-soft uppercase">Email (usado para el login) *</label>
                 <input type="email" required value={editingClient.email || ''} onChange={e => setEditingClient({...editingClient, email: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none font-mono" />
                 <p className="text-[10px] text-ink-soft mt-1">Si viene de la carga masiva es un email generado (ej. cl_80012345@sul.com) — cambialo a uno real para que el cliente pueda usar "olvidé mi contraseña".</p>
+              </div>
+              <div>
+                <label className="block text-[11px] font-black text-ink-soft uppercase">Rol *</label>
+                <select required value={editingClient.role || 'Cliente'} onChange={e => setEditingClient({...editingClient, role: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none">
+                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
               </div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">Razón Social</label><input type="text" value={editingClient.razon_social || ''} onChange={e => setEditingClient({...editingClient, razon_social: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">CUIT</label><input type="text" value={editingClient.cuit || ''} onChange={e => setEditingClient({...editingClient, cuit: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>

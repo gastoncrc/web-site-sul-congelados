@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ChevronLeft, ChevronRight, ClipboardCheck, ChefHat, DollarSign, Settings2, Tag, Flame, Soup, Sun } from 'lucide-react';
+import { Search, Filter, ChevronLeft, ChevronRight, ClipboardCheck, ChefHat, DollarSign, Settings2, Flame, Soup, Sun } from 'lucide-react';
 import type { Product } from '../types';
 import { api } from '../config/api';
 import { ProductSlider } from '../components/ProductSlider'; // 🚀 IMPORTAMOS EL CARRUSEL
@@ -181,14 +181,6 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
           lastQtyBySku={lastQtyBySku}
           lowStockThreshold={lowStockThreshold}
         />
-      )}
-
-      {user && (
-        <div className="flex justify-center">
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide px-3 py-1.5 rounded-full bg-brand-gold/15 text-brand-gold-deep border border-brand-gold/30">
-            <Tag size={11} /> Lista de precios: {user.convenio || 'CORDOBA'}
-          </span>
-        </div>
       )}
 
       <div className="relative max-w-2xl mx-auto w-full">

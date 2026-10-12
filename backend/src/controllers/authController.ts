@@ -219,12 +219,17 @@ export const updateClient = async (req: any, res: any) => {
   try {
     const { id } = req.params;
     const {
-      name, email, convenio, razon_social, cuit, localidad,
+      name, email, role, convenio, razon_social, cuit, localidad,
       provincia, telefono, vendedor, grupo,
       domicilio_facturacion, dias_entrega
     } = req.body;
 
     if (!email) return res.status(400).json({ error: 'El email no puede quedar vacío.' });
+
+    const VALID_ROLES = ['Admin', 'Cliente', 'Minorista', 'Vendedor'];
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({ error: `Rol inválido. Tiene que ser uno de: ${VALID_ROLES.join(', ')}.` });
+    }
 
     const conflict = await pool.query('SELECT id, name, role FROM users WHERE email = $1 AND id != $2', [email, id]);
     if (conflict.rows.length > 0) {
@@ -234,19 +239,29 @@ export const updateClient = async (req: any, res: any) => {
       });
     }
 
+    // Si se le está bajando el rol a un Admin, que no sea el último que queda —
+    // si no, nadie podría volver a entrar al panel.
+    const currentResult = await pool.query('SELECT role FROM users WHERE id = $1', [id]);
+    if (currentResult.rows[0]?.role === 'Admin' && role !== 'Admin') {
+      const adminCountResult = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'Admin' AND is_active = TRUE");
+      if (parseInt(adminCountResult.rows[0].count) <= 1) {
+        return res.status(400).json({ error: 'No se puede quitar el rol Admin al único administrador activo que queda.' });
+      }
+    }
+
     // Asumiendo que tu tabla en la base de datos se llama 'users'
     const updateQuery = `
       UPDATE users
       SET
-        name = $1, email = $2, convenio = $3, razon_social = $4, cuit = $5,
-        localidad = $6, provincia = $7, telefono = $8, vendedor = $9,
-        grupo = $10, domicilio_facturacion = $11, dias_entrega = $12
-      WHERE id = $13
+        name = $1, email = $2, role = $3, convenio = $4, razon_social = $5, cuit = $6,
+        localidad = $7, provincia = $8, telefono = $9, vendedor = $10,
+        grupo = $11, domicilio_facturacion = $12, dias_entrega = $13
+      WHERE id = $14
       RETURNING *;
     `;
 
     const values = [
-      name, email, convenio, razon_social, cuit, localidad,
+      name, email, role, convenio, razon_social, cuit, localidad,
       provincia, telefono, vendedor, grupo,
       domicilio_facturacion, dias_entrega, id
     ];
