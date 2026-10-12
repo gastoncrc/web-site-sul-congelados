@@ -122,7 +122,7 @@ ADMIN_EMAIL=sulcongelados.arg@gmail.com
 
 ---
 
-## 🌐 Estado de Deploy / Infraestructura (actualizado 2026-10-10)
+## 🌐 Estado de Deploy / Infraestructura (actualizado 2026-10-12)
 
 ### Deploy gratis: EJECUTADO y en producción
 `sulcongelados.com`, `www.sulcongelados.com` (frontend, Render Static Site `web-site-sul-congelados-1`) y `api.sulcongelados.com` (backend, Render Web Service `web-site-sul-congelados-backend`) están live con SSL válido. `VITE_API_URL` del frontend apunta a `https://api.sulcongelados.com/api`, y el backend permite ese origen por CORS (`FRONTEND_URL` ahora acepta lista separada por comas en `app.ts`). DNS en Cloudflare con los tres registros CNAME en modalidad "DNS only" (nube gris) — no proxiados, para no romper la emisión automática de certificados SSL de Render.
@@ -130,11 +130,15 @@ ADMIN_EMAIL=sulcongelados.arg@gmail.com
 ### Dominio — compartido con otro proyecto, cuidado al tocar DNS
 `sulcongelados.com` está registrado y gestionado en **Cloudflare** (misma cuenta que el panel interno de MRC, proyecto completamente aparte). El subdominio `panel.sulcongelados.com` ya está ocupado por un túnel de Cloudflare que sirve ese otro dashboard — **no tocar ese registro DNS**.
 
-### Mail — resuelto, migrado a Resend
-El dominio ya está verificado en **Resend** (cuenta creada, registros DKIM/SPF/DMARC agregados en Cloudflare, API key activa) para mandar desde `notificaciones@sulcongelados.com`. `utils/mailer.ts` y `backend/.env` migrados a SMTP de Resend (`smtp.resend.com`, user `resend`, misma API key que usa el otro proyecto MRC), probado con envío real exitoso a `sulcongelados.arg@gmail.com` (`ADMIN_EMAIL`, casilla que recibe las notificaciones de pedidos).
+### Mail — resuelto, vía la API HTTPS de Resend (no SMTP)
+El dominio ya está verificado en **Resend** (cuenta creada, registros DKIM/SPF/DMARC agregados en Cloudflare, API key activa) para mandar desde `notificaciones@sulcongelados.com`. **Importante (corregido 2026-10-12)**: `utils/mailer.ts` usaba SMTP (`smtp.resend.com:465` vía `nodemailer`) — Render bloquea conexiones salientes por ese puerto, así que el envío se colgaba indefinidamente con `ETIMEDOUT` sin nunca fallar ni resolver, rompiendo tanto las notificaciones de pedido como la recuperación de contraseña. Migrado a la **API HTTPS de Resend** (`https://api.resend.com/emails`, puerto 443, con la misma API key como Bearer token) — probado con envío real exitoso a `sulcongelados.arg@gmail.com` (`ADMIN_EMAIL`). Si se vuelve a tocar `mailer.ts`, no volver a SMTP.
 
-### Base de datos — ya existe, ya persiste
+### Base de datos — ya existe, ya persiste (OJO: dos proyectos Neon distintos)
 Postgres real provisionado en **Neon** (plan gratis), `DATABASE_URL` en `backend/.env` y replicado como env var en Render. Los datos viven en la nube, no en ninguna PC física.
+
+**Hay dos proyectos Neon y es fácil confundirlos**: `web.site.sul.congelados` es la base REAL de producción (la que usa Render, con los 471 clientes y el catálogo real). `sul-congelados-dev` es una base de prueba vacía — es la que usa `backend/.env` en este checkout local. Si hay que consultar o corregir algo de producción (ej. un email de login, un rol), hacerlo en la consola SQL de Neon del proyecto `web.site.sul.congelados`, nunca asumir que el `.env` local apunta ahí.
+
+El email del Admin real cambió de `admin@sul.com` a un email personal real el 2026-10-12, para que "olvidé mi contraseña" le sirva a esa cuenta también (el email en sí no se documenta aquí por ser un repo público).
 
 `JWT_SECRET` real generado (96 caracteres hex, 48 bytes de entropía) y aplicado tanto en `backend/.env` local como en la env var del backend en Render.
 
