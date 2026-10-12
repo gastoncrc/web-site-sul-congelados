@@ -8,6 +8,11 @@ import settingsRoutes from './routes/settingsRoutes';
 
 const app = express();
 
+// Render (como la mayoría de los PaaS) pone la app detrás de un proxy y agrega
+// X-Forwarded-For — sin esto, express-rate-limit no puede identificar la IP real
+// de cada cliente para el límite de intentos de login.
+app.set('trust proxy', 1);
+
 const ALLOWED_ORIGINS = [
   'http://localhost:5173', 
   'http://localhost:3000', 
