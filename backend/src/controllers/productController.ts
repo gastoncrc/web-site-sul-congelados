@@ -5,19 +5,25 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
 
-const resolveConvenio = (req: Request): string => {
-  let userConvenio = 'CORDOBA';
+// Resuelve siempre contra la base, nunca contra el convenio grabado en el token —
+// mismo patrón que ya usa verifyTokenAndStatus (middleware/auth.ts) para rutas
+// protegidas. Si no fuera así, cambiar el convenio de un usuario desde el panel no
+// tendría efecto hasta que el token venza (hasta 8hs) o la persona se vuelva a loguear.
+const resolveConvenio = async (req: Request): Promise<string> => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as any;
-      if (decoded && decoded.convenio) userConvenio = decoded.convenio;
+      if (decoded?.id) {
+        const result = await pool.query('SELECT convenio FROM users WHERE id = $1', [decoded.id]);
+        if (result.rows[0]?.convenio) return result.rows[0].convenio;
+      }
     } catch (err) {
       console.log('Aviso: Token opcional inválido o vencido, usando lista base CORDOBA.');
     }
   }
-  return userConvenio;
+  return 'CORDOBA';
 };
 
 const standardizeProductRow = (row: any) => ({
@@ -43,7 +49,7 @@ const PRODUCT_SELECT_COLUMNS = `p.sku, p.name, p.category, p.subcategory, p.stoc
 // 1. OBTENER CATÁLOGO — paginado y filtrado en el servidor (antes traía
 // absolutamente todo el catálogo y el frontend filtraba en memoria).
 export const getProductsByConvenio = async (req: Request, res: Response) => {
-  const userConvenio = resolveConvenio(req);
+  const userConvenio = await resolveConvenio(req);
   const search = (req.query.search as string || '').trim();
   const category = (req.query.category as string || '').trim();
   const skusParam = (req.query.skus as string || '').trim();
@@ -120,7 +126,7 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
 // 1b. Productos destacados para el carrusel de la home — no se pagina
 // (el panel admin limita a un máximo de 6 productos destacados).
 export const getSliderProducts = async (req: Request, res: Response) => {
-  const userConvenio = resolveConvenio(req);
+  const userConvenio = await resolveConvenio(req);
   try {
     const result = await pool.query(
       `SELECT ${PRODUCT_SELECT_COLUMNS}
