@@ -93,3 +93,80 @@ configurable en `settings`).
   **Atención**: en la sesión del 2026-10-10, Docker Desktop colgó la PC del usuario al intentar
   levantarlo — no arrancar Docker de forma proactiva; si hace falta probar contra la base local,
   preguntar primero.
+
+## Sesión 2026-10-12 — listas de precios, roles, cuentas, y bugs reales de producción
+
+Partió de un pedido nuevo del usuario (no relacionado al audit): el admin necesitaba poder ver
+todas las listas de precios con su lógica de base+markup, diferenciar clientes de usuarios
+operativos, y gestionar cuentas (pausar, contraseñas, roles) desde el panel. Todo esto se probó
+en vivo contra producción (`web.site.sul.congelados` en Neon — el proyecto `sul-congelados-dev`
+es una base de prueba vacía, no es la real) porque el entorno local de Docker no estaba
+disponible. Todo está commiteado y pusheado a `main`, deployado.
+
+### Feature work
+
+- [x] **Precios base + markup**: `products.base_price` (el "precio1"/Mayorista único por
+  producto) + `product_prices.markup_percent` (el "porcentaje" por lista). `precio` sigue siendo
+  la columna que lee el catálogo — se recalcula y reescribe cada vez que cambia la base o el
+  markup, nunca se computa al vuelo. Pantalla nueva **Productos → Listas de Precios**
+  (`PriceListManager.tsx`) para ver y editar el markup por lista; el precio base se edita desde
+  **Productos → Listado de Productos**.
+- [x] **Roles formales** (Admin/Cliente/Minorista/Vendedor, ya existían en el código — "Vendedor"
+  tiene su propio `vendorController.ts`). Se separaron en dos pantallas distintas porque son
+  conceptos distintos para el usuario: **Gestión CRM** (solo Clientes, con todos sus datos
+  comerciales) y **Gestión de Usuarios** (nuevo, Admin/Minorista/Vendedor, formulario simple sin
+  campos de negocio). El alta rápida ("Alta de Usuario") ya no permite crear un Cliente — ese rol
+  solo se crea por Alta Individual o carga masiva, que sí piden los datos comerciales completos.
+- [x] **Gestión de cuentas**: pausar/reactivar cualquier rol, admin genera o elige una contraseña
+  (fuerza cambio al primer ingreso vía `require_password_change`), y un flujo real de "olvidé mi
+  contraseña" por email (no existía — se asumía que sí). Editar el email de un cliente ya creado
+  (necesario porque la carga masiva les pone un email inventado `cl_<codigo>@sul.com`).
+  Buscador en Gestión CRM (471 clientes reales son inmanejables sin uno).
+
+### Bugs reales de producción encontrados y arreglados (no relacionados al pedido original)
+
+- [x] **Admin fantasma con contraseña de fábrica expuesta**: el seed de `db.ts` recreaba una
+  cuenta Admin con un email y una contraseña fijos en el código cada vez que el backend arrancaba
+  y esa cuenta no existía — al renombrar el email del admin real a uno de verdad, el siguiente
+  deploy la recreó, quedando activa en producción con la contraseña de fábrica (ya desactivada en
+  Neon). Arreglado: el check ahora es "¿existe algún Admin?" (no un email hardcodeado) y la
+  contraseña es aleatoria, impresa una sola vez en los logs del server, nunca en el código.
+- [x] **Columnas faltantes en `users`** (`client_code`, `lugar_entrega`, `observaciones`):
+  estaban en el `CREATE TABLE` del código pero nunca se migraron a la tabla ya existente de
+  producción. `getVendorClients` las selecciona — cualquier Vendedor rompía con 500 al ver su
+  cartera.
+- [x] **Envío de mail por SMTP bloqueado por Render**: `nodemailer` conectando a
+  `smtp.resend.com:465` se colgaba con `ETIMEDOUT` (Render bloquea SMTP saliente). Migrado a la
+  API HTTPS de Resend (puerto 443) — afectaba tanto la recuperación de contraseña nueva como las
+  notificaciones de pedido, que probablemente nunca llegaron en producción hasta hoy.
+- [x] **`trust proxy` faltante** en Express — el rate-limiter de login no identificaba bien la IP
+  real detrás del proxy de Render.
+- [x] **Producto con oferta a $0**: `BIFE CRIOLLO 100G X 30U` tenía `is_promo=true` con
+  `promo_price=0`, mostrando el producto gratis en el catálogo. Corregido a mano + bloqueada la
+  combinación en el backend para que no vuelva a pasar.
+- [x] **Lista "CORDOBA"/"GENERAL" hardcodeada en 3 lugares** (catálogo público, creación de
+  pedidos de invitado, auto-registro de minorista): ninguna de esas listas existe entre las 11
+  reales del negocio, así que cualquier visitante sin cuenta veía el catálogo vacío, y cualquier
+  pedido de invitado se rechazaba entero. Unificado en un solo ajuste configurable
+  (`settings.default_minorista_convenio`, en **Admin → Ajustes → "Lista de Precios por
+  Defecto"**, seedeado en `Gastronomica`).
+- [x] **Convenio resuelto contra el token viejo, no contra la base**: cambiar la lista de un
+  usuario desde el panel no se reflejaba hasta que el token vencía (8hs) o se re-loguear.
+  `resolveConvenio` (productController) ahora consulta la base en cada request, mismo patrón que
+  ya usaba `verifyTokenAndStatus` para rutas protegidas.
+- [x] **Logout dejaba "Acceso denegado"**: si cerrabas sesión estando en `/admin`, la URL se
+  quedaba ahí y esa ruta muestra ese cartel para no-Admin. `logout()` ahora navega a `/`.
+  explícitamente.
+- [x] **Inputs de Ajustes no controlados** (`defaultValue` en vez de `value`): si el fetch de
+  settings no había resuelto todavía cuando se montaba el input, quedaba pegado al valor de
+  respaldo hardcodeado para siempre, sin importar refresh ni sesión nueva. Pasados a controlados
+  de verdad.
+- [x] **Checkout de invitado sin pedir email**: ahora es un campo obligatorio más.
+- [x] **Mail de "pedido a confirmar" filtrado como spam por Gmail**: el aviso con "⚠️ A
+  CONFIRMAR" en mayúsculas con emoji no llegaba (confirmado con pruebas A/B reales); suavizado el
+  texto y sacado el emoji.
+
+**Falta**: nada pendiente de esta sesión — las 11 acciones de arriba están verificadas en vivo en
+producción, una por una. Dato curioso sin resolver: una cuenta vieja `mayorista@sul.com` con un
+5to rol ("Mayorista", no estándar) sin nombre ni teléfono cargado — se pausó por las dudas, nadie
+la reconoció, no se investigó más a fondo.
