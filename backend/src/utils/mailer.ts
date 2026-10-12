@@ -50,8 +50,8 @@ export const sendOrderEmail = async (orderData: any, items: any[]) => {
       </div>
       <div style="padding: 20px;">
         ${orderData.isGuest ? `
-        <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
-          <strong>⚠️ A CONFIRMAR</strong> — pedido de alguien sin cuenta registrada. No es un cliente conocido del sistema; confirmá los datos antes de despachar.
+        <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px; color: #664d03;">
+          Pedido de alguien sin cuenta registrada en el sistema. Te recomendamos confirmar los datos antes de despachar.
         </div>` : ''}
         <h2 style="color: #003366; border-bottom: 2px solid #003366; padding-bottom: 10px;">Datos del Cliente</h2>
         <p><strong>Nombre:</strong> ${orderData.customerName}</p>
@@ -90,7 +90,7 @@ export const sendOrderEmail = async (orderData: any, items: any[]) => {
     </div>
   `;
 
-  const subjectPrefix = orderData.isGuest ? 'A CONFIRMAR — ' : '';
+  const subjectPrefix = orderData.isGuest ? '[Pendiente de confirmar] ' : '';
   return sendViaResend(adminEmail, `${subjectPrefix}Nuevo Pedido: ${orderData.customerName}`, html);
 };
 
