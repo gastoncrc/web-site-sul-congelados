@@ -221,6 +221,9 @@ export const OrderList: React.FC = () => {
                       <div className="flex items-center space-x-2 mb-0.5">
                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">ID #{order.id}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${getStatusColor(order.status)}`}>{order.status}</span>
+                        {!order.user_id && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase border border-amber-500/40 bg-amber-500/10 text-amber-400">A confirmar</span>
+                        )}
                       </div>
                       <p className="text-sm font-bold text-white tracking-tight">{order.customer_name}</p>
                     </div>

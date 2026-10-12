@@ -49,6 +49,10 @@ export const sendOrderEmail = async (orderData: any, items: any[]) => {
         <p style="margin: 5px 0 0 0;">Nuevo Pedido Recibido</p>
       </div>
       <div style="padding: 20px;">
+        ${orderData.isGuest ? `
+        <div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
+          <strong>⚠️ A CONFIRMAR</strong> — pedido de alguien sin cuenta registrada. No es un cliente conocido del sistema; confirmá los datos antes de despachar.
+        </div>` : ''}
         <h2 style="color: #003366; border-bottom: 2px solid #003366; padding-bottom: 10px;">Datos del Cliente</h2>
         <p><strong>Nombre:</strong> ${orderData.customerName}</p>
         ${orderData.customerEmail ? `<p><strong>Email:</strong> ${orderData.customerEmail}</p>` : ''}
@@ -86,7 +90,8 @@ export const sendOrderEmail = async (orderData: any, items: any[]) => {
     </div>
   `;
 
-  return sendViaResend(adminEmail, `Nuevo Pedido: ${orderData.customerName}`, html);
+  const subjectPrefix = orderData.isGuest ? 'A CONFIRMAR — ' : '';
+  return sendViaResend(adminEmail, `${subjectPrefix}Nuevo Pedido: ${orderData.customerName}`, html);
 };
 
 export const sendPasswordResetEmail = async (to: string, resetLink: string) => {

@@ -20,10 +20,15 @@ export const createOrder = async (req: Request, res: Response) => {
   }
 
   // El precio y el total NUNCA se toman del cliente: se recalculan contra la
-  // lista de precios real del convenio del usuario (o CORDOBA para invitados,
-  // la misma lista pública que usa getProductsByConvenio sin sesión).
+  // lista de precios real del convenio del usuario, o la lista configurable por
+  // defecto para invitados (misma que usa getProductsByConvenio sin sesión —
+  // Admin → Ajustes → "Lista de Precios por Defecto").
   const userId = (req as any).user?.id ?? null;
-  const convenio = (req as any).user?.convenio ?? 'CORDOBA';
+  let convenio = (req as any).user?.convenio;
+  if (!convenio) {
+    const defaultResult = await pool.query("SELECT value FROM settings WHERE key = 'default_minorista_convenio'");
+    convenio = defaultResult.rows[0]?.value || 'Gastronomica';
+  }
 
   const client = await pool.connect();
   try {
@@ -89,7 +94,7 @@ export const createOrder = async (req: Request, res: Response) => {
 
     // 🚀 ENVÍO DE EMAIL (No bloquea la respuesta al cliente) — con los datos reales, no los del cliente
     const emailItems = resolvedItems.map(i => ({ product: { name: i.name, isPromo: false, unitPrice: i.unitPrice }, quantity: i.quantity }));
-    sendOrderEmail({ customerName, customerEmail, customerPhone, deliveryAddress, deliveryType, deliveryDate, paymentMethod, observations, totalAmount }, emailItems)
+    sendOrderEmail({ customerName, customerEmail, customerPhone, deliveryAddress, deliveryType, deliveryDate, paymentMethod, observations, totalAmount, isGuest: !userId }, emailItems)
       .catch(err => console.error('Error enviando mail de pedido:', err));
 
     res.status(201).json({ message: 'Pedido guardado con éxito', orderId });
