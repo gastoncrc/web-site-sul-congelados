@@ -7,6 +7,7 @@ import { api } from '../config/api';
 import { ProductList } from '../components/admin/ProductList';
 import { ClientForm } from '../components/admin/ClientForm';
 import { ClientList } from '../components/admin/ClientList';
+import { UserList } from '../components/admin/UserList';
 import { OrderList } from '../components/admin/OrderList';
 import { DashboardStats } from '../components/admin/DashboardStats';
 import { PriceListManager } from '../components/admin/PriceListManager';
@@ -45,7 +46,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
   const { user, logout } = useAuth(); 
   
   // Navigation & UI States
-  const [activeModule, setActiveModule] = useState<'dashboard' | 'product-list' | 'product-bulk' | 'price-lists' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'config' | 'order-list'>('dashboard');
+  const [activeModule, setActiveModule] = useState<'dashboard' | 'product-list' | 'product-bulk' | 'price-lists' | 'client-list' | 'client-form' | 'client-bulk' | 'user-list' | 'user-form' | 'config' | 'order-list'>('dashboard');
   const [expandedSection, setExpandedSection] = useState<'dashboard' | 'products' | 'clients' | 'users' | 'settings' | 'orders' | null>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -85,7 +86,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
 
   useEffect(() => {
     if (activeModule === 'product-list') fetchAdminData();
-    if (activeModule === 'client-list') fetchClientsData(); 
+    if (activeModule === 'client-list' || activeModule === 'user-list') fetchClientsData();
     if (activeModule === 'config') fetchSettings();
   }, [activeModule]);
 
@@ -212,6 +213,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
               </button>
               {expandedSection === 'users' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
+                  <button onClick={() => setActiveModule('user-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'user-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Gestión de Usuarios</button>
                   <button onClick={() => setActiveModule('user-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'user-form' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Crear Admin / Minorista</button>
                 </div>
               )}
@@ -264,6 +266,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
         {activeModule === 'price-lists' && <PriceListManager setSystemMessage={setSystemMessage} />}
         {activeModule === 'client-list' && <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />}
         {activeModule === 'client-form' && <ClientForm setSystemMessage={setSystemMessage} />}
+        {activeModule === 'user-list' && <UserList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />}
         {activeModule === 'user-form' && <UserForm setSystemMessage={setSystemMessage} />}
 
         {/* 🚀 RENDER DE CONFIGURACIÓN B2C */}
