@@ -83,7 +83,7 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({ sliderProducts, ge
   if (sliderProducts.length === 0) return null;
 
   return (
-    <div className="w-full mb-8 bg-gradient-to-br from-brand-primary to-[#4a1810] rounded-3xl p-4 sm:p-5 shadow-[0_24px_48px_-24px_rgba(122,42,31,0.5)] relative overflow-hidden">
+    <div className="w-full mb-8 bg-linear-to-br from-brand-primary to-[#4a1810] rounded-3xl p-4 sm:p-5 shadow-[0_24px_48px_-24px_rgba(122,42,31,0.5)] relative overflow-hidden">
       <div className="absolute -top-16 -right-16 w-48 h-48 bg-brand-gold/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="flex items-center justify-between gap-2 mb-3 relative">
         <div className="flex items-center gap-1.5 text-white text-sm sm:text-base font-black uppercase tracking-wider shrink-0">

@@ -104,7 +104,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
     <div className="flex h-full w-full bg-brand-primary overflow-hidden">
 
       {/* SIDEBAR */}
-      <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-60'} bg-gradient-to-b from-brand-primary to-[#4a1810] flex flex-col shrink-0 transition-all duration-300`}>
+      <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-60'} bg-linear-to-b from-brand-primary to-[#4a1810] flex flex-col shrink-0 transition-all duration-300`}>
         <div className="flex flex-col h-full">
 
           <div className="h-20 flex items-center justify-between px-4 sm:px-6 border-b border-white/10 shrink-0">
