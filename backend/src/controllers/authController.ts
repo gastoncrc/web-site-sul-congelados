@@ -226,6 +226,14 @@ export const updateClient = async (req: any, res: any) => {
 
     if (!email) return res.status(400).json({ error: 'El email no puede quedar vacío.' });
 
+    const conflict = await pool.query('SELECT id, name, role FROM users WHERE email = $1 AND id != $2', [email, id]);
+    if (conflict.rows.length > 0) {
+      const other = conflict.rows[0];
+      return res.status(400).json({
+        error: `Ese email ya lo usa otra cuenta: "${other.name || 'sin nombre'}" (${other.role}, id ${other.id}). Elegí uno distinto o corregí esa cuenta primero.`
+      });
+    }
+
     // Asumiendo que tu tabla en la base de datos se llama 'users'
     const updateQuery = `
       UPDATE users
