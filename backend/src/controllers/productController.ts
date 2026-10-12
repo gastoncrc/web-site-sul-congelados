@@ -278,6 +278,10 @@ export const upsertIndividualProduct = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
   const { sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider, package_size, is_new, image_url } = req.body;
 
+  if (is_promo && !(parseFloat(promo_price) > 0)) {
+    return res.status(400).json({ error: 'Para activar la oferta, el precio promocional tiene que ser mayor a $0.' });
+  }
+
   try {
     await pool.query(`
       INSERT INTO products (sku, name, category, subcategory, is_active, is_promo, promo_price, in_slider, package_size, is_new, image_url)
@@ -299,6 +303,20 @@ export const toggleProductFlags = async (req: Request, res: Response) => {
   const { is_active, is_promo, promo_price } = req.body; 
 
   try {
+    // Si esta actualización deja (o pone) la oferta activada, el precio promocional
+    // efectivo — el que llega en este request, o si no el que ya tenía guardado — tiene
+    // que ser mayor a $0. Si no, un producto queda "a la venta" gratis en el catálogo.
+    const effectiveIsPromo = is_promo !== undefined ? is_promo : undefined;
+    if (effectiveIsPromo === true || (effectiveIsPromo === undefined && promo_price !== undefined)) {
+      const currentResult = await pool.query('SELECT is_promo, promo_price FROM products WHERE sku = $1', [sku]);
+      const current = currentResult.rows[0];
+      const willBePromo = effectiveIsPromo !== undefined ? effectiveIsPromo : current?.is_promo;
+      const willBePrice = promo_price !== undefined ? parseFloat(promo_price) : parseFloat(current?.promo_price || 0);
+      if (willBePromo && !(willBePrice > 0)) {
+        return res.status(400).json({ error: 'Para activar la oferta, el precio promocional tiene que ser mayor a $0.' });
+      }
+    }
+
     const updates = [];
     const values = [];
     let counter = 1;
