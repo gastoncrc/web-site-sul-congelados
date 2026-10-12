@@ -95,13 +95,24 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
     );
     const total = parseInt(countResult.rows[0].count);
 
+    // Orden de productos — por defecto, ofertas primero y nombre; si viene un ?sort=
+    // explícito (elegido por quien navega), se respeta tal cual, sin el empuje de ofertas.
+    const SORT_OPTIONS: Record<string, string> = {
+      name_asc: 'p.name ASC',
+      name_desc: 'p.name DESC',
+      price_asc: 'pr.precio ASC',
+      price_desc: 'pr.precio DESC',
+    };
+    const sortParam = (req.query.sort as string || '').trim();
+    const orderBy = SORT_OPTIONS[sortParam] || 'p.is_promo DESC, p.name ASC';
+
     const pageParams = [...params, limit, offset];
     const result = await pool.query(
       `SELECT ${PRODUCT_SELECT_COLUMNS}
        FROM products p
        INNER JOIN product_prices pr ON p.sku = pr.product_sku
        WHERE ${whereClause}
-       ORDER BY p.is_promo DESC, p.name ASC
+       ORDER BY ${orderBy}
        LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
       pageParams
     );
@@ -109,17 +120,25 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
     const categoriesResult = await pool.query(
       `SELECT DISTINCT p.category FROM products p
        INNER JOIN product_prices pr ON p.sku = pr.product_sku
-       WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE
-       ORDER BY p.category ASC`,
+       WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE`,
       [userConvenio]
     );
+    const categoryOrderResult = await pool.query("SELECT value FROM settings WHERE key = 'category_order'");
+    const customOrder: string[] = (categoryOrderResult.rows[0]?.value || '').split(',').map((c: string) => c.trim()).filter(Boolean);
+    const allCategories: string[] = categoriesResult.rows.map(r => r.category as string);
+    const orderedCategories = customOrder.length > 0
+      ? [
+          ...customOrder.filter((c: string) => allCategories.includes(c)),
+          ...allCategories.filter((c: string) => !customOrder.includes(c)).sort(),
+        ]
+      : allCategories.sort();
 
     res.json({
       products: result.rows.map(standardizeProductRow),
       total,
       page,
       totalPages: Math.max(1, Math.ceil(total / limit)),
-      categories: categoriesResult.rows.map(r => r.category),
+      categories: orderedCategories,
     });
   } catch (err) {
     res.status(500).json({ error: 'Error obteniendo catálogo' });
@@ -405,6 +424,20 @@ export const getPriceLists = async (req: Request, res: Response) => {
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error obteniendo listas de precios' });
+  }
+};
+
+// Todas las categorías reales del catálogo (sin depender del convenio de quien pide, a
+// diferencia de getProductsByConvenio) — para la pantalla de "Orden de Rubros" del admin.
+export const getAllCategories = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  try {
+    const result = await pool.query(`
+      SELECT DISTINCT category FROM products WHERE is_active = TRUE ORDER BY category ASC
+    `);
+    res.json(result.rows.map(r => r.category));
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo categorías' });
   }
 };
 

@@ -13,7 +13,8 @@ import {
   toggleFavorite,
   getPriceLists,
   updateBasePrice,
-  updateMarkup
+  updateMarkup,
+  getAllCategories
 } from '../controllers/productController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 import multer from 'multer';
@@ -39,6 +40,7 @@ router.patch('/:sku/flags', verifyTokenAndStatus, toggleProductFlags);
 
 // Listas de precios — precio base por producto + markup por (producto, lista)
 router.get('/price-lists', verifyTokenAndStatus, getPriceLists);
+router.get('/categories', verifyTokenAndStatus, getAllCategories);
 router.put('/base-price', verifyTokenAndStatus, updateBasePrice);
 router.put('/markup', verifyTokenAndStatus, updateMarkup);
 

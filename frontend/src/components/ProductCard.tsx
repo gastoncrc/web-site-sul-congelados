@@ -49,8 +49,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
 
   return (
     <div
-      className={`bg-paper rounded-card border shadow-sm flex flex-col justify-between hover:shadow-md transition-all relative overflow-hidden ${
-        isSlider ? 'w-32 sm:w-36 shrink-0 p-2' : 'p-4'
+      className={`bg-paper border flex flex-col justify-between relative overflow-hidden ${
+        isSlider
+          ? 'w-36 sm:w-40 shrink-0 p-2.5 rounded-2xl shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.12)] hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_16px_32px_-12px_rgba(0,0,0,0.22)] hover:-translate-y-1 transition-[transform,box-shadow] duration-300 ease-out'
+          : 'p-4 rounded-card shadow-sm hover:shadow-md transition-all'
       } ${inCartQty > 0 ? 'border-brand-gold' : 'border-line'}`}
     >
       {product.isPromo && (
@@ -71,7 +73,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
       )}
 
       <div className={product.isPromo && !isSlider ? 'pt-4' : ''}>
-        <div className={`w-full rounded-lg bg-brand-gold/10 flex items-center justify-center overflow-hidden ${isSlider ? 'aspect-square mb-1.5' : 'aspect-4/3 mb-3'}`}>
+        <div className={`w-full bg-brand-gold/10 flex items-center justify-center overflow-hidden ${isSlider ? 'aspect-square mb-2 rounded-xl' : 'aspect-4/3 mb-3 rounded-lg'}`}>
           {product.imageUrl ? (
             <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
           ) : (

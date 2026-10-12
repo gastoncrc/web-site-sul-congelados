@@ -11,6 +11,7 @@ import { OrderList } from '../components/admin/OrderList';
 import { DashboardStats } from '../components/admin/DashboardStats';
 import { PriceListManager } from '../components/admin/PriceListManager';
 import { BulkImportModal } from '../components/admin/BulkImportModal';
+import { CategoryOrderManager } from '../components/admin/CategoryOrderManager';
 
 interface AdminProps {
   setSystemMessage: (msg: string) => void;
@@ -32,7 +33,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
 
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [catalogTab, setCatalogTab] = useState<'productos' | 'listas'>('productos');
+  const [catalogTab, setCatalogTab] = useState<'productos' | 'listas' | 'rubros'>('productos');
   const [showCatalogImport, setShowCatalogImport] = useState(false);
 
   // Data States
@@ -187,11 +188,17 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
               >
                 Listas de precios
               </button>
+              <button
+                onClick={() => setCatalogTab('rubros')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${catalogTab === 'rubros' ? 'bg-brand-primary text-brand-primary-on' : 'text-ink-soft hover:bg-bg'}`}
+              >
+                Orden de rubros
+              </button>
             </div>
 
-            {catalogTab === 'productos'
-              ? <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />
-              : <PriceListManager setSystemMessage={setSystemMessage} />}
+            {catalogTab === 'productos' && <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />}
+            {catalogTab === 'listas' && <PriceListManager setSystemMessage={setSystemMessage} />}
+            {catalogTab === 'rubros' && <CategoryOrderManager setSystemMessage={setSystemMessage} />}
 
             <BulkImportModal
               isOpen={showCatalogImport}

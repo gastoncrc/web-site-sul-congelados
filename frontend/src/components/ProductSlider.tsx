@@ -83,17 +83,18 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({ sliderProducts, ge
   if (sliderProducts.length === 0) return null;
 
   return (
-    <div className="w-full mb-8 bg-brand-primary rounded-3xl p-4 sm:p-5 shadow-xl">
-      <div className="flex items-center justify-between gap-2 mb-3">
+    <div className="w-full mb-8 bg-gradient-to-br from-brand-primary to-[#4a1810] rounded-3xl p-4 sm:p-5 shadow-[0_24px_48px_-24px_rgba(122,42,31,0.5)] relative overflow-hidden">
+      <div className="absolute -top-16 -right-16 w-48 h-48 bg-brand-gold/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="flex items-center justify-between gap-2 mb-3 relative">
         <div className="flex items-center gap-1.5 text-white text-sm sm:text-base font-black uppercase tracking-wider shrink-0">
           <Zap className="text-brand-gold fill-brand-gold" size={18}/>
           <span>Destacados</span>
         </div>
         {segmentos.length > 0 && (
-          <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar flex-nowrap min-w-0">
-            <button onClick={() => setSegmento('TODOS')} className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition cursor-pointer ${segmento === 'TODOS' ? 'bg-brand-gold text-brand-gold-on' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>Todos</button>
+          <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar flex-nowrap min-w-0 bg-black/10 rounded-full p-1">
+            <button onClick={() => setSegmento('TODOS')} className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all duration-300 cursor-pointer ${segmento === 'TODOS' ? 'bg-brand-gold text-brand-gold-on shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>Todos</button>
             {segmentos.map(({ key, label, Icon }) => (
-              <button key={key} onClick={() => setSegmento(key)} className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition cursor-pointer ${segmento === key ? 'bg-brand-gold text-brand-gold-on' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}>
+              <button key={key} onClick={() => setSegmento(key)} className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all duration-300 cursor-pointer ${segmento === key ? 'bg-brand-gold text-brand-gold-on shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
                 <Icon size={10} /> {label}
               </button>
             ))}
@@ -102,7 +103,7 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({ sliderProducts, ge
       </div>
       <div className="w-full overflow-hidden relative rounded-xl">
         <div className="absolute top-0 bottom-0 left-0 w-12 bg-linear-to-r from-brand-primary to-transparent z-10 pointer-events-none"></div>
-        <div className="absolute top-0 bottom-0 right-0 w-12 bg-linear-to-l from-brand-primary to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute top-0 bottom-0 right-0 w-12 bg-linear-to-l from-[#4a1810] to-transparent z-10 pointer-events-none"></div>
         <div
           ref={sliderRef}
           className="flex gap-4 overflow-x-auto hide-scrollbar touch-pan-x py-2 cursor-grab active:cursor-grabbing no-select"

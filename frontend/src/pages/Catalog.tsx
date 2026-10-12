@@ -50,6 +50,7 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODOS');
+  const [sortBy, setSortBy] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -85,7 +86,7 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  useEffect(() => setCurrentPage(1), [searchTerm, selectedCategory]);
+  useEffect(() => setCurrentPage(1), [searchTerm, selectedCategory, sortBy]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +96,7 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
         const params: Record<string, string | number> = { page: currentPage, limit: ITEMS_PER_PAGE };
         if (searchTerm) params.search = searchTerm;
         if (selectedCategory !== 'TODOS') params.category = selectedCategory;
+        if (sortBy) params.sort = sortBy;
         const response = await api.get('/products', { params });
         if (cancelled) return;
         setProducts(response.data.products);
@@ -108,7 +110,7 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
     };
     fetchProducts();
     return () => { cancelled = true; };
-  }, [currentPage, searchTerm, selectedCategory]);
+  }, [currentPage, searchTerm, selectedCategory, sortBy]);
 
   useEffect(() => {
     api.get('/products/slider').then(res => setSliderProducts(res.data)).catch(() => setSliderProducts([]));
@@ -189,8 +191,17 @@ export const Catalog: React.FC<CatalogProps> = ({ cart, setShoppingCart, openLog
         {searchInput && <button onClick={() => setSearchInput('')} className="absolute inset-y-0 right-0 pr-4 flex items-center text-xs font-black text-ink-soft hover:text-ink transition cursor-pointer">LIMPIAR</button>}
       </div>
 
-      <div className="w-full border-b border-line pb-4">
-        <div className="flex items-center space-x-2 text-ink-soft text-xs font-black uppercase tracking-wider mb-3"><Filter size={14}/> <span>Filtrar por Rubro</span></div>
+      <div className="w-full border-b border-line pb-4 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center space-x-2 text-ink-soft text-xs font-black uppercase tracking-wider"><Filter size={14}/> <span>Filtrar por Rubro</span></div>
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="px-3 py-1.5 rounded-lg border border-line bg-paper text-xs font-bold text-ink-soft outline-none focus:border-brand-gold cursor-pointer">
+            <option value="">Ordenar: Destacados</option>
+            <option value="name_asc">Nombre A-Z</option>
+            <option value="name_desc">Nombre Z-A</option>
+            <option value="price_asc">Precio: menor a mayor</option>
+            <option value="price_desc">Precio: mayor a menor</option>
+          </select>
+        </div>
         <div className="flex flex-wrap gap-2">
           {categories.map((cat) => (
             <button key={cat} onClick={() => setSelectedCategory(cat)} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition border cursor-pointer ${selectedCategory === cat ? 'bg-brand-primary text-brand-primary-on border-brand-primary shadow-sm' : 'bg-paper text-ink-soft border-line hover:bg-bg'}`}>{cat}</button>
