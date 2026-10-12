@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { SULUser } from '../types/index';
 
 interface AuthContextType {
@@ -12,6 +13,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<SULUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
 
@@ -36,6 +38,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(null);
     localStorage.removeItem('sul_user');
     localStorage.removeItem('sul_token');
+    // Si estaba en /admin, esa ruta muestra "Acceso denegado" para no-Admin —
+    // mandar al catálogo en vez de dejar a la persona viendo ese cartel.
+    navigate('/');
   };
 
   const updatePasswordStatus = () => {
