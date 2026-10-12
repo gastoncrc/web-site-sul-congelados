@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Package, Star } from 'lucide-react';
+import { Search, Package, Star, AlertTriangle, ClipboardPaste, X } from 'lucide-react';
 import type { Product } from '../types';
 import { api } from '../config/api';
 import { formatPrice } from '../../utils/currency';
@@ -34,6 +34,11 @@ export const PedidoRapido: React.FC<PedidoRapidoProps> = ({ setShoppingCart }) =
   const [categories, setCategories] = useState<string[]>(['TODOS']);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [lowStockThreshold, setLowStockThreshold] = useState<number | undefined>(undefined);
+
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [pasteResult, setPasteResult] = useState<{ loaded: number; notFound: string[] } | null>(null);
 
   const quantities = useRef<Record<string, number>>({});
   const selectedProducts = useRef<Record<string, RapidoProduct>>({});
@@ -52,6 +57,12 @@ export const PedidoRapido: React.FC<PedidoRapidoProps> = ({ setShoppingCart }) =
     api.get('/products/favorites').then(res => setFavorites(res.data)).catch(() => setFavorites([]));
     api.get('/orders/last-quantities').then(res => setLastQty(res.data)).catch(() => setLastQty({}));
   }, [user]);
+
+  useEffect(() => {
+    api.get('/settings').then(res => {
+      if (res.data.low_stock_threshold) setLowStockThreshold(Number(res.data.low_stock_threshold));
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +105,47 @@ export const PedidoRapido: React.FC<PedidoRapidoProps> = ({ setShoppingCart }) =
   const toggleFavorite = async (sku: string) => {
     setFavorites(prev => prev.includes(sku) ? prev.filter(s => s !== sku) : [...prev, sku]);
     try { await api.post(`/products/favorites/${sku}`); } catch { /* UI ya se actualizó; se resincroniza en el próximo fetch */ }
+  };
+
+  // Pegado masivo — "SKU cantidad" por línea, para clientes que ya tienen su propia
+  // lista armada (de un pedido anterior, su propio Excel, etc.) en vez de tipear uno por uno.
+  const handlePasteSubmit = async () => {
+    const lines = pasteText.split('\n').map(l => l.trim()).filter(Boolean);
+    const parsed: { sku: string; qty: number }[] = [];
+    for (const line of lines) {
+      const tokens = line.split(/\s+/);
+      if (tokens.length < 2) continue;
+      const qty = parseInt(tokens[tokens.length - 1], 10);
+      if (!qty || qty <= 0) continue;
+      const sku = tokens.slice(0, -1).join(' ').trim();
+      if (sku) parsed.push({ sku, qty });
+    }
+    if (parsed.length === 0) {
+      setPasteResult({ loaded: 0, notFound: [] });
+      return;
+    }
+    try {
+      const skuList = [...new Set(parsed.map(p => p.sku))];
+      const res = await api.get('/products', { params: { skus: skuList.join(',') } });
+      const bySku: Record<string, RapidoProduct> = {};
+      for (const p of res.data.products as RapidoProduct[]) bySku[p.sku] = p;
+
+      const notFound: string[] = [];
+      let loaded = 0;
+      for (const { sku, qty } of parsed) {
+        const product = bySku[sku];
+        if (!product) { notFound.push(sku); continue; }
+        setQty(product, qty);
+        loaded++;
+      }
+      setPasteResult({ loaded, notFound });
+      if (notFound.length === 0) {
+        setPasteText('');
+        setTimeout(() => { setShowPasteModal(false); setPasteResult(null); }, 1200);
+      }
+    } catch {
+      setPasteResult({ loaded: 0, notFound: parsed.map(p => p.sku) });
+    }
   };
 
   const entries = Object.entries(quantities.current).filter(([, qty]) => qty > 0);
@@ -154,6 +206,12 @@ export const PedidoRapido: React.FC<PedidoRapidoProps> = ({ setShoppingCart }) =
             <Star size={15} className={onlyFavorites ? 'fill-current' : ''} /> Habituales
           </button>
         )}
+        <button
+          onClick={() => { setShowPasteModal(true); setPasteResult(null); }}
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold transition cursor-pointer border shrink-0 bg-paper text-ink-soft border-line hover:bg-bg"
+        >
+          <ClipboardPaste size={15} /> Pegar lista
+        </button>
       </div>
 
       {onlyFavorites && favorites.length === 0 && (
@@ -163,13 +221,13 @@ export const PedidoRapido: React.FC<PedidoRapidoProps> = ({ setShoppingCart }) =
       )}
 
       {!(onlyFavorites && favorites.length === 0) && (
-        <div className="bg-paper border border-line rounded-card overflow-hidden">
+        <>
           {isLoading ? (
             <div className="text-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary mx-auto"></div></div>
           ) : products.length === 0 ? (
-            <div className="text-center py-16 text-ink-soft font-bold">No encontramos productos.</div>
+            <div className="text-center py-16 text-ink-soft font-bold bg-paper border border-line rounded-card">No encontramos productos.</div>
           ) : (
-            <div className="divide-y divide-line">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {products.map(product => {
                 const qty = quantities.current[product.sku] || 0;
                 const price = product.isPromo ? (product.promoPrice ?? 0) : product.unitPrice;
@@ -177,49 +235,63 @@ export const PedidoRapido: React.FC<PedidoRapidoProps> = ({ setShoppingCart }) =
                 const isFavorite = favorites.includes(product.sku);
                 const displayQty = mode === 'caja' && product.packageSize ? Math.round(qty / product.packageSize) : qty;
                 const lastQtyForSku = lastQty[product.sku];
+                const isLowStock = typeof product.stock === 'number' && product.stock > 0 && typeof lowStockThreshold === 'number' && product.stock < lowStockThreshold;
                 return (
-                  <div key={product.sku} className={`flex items-center gap-3 p-3 ${qty > 0 ? 'bg-brand-gold/5' : ''}`}>
-                    {user && (
-                      <button type="button" onClick={() => toggleFavorite(product.sku)} className="shrink-0 text-ink-soft hover:text-brand-gold-deep transition cursor-pointer" title="Marcar como habitual">
-                        <Star size={16} className={isFavorite ? 'fill-brand-gold text-brand-gold-deep' : ''} />
-                      </button>
-                    )}
-                    <div className="w-9 h-9 rounded-lg bg-brand-gold/10 flex items-center justify-center shrink-0 text-brand-gold-deep">
-                      <Package size={16} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-ink truncate">{product.name}</p>
-                      <p className="text-[10px] font-mono-label text-ink-soft">
-                        SKU: {product.sku}
-                        {product.packageSize ? ` · Caja x${product.packageSize}` : ''}
-                        {lastQtyForSku ? ` · Última vez: ${lastQtyForSku}` : ''}
-                      </p>
-                    </div>
-                    <span className="text-sm font-black text-ink w-24 text-right shrink-0">${formatPrice(price)}</span>
-                    {!!product.packageSize && (
-                      <div className="flex rounded-lg border border-line overflow-hidden shrink-0 text-[10px] font-bold uppercase">
-                        <button type="button" onClick={() => { qtyMode.current[product.sku] = 'unidad'; forceRender(n => n + 1); }} className={`px-2 py-1.5 cursor-pointer ${mode === 'unidad' ? 'bg-brand-primary text-brand-primary-on' : 'bg-paper text-ink-soft'}`}>Un.</button>
-                        <button type="button" onClick={() => { qtyMode.current[product.sku] = 'caja'; forceRender(n => n + 1); }} className={`px-2 py-1.5 cursor-pointer ${mode === 'caja' ? 'bg-brand-primary text-brand-primary-on' : 'bg-paper text-ink-soft'}`}>Caja</button>
+                  <div key={product.sku} className={`flex flex-col gap-2 p-3 rounded-card border ${qty > 0 ? 'bg-brand-gold/5 border-brand-gold/40' : 'bg-paper border-line'}`}>
+                    <div className="flex items-start gap-2">
+                      {user && (
+                        <button type="button" onClick={() => toggleFavorite(product.sku)} className="shrink-0 mt-0.5 text-ink-soft hover:text-brand-gold-deep transition cursor-pointer" title="Marcar como habitual">
+                          <Star size={15} className={isFavorite ? 'fill-brand-gold text-brand-gold-deep' : ''} />
+                        </button>
+                      )}
+                      <div className="w-8 h-8 rounded-lg bg-brand-gold/10 flex items-center justify-center shrink-0 text-brand-gold-deep">
+                        <Package size={14} />
                       </div>
+                      <p className="text-sm font-bold text-ink leading-tight flex-1 min-w-0">{product.name}</p>
+                      {product.category && (
+                        <span className="shrink-0 text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded bg-line/60 text-ink-soft whitespace-nowrap">{product.category}</span>
+                      )}
+                    </div>
+
+                    <p className="text-[10px] font-mono-label text-ink-soft pl-[1px]">
+                      SKU: {product.sku}
+                      {product.packageSize ? ` · Caja x${product.packageSize}` : ''}
+                      {lastQtyForSku ? ` · Última vez: ${lastQtyForSku}` : ''}
+                    </p>
+
+                    {isLowStock && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 rounded bg-warning/15 text-warning w-fit">
+                        <AlertTriangle size={10} /> Últimas unidades
+                      </span>
                     )}
-                    <input
-                      type="number"
-                      min={0}
-                      value={displayQty || ''}
-                      placeholder="0"
-                      onChange={(e) => {
-                        const raw = Math.max(0, parseInt(e.target.value) || 0);
-                        const newTotal = mode === 'caja' ? raw * (product.packageSize || 1) : raw;
-                        setQty(product, newTotal);
-                      }}
-                      className="w-16 text-center border border-line rounded-lg py-1.5 text-sm font-bold outline-none focus:border-brand-gold shrink-0"
-                    />
+
+                    <div className="flex items-center gap-2 mt-auto pt-1">
+                      <span className="text-sm font-black text-ink flex-1">${formatPrice(price)}</span>
+                      {!!product.packageSize && (
+                        <div className="flex rounded-lg border border-line overflow-hidden shrink-0 text-[10px] font-bold uppercase">
+                          <button type="button" onClick={() => { qtyMode.current[product.sku] = 'unidad'; forceRender(n => n + 1); }} className={`px-2 py-1.5 cursor-pointer ${mode === 'unidad' ? 'bg-brand-primary text-brand-primary-on' : 'bg-paper text-ink-soft'}`}>Un.</button>
+                          <button type="button" onClick={() => { qtyMode.current[product.sku] = 'caja'; forceRender(n => n + 1); }} className={`px-2 py-1.5 cursor-pointer ${mode === 'caja' ? 'bg-brand-primary text-brand-primary-on' : 'bg-paper text-ink-soft'}`}>Caja</button>
+                        </div>
+                      )}
+                      <input
+                        type="number"
+                        min={0}
+                        value={displayQty || ''}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const raw = Math.max(0, parseInt(e.target.value) || 0);
+                          const newTotal = mode === 'caja' ? raw * (product.packageSize || 1) : raw;
+                          setQty(product, newTotal);
+                        }}
+                        className="w-16 text-center border border-line rounded-lg py-1.5 text-sm font-bold outline-none focus:border-brand-gold shrink-0"
+                      />
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
-        </div>
+        </>
       )}
 
       {totalPages > 1 && (
@@ -234,6 +306,41 @@ export const PedidoRapido: React.FC<PedidoRapidoProps> = ({ setShoppingCart }) =
         <div className="sticky bottom-4 bg-brand-primary text-white rounded-card p-4 flex items-center justify-between shadow-lg">
           <span className="text-sm font-bold">{totalItems} producto{totalItems > 1 ? 's' : ''} · Total: ${formatPrice(totalAmount)}</span>
           <button onClick={handleConfirmar} className="bg-brand-gold text-brand-gold-on font-bold px-5 py-2 rounded-xl text-sm hover:bg-brand-gold-deep transition cursor-pointer">Agregar al Pedido</button>
+        </div>
+      )}
+
+      {showPasteModal && (
+        <div className="fixed inset-0 bg-ink/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowPasteModal(false)}>
+          <div className="bg-paper w-full max-w-md rounded-card shadow-xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-5 bg-brand-primary text-white flex justify-between items-center">
+              <h3 className="font-black uppercase text-sm tracking-wider flex items-center">
+                <ClipboardPaste size={16} className="mr-2 text-brand-gold" /> Pegar lista de productos
+              </h3>
+              <button onClick={() => setShowPasteModal(false)} className="text-white/60 hover:text-white font-black cursor-pointer"><X size={16} /></button>
+            </div>
+            <div className="p-6 space-y-3">
+              <p className="text-xs text-ink-soft">Un producto por línea: <strong>código SKU</strong> y <strong>cantidad</strong>, separados por un espacio. Ej:</p>
+              <pre className="bg-bg border border-line rounded-lg p-3 text-[11px] font-mono-label text-ink-soft">0108 30{'\n'}1182 5</pre>
+              <textarea
+                value={pasteText}
+                onChange={e => setPasteText(e.target.value)}
+                rows={6}
+                placeholder="0108 30&#10;1182 5"
+                className="w-full p-3 border border-line rounded-xl bg-bg text-sm font-mono-label outline-none focus:border-brand-gold"
+              />
+              {pasteResult && (
+                <div className={`text-xs rounded-lg p-3 ${pasteResult.notFound.length > 0 ? 'bg-warning/10 text-warning border border-warning/30' : 'bg-success/10 text-success border border-success/30'}`}>
+                  {pasteResult.loaded > 0 && <p className="font-bold">✅ {pasteResult.loaded} producto{pasteResult.loaded > 1 ? 's' : ''} cargado{pasteResult.loaded > 1 ? 's' : ''}.</p>}
+                  {pasteResult.notFound.length > 0 && <p className="mt-1">No encontramos estos SKUs en tu lista de precios: {pasteResult.notFound.join(', ')}.</p>}
+                  {pasteResult.loaded === 0 && pasteResult.notFound.length === 0 && <p>No pudimos leer ninguna línea — revisá el formato.</p>}
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button onClick={() => setShowPasteModal(false)} className="px-4 py-2 rounded-xl border border-line text-ink-soft font-bold text-xs hover:bg-bg transition cursor-pointer">Cerrar</button>
+                <button onClick={handlePasteSubmit} className="px-4 py-2 rounded-xl bg-brand-primary text-brand-primary-on font-bold text-xs hover:bg-brand-accent transition cursor-pointer">Cargar lista</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
