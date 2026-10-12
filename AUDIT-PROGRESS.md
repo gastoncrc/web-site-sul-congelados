@@ -170,3 +170,51 @@ disponible. Todo está commiteado y pusheado a `main`, deployado.
 producción, una por una. Dato curioso sin resolver: una cuenta vieja `mayorista@sul.com` con un
 5to rol ("Mayorista", no estándar) sin nombre ni teléfono cargado — se pausó por las dudas, nadie
 la reconoció, no se investigó más a fondo.
+
+## Rediseño del panel admin — APROBADO, pendiente de implementar
+
+Boceto interactivo (HTML, clickeable) publicado como Artifact en la conversación del
+2026-10-12: **"SUL Congelados — Rediseño del Panel Admin"** (favicon 🧭). El usuario lo
+aprobó ("Está bueno") después de un ajuste de scroll horizontal en las tablas. Todavía no se
+tocó ningún componente real — esto es la especificación de lo que hay que construir cuando se
+retome.
+
+### Qué cambiar, concretamente
+
+1. **Paleta**: sacar los tokens `admin-bg`/`admin-sidebar` (gris-azulado genérico,
+   `#0f172a`/`#020617` en `index.css`) de todos los componentes de `frontend/src/components/admin/*`
+   y `Admin.tsx`. Usar los tokens reales de marca que ya existen (`brand-primary` #7A2A1F,
+   `brand-accent` #C1592E, `brand-gold` #C79A4B, `bg`/`paper`/`ink` de siempre). El sidebar pasa de
+   gris oscuro a un degradé en `brand-primary` (terracota oscuro), ítem activo en `brand-gold`.
+2. **Navegación más plana** en `Admin.tsx`: de 5 grupos con acordeón (ESTADÍSTICAS, VENTAS,
+   PRODUCTOS, CLIENTES, USUARIOS, AJUSTES, cada uno desplegable) a 6 destinos directos sin
+   submenús: **Inicio, Pedidos, Catálogo, Clientes, Usuarios, Ajustes**.
+3. **"Carga Masiva" y "Sincronizar ERP" dejan de ser destinos propios del sidebar** — pasan a ser
+   un botón **"Importar Excel"** en la barra superior de Catálogo y de Clientes respectivamente
+   (abre el mismo flujo de subida que ya existe, pero como acción dentro de la pantalla, no como
+   una navegación aparte).
+4. **"Alta Individual" deja de ser un destino propio** — pasa a ser el botón **"Nuevo cliente"**
+   en la barra superior de Clientes (el formulario de `ClientForm.tsx` se mantiene, cambia dónde
+   se dispara: modal o panel lateral en vez de pantalla completa — decidir al implementar).
+5. **"Listado de Productos" + "Listas de Precios" se unifican en un solo destino "Catálogo"**,
+   con pestañas internas (segmented control) "Productos" / "Listas de precios" en vez de ser dos
+   ítems de sidebar separados.
+6. **Renombres**: "Gestión CRM" → **Clientes**. "Gestión de Usuarios" → **Usuarios**. "Reglas
+   B2C" → **Ajustes** (ya no son solo reglas B2C, también vive ahí el default de lista de
+   precios).
+7. **Toasts**: reemplazar el `systemMessage` actual (string simple, un cartel arriba que hay que
+   cerrar con un botón "Entendido"/X, se usa en `App.tsx` y `Admin.tsx`) por una pila de toasts
+   abajo a la derecha, auto-descartable a los ~4s con barra de progreso, con opción de cerrar
+   antes. Posiblemente un componente nuevo `Toast.tsx` + un store/contexto simple en vez de un
+   solo string de estado.
+8. **Tablas con scroll horizontal propio** (`overflow-x: auto` en el contenedor `.card`, no en la
+   página) — el boceto lo tenía roto en la v1 y se corrigió ahí mismo; aplicar el mismo criterio
+   a las tablas reales (`ProductList.tsx`, `ClientList.tsx`, `UserList.tsx`, `PriceListManager.tsx`,
+   `OrderList.tsx`).
+
+### Qué NO cambia
+
+La lógica de negocio, los endpoints, los permisos — es un rediseño visual + de organización de
+navegación, no un cambio funcional. Todo lo que ya se construyó y probó en la sesión del
+2026-10-12 (precios base+markup, roles, contraseñas, etc.) sigue funcionando igual, solo con otra
+piel y otra agrupación de menús.
