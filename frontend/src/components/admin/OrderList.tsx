@@ -326,8 +326,8 @@ export const OrderList: React.FC = () => {
                             <Download size={12} className="mr-2" /> Items del Pedido
                           </h3>
                         </div>
-                        <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-inner">
-                          <table className="w-full text-left border-collapse">
+                        <div className="bg-slate-950 rounded-2xl border border-slate-800 overflow-x-auto shadow-inner">
+                          <table className="w-full min-w-120 text-left border-collapse">
                             <thead>
                               <tr className="bg-slate-900/50">
                                 <th className="p-3 text-[9px] font-black text-slate-500 uppercase">Producto</th>

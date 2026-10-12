@@ -1,19 +1,24 @@
 import React, { useState } from 'react';
-import { Users, Edit3, Calendar, KeyRound, Search } from 'lucide-react';
+import { Users, Edit3, Calendar, KeyRound, Search, UserPlus, Upload } from 'lucide-react';
 import { api } from '../../config/api';
 import { AccountPasswordModal } from './AccountPasswordModal';
+import { ClientForm } from './ClientForm';
+import { BulkImportModal } from './BulkImportModal';
 
 interface ClientListProps {
   clientList: any[];
   setClientList: React.Dispatch<React.SetStateAction<any[]>>;
-  setSystemMessage: React.Dispatch<React.SetStateAction<string>>;
+  setSystemMessage: (msg: string) => void;
+  onDataChange: () => void;
 }
 
-export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientList, setSystemMessage }) => {
+export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientList, setSystemMessage, onDataChange }) => {
   const [editingClient, setEditingClient] = useState<any | null>(null);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [passwordClient, setPasswordClient] = useState<any | null>(null);
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const filteredClients = clientList
     .filter(c => c.role === 'Cliente')
@@ -91,17 +96,25 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
       <div className="bg-paper p-6 rounded-card shadow-sm border border-line">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <h2 className="text-xl font-black text-ink uppercase flex items-center">
-            <Users className="mr-2 text-ink-soft"/> Gestión CRM - Clientes
+            <Users className="mr-2 text-ink-soft"/> Clientes
           </h2>
-          <div className="flex items-center bg-paper border border-line rounded-xl px-4 py-2 w-full sm:w-80 shadow-sm">
-            <Search size={18} className="text-ink-soft mr-2" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre, email, razón social o CUIT..."
-              className="bg-transparent border-none focus:ring-0 text-sm w-full outline-none"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center bg-paper border border-line rounded-xl px-4 py-2 w-full sm:w-64 shadow-sm">
+              <Search size={18} className="text-ink-soft mr-2" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre, email, razón social o CUIT..."
+                className="bg-transparent border-none focus:ring-0 text-sm w-full outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button onClick={() => setShowImportModal(true)} className="bg-paper border border-line text-ink px-4 py-2.5 rounded-xl text-xs font-bold hover:border-brand-gold transition cursor-pointer inline-flex items-center gap-1.5 shrink-0">
+              <Upload size={14}/> Importar Excel
+            </button>
+            <button onClick={() => setShowNewClientModal(true)} className="bg-brand-primary text-brand-primary-on px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-brand-accent transition cursor-pointer inline-flex items-center gap-1.5 shrink-0">
+              <UserPlus size={14}/> Nuevo cliente
+            </button>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -167,6 +180,27 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
       </div>
 
       <AccountPasswordModal account={passwordClient} onClose={() => setPasswordClient(null)} setSystemMessage={setSystemMessage} />
+
+      <BulkImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        endpoint="/auth/upload-clients"
+        title="Importar Clientes (Excel)"
+        hint="Sincronizá el listado de clientes desde el Excel del ERP (cl_codigo, cl_nombre, nombre_lista, nombre_vendedor, inactivo)."
+        onSuccess={onDataChange}
+        setSystemMessage={setSystemMessage}
+      />
+
+      {showNewClientModal && (
+        <div className="fixed inset-0 bg-neutral-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-paper w-full max-w-3xl rounded-card shadow-xl my-8 relative">
+            <button onClick={() => setShowNewClientModal(false)} className="absolute top-4 right-4 text-ink-soft hover:text-ink font-black cursor-pointer z-10">✕</button>
+            <div className="p-2">
+              <ClientForm setSystemMessage={setSystemMessage} onSuccess={() => { setShowNewClientModal(false); onDataChange(); }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       {editingClient && (
         <div className="fixed inset-0 bg-neutral-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

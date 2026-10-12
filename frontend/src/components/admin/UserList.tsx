@@ -1,21 +1,25 @@
 import React, { useState } from 'react';
-import { UserCog, Edit3, KeyRound, Search } from 'lucide-react';
+import { UserCog, Edit3, KeyRound, Search, UserPlus } from 'lucide-react';
 import { api } from '../../config/api';
 import { AccountPasswordModal } from './AccountPasswordModal';
 
 interface UserListProps {
   clientList: any[];
   setClientList: React.Dispatch<React.SetStateAction<any[]>>;
-  setSystemMessage: React.Dispatch<React.SetStateAction<string>>;
+  setSystemMessage: (msg: string) => void;
+  onDataChange: () => void;
 }
 
 const ROLES = ['Admin', 'Minorista', 'Vendedor'];
+const EMPTY_NEW_USER = { email: '', password: '', role: 'Minorista', convenio: '', telefono: '' };
 
-export const UserList: React.FC<UserListProps> = ({ clientList, setClientList, setSystemMessage }) => {
+export const UserList: React.FC<UserListProps> = ({ clientList, setClientList, setSystemMessage, onDataChange }) => {
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [roleFilter, setRoleFilter] = useState('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [passwordClient, setPasswordClient] = useState<any | null>(null);
+  const [showNewUserModal, setShowNewUserModal] = useState(false);
+  const [newUserForm, setNewUserForm] = useState(EMPTY_NEW_USER);
 
   const filteredUsers = clientList
     .filter(u => u.role !== 'Cliente')
@@ -34,6 +38,19 @@ export const UserList: React.FC<UserListProps> = ({ clientList, setClientList, s
       setSystemMessage(nextActive ? '✅ Usuario reactivado.' : '✅ Usuario pausado.');
     } catch (err) {
       setSystemMessage('🚨 Error al cambiar el estado del usuario.');
+    }
+  };
+
+  const handleCreateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/auth/admin-create-user', newUserForm);
+      setSystemMessage('✅ Usuario creado exitosamente');
+      setNewUserForm(EMPTY_NEW_USER);
+      setShowNewUserModal(false);
+      onDataChange();
+    } catch (err: any) {
+      setSystemMessage(`🚨 ${err.response?.data?.error || 'Error al crear usuario'}`);
     }
   };
 
@@ -75,17 +92,22 @@ export const UserList: React.FC<UserListProps> = ({ clientList, setClientList, s
       <div className="bg-paper p-6 rounded-card shadow-sm border border-line">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <h2 className="text-xl font-black text-ink uppercase flex items-center">
-            <UserCog className="mr-2 text-ink-soft"/> Usuarios del Sistema
+            <UserCog className="mr-2 text-ink-soft"/> Usuarios
           </h2>
-          <div className="flex items-center bg-paper border border-line rounded-xl px-4 py-2 w-full sm:w-80 shadow-sm">
-            <Search size={18} className="text-ink-soft mr-2" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre o email..."
-              className="bg-transparent border-none focus:ring-0 text-sm w-full outline-none"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center bg-paper border border-line rounded-xl px-4 py-2 w-full sm:w-64 shadow-sm">
+              <Search size={18} className="text-ink-soft mr-2" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre o email..."
+                className="bg-transparent border-none focus:ring-0 text-sm w-full outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <button onClick={() => setShowNewUserModal(true)} className="bg-brand-primary text-brand-primary-on px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-brand-accent transition cursor-pointer inline-flex items-center gap-1.5 shrink-0">
+              <UserPlus size={14}/> Nuevo usuario
+            </button>
           </div>
         </div>
         <div className="flex gap-2 flex-wrap mb-6">
@@ -150,6 +172,43 @@ export const UserList: React.FC<UserListProps> = ({ clientList, setClientList, s
       </div>
 
       <AccountPasswordModal account={passwordClient} onClose={() => setPasswordClient(null)} setSystemMessage={setSystemMessage} />
+
+      {showNewUserModal && (
+        <div className="fixed inset-0 bg-neutral-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-paper w-full max-w-lg rounded-card shadow-xl overflow-hidden">
+            <div className="p-5 bg-brand-primary text-white flex justify-between items-center">
+              <h3 className="font-black uppercase text-sm tracking-wider flex items-center">
+                <UserPlus size={16} className="mr-2 text-brand-gold" /> Nuevo Usuario
+              </h3>
+              <button onClick={() => setShowNewUserModal(false)} className="text-white/60 hover:text-white font-black cursor-pointer">✕</button>
+            </div>
+            <form onSubmit={handleCreateUserSubmit} className="p-6 space-y-4 text-left">
+              <div><label className="block text-[11px] font-black text-ink-soft uppercase">Email *</label><input type="email" required value={newUserForm.email} onChange={e => setNewUserForm({...newUserForm, email: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none font-mono" /></div>
+              <div><label className="block text-[11px] font-black text-ink-soft uppercase">Contraseña *</label><input type="password" required value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+              <div>
+                <label className="block text-[11px] font-black text-ink-soft uppercase">Rol *</label>
+                <select required value={newUserForm.role} onChange={e => setNewUserForm({...newUserForm, role: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none">
+                  <option value="Admin">Admin</option>
+                  <option value="Minorista">Minorista</option>
+                  <option value="Vendedor">Vendedor</option>
+                </select>
+                {newUserForm.role === 'Vendedor' && <p className="text-[10px] text-ink-soft mt-1">El email se usa como login; el nombre para la cartera se completa luego editando la cuenta.</p>}
+              </div>
+              {newUserForm.role === 'Minorista' && (
+                <div>
+                  <label className="block text-[11px] font-black text-ink-soft uppercase">Lista de Precios</label>
+                  <input type="text" value={newUserForm.convenio} onChange={e => setNewUserForm({...newUserForm, convenio: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" placeholder="Dejalo vacío para usar la lista por defecto" />
+                </div>
+              )}
+              <div><label className="block text-[11px] font-black text-ink-soft uppercase">Teléfono</label><input type="text" value={newUserForm.telefono} onChange={e => setNewUserForm({...newUserForm, telefono: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+              <div className="flex justify-end space-x-2 pt-2">
+                <button type="button" onClick={() => setShowNewUserModal(false)} className="px-5 py-2.5 rounded-xl border border-line text-ink-soft font-bold text-xs hover:bg-bg transition">Cancelar</button>
+                <button type="submit" className="px-5 py-2.5 rounded-xl bg-brand-primary text-brand-primary-on font-bold text-xs hover:bg-brand-accent transition shadow">Crear Usuario</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {editingUser && (
         <div className="fixed inset-0 bg-neutral-dark/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

@@ -4,9 +4,10 @@ import { api } from '../../config/api';
 
 interface ClientFormProps {
   setSystemMessage: (msg: string) => void;
+  onSuccess?: () => void;
 }
 
-export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
+export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage, onSuccess }) => {
   const [formData, setFormData] = useState({
     tradeName: '', businessName: '', taxId: '', address: '', city: '', 
     province: '', phone: '', email: '', seller: '', agreement: 'CORDOBA', group: ''
@@ -35,6 +36,7 @@ export const ClientForm: React.FC<ClientFormProps> = ({ setSystemMessage }) => {
       setSystemMessage('✅ Cliente creado exitosamente. Contraseña temporal: SUL2026!');
       setFormData({ tradeName: '', businessName: '', taxId: '', address: '', city: '', province: '', phone: '', email: '', seller: '', agreement: 'CORDOBA', group: '' });
       setDiasEntrega(['Martes', 'Viernes']);
+      onSuccess?.();
     } catch (error: any) {
       setSystemMessage(`🚨 Error: ${error.response?.data?.error || 'No se pudo guardar el cliente'}`);
     } finally {

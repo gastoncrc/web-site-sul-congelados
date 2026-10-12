@@ -1,61 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User as UserIcon, Package, Users, ChevronDown, ChevronRight, Upload, Menu, Settings, ShoppingBag, TrendingUp } from 'lucide-react';
+import { LogOut, User as UserIcon, Package, Users, Menu, Settings, ShoppingBag, TrendingUp, Upload } from 'lucide-react';
 import { api } from '../config/api';
 
 // IMPORTAMOS LOS COMPONENTES MODULARIZADOS
 import { ProductList } from '../components/admin/ProductList';
-import { ClientForm } from '../components/admin/ClientForm';
 import { ClientList } from '../components/admin/ClientList';
 import { UserList } from '../components/admin/UserList';
 import { OrderList } from '../components/admin/OrderList';
 import { DashboardStats } from '../components/admin/DashboardStats';
 import { PriceListManager } from '../components/admin/PriceListManager';
+import { BulkImportModal } from '../components/admin/BulkImportModal';
 
 interface AdminProps {
-  setSystemMessage: React.Dispatch<React.SetStateAction<string>>;
+  setSystemMessage: (msg: string) => void;
 }
 
-// 🚀 COMPONENTE PARA ALTA DE USUARIOS/ADMINS
-const UserForm = ({ setSystemMessage }: { setSystemMessage: any }) => {
-  const [form, setForm] = useState({ email: '', password: '', role: 'Admin', convenio: '', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' });
+type ActiveModule = 'dashboard' | 'order-list' | 'catalog' | 'client-list' | 'user-list' | 'config';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await api.post('/auth/admin-create-user', form);
-      setSystemMessage('✅ Usuario creado exitosamente');
-      setForm({ email: '', password: '', role: 'Admin', convenio: '', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' });
-    } catch(e) {
-      setSystemMessage('🚨 Error al crear usuario'); 
-    }
-  };
-
-  return (
-    <form className="bg-paper p-6 rounded-card max-w-xl mx-auto space-y-4 shadow-sm border border-line mt-10 animate-in fade-in" onSubmit={handleSubmit}>
-      <h2 className="font-black text-xl mb-4 text-ink uppercase">Alta de Usuario</h2>
-      <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Email</label><input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none" /></div>
-      <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Contraseña</label><input type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none" /></div>
-      <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Rol</label><select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none"><option value="Admin">Administrador</option><option value="Minorista">Minorista</option><option value="Vendedor">Vendedor</option></select></div><p className="text-[11px] text-ink-soft -mt-2">¿Es un Cliente mayorista? Creálo desde Clientes → Alta Individual, para que quede con todos sus datos comerciales.</p>
-      <button type="submit" className="w-full bg-brand-primary text-brand-primary-on p-3 rounded-xl font-bold hover:bg-brand-accent transition cursor-pointer">Crear Usuario</button>
-    </form>
-  );
-};
+const NAV_ITEMS: { id: ActiveModule; label: string; Icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+  { id: 'dashboard', label: 'Inicio', Icon: TrendingUp },
+  { id: 'order-list', label: 'Pedidos', Icon: ShoppingBag },
+  { id: 'catalog', label: 'Catálogo', Icon: Package },
+  { id: 'client-list', label: 'Clientes', Icon: Users },
+  { id: 'user-list', label: 'Usuarios', Icon: UserIcon },
+  { id: 'config', label: 'Ajustes', Icon: Settings },
+];
 
 export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
-  const { user, logout } = useAuth(); 
-  
-  // Navigation & UI States
-  const [activeModule, setActiveModule] = useState<'dashboard' | 'product-list' | 'product-bulk' | 'price-lists' | 'client-list' | 'client-form' | 'client-bulk' | 'user-list' | 'user-form' | 'config' | 'order-list'>('dashboard');
-  const [expandedSection, setExpandedSection] = useState<'dashboard' | 'products' | 'clients' | 'users' | 'settings' | 'orders' | null>('dashboard');
+  const { user, logout } = useAuth();
+
+  const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [catalogTab, setCatalogTab] = useState<'productos' | 'listas'>('productos');
+  const [showCatalogImport, setShowCatalogImport] = useState(false);
 
   // Data States
   const [productList, setProductList] = useState<any[]>([]);
-  const [clientList, setClientList] = useState<any[]>([]); 
+  const [clientList, setClientList] = useState<any[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
 
   // Borradores de los inputs de Ajustes — controlados de verdad, sincronizados cada vez
   // que llegan ajustes frescos del servidor. Antes eran defaultValue (no controlados):
@@ -75,8 +58,8 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
     try {
       const response = await api.get(`/products/admin?t=${new Date().getTime()}`);
       setProductList(response.data);
-    } catch (error) { 
-      console.error('Error cargando productos:', error); 
+    } catch (error) {
+      console.error('Error cargando productos:', error);
     }
   };
 
@@ -99,7 +82,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
   };
 
   useEffect(() => {
-    if (activeModule === 'product-list') fetchAdminData();
+    if (activeModule === 'catalog') fetchAdminData();
     if (activeModule === 'client-list' || activeModule === 'user-list') fetchClientsData();
     if (activeModule === 'config') fetchSettings();
   }, [activeModule]);
@@ -114,179 +97,124 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
     }
   };
 
-  const handleBulkUpload = async (type: 'products' | 'clients') => {
-    if (!file) return setSystemMessage('Seleccioná un archivo Excel o CSV.');
-    setIsLoading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-    try {
-      const endpoint = type === 'products' ? '/products/upload-prices' : '/auth/upload-clients';
-      const response = await api.post(endpoint, formData);
-      setSystemMessage(response.data.message);
-      setFile(null);
-      if (type === 'products') {
-        await fetchAdminData();
-      } else {
-        await fetchClientsData();
-      }
-    } catch (err) {
-      setSystemMessage('Error procesando el archivo.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const toggleSection = (section: 'dashboard' | 'products' | 'clients' | 'users' | 'settings' | 'orders') => {
-    if (isSidebarCollapsed) setIsSidebarCollapsed(false);
-    setExpandedSection(expandedSection === section ? null : section);
-  };
-
   if (user?.role !== 'Admin') return null;
 
   return (
-    <div className="flex h-full w-full bg-admin-bg overflow-hidden">
+    <div className="flex h-full w-full bg-brand-primary overflow-hidden">
 
-      {/* 🌑 SIDEBAR */}
-      <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-admin-sidebar border-r border-slate-800 flex flex-col shrink-0 transition-all duration-300`}>
+      {/* SIDEBAR */}
+      <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-60'} bg-gradient-to-b from-brand-primary to-[#4a1810] flex flex-col shrink-0 transition-all duration-300`}>
         <div className="flex flex-col h-full">
-          
-          <div className="h-20 flex items-center justify-between px-4 sm:px-6 border-b border-slate-800 shrink-0">
+
+          <div className="h-20 flex items-center justify-between px-4 sm:px-6 border-b border-white/10 shrink-0">
             {!isSidebarCollapsed ? (
-              <h2 className="text-white text-sm font-black uppercase tracking-widest">PANEL ADMIN</h2>
+              <div>
+                <h2 className="text-white text-sm font-black tracking-wide">SUL Congelados</h2>
+                <p className="text-[10px] uppercase tracking-widest text-white/50 mt-0.5">Panel admin</p>
+              </div>
             ) : (
-              <h2 className="text-white text-lg font-black mx-auto">PA</h2>
+              <h2 className="text-white text-lg font-black mx-auto">S</h2>
             )}
-            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-slate-400 hover:text-white p-1 ml-2 cursor-pointer">
+            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-white/60 hover:text-white p-1 ml-2 cursor-pointer shrink-0">
               <Menu size={20} />
             </button>
           </div>
-          
-          <nav className="space-y-4 flex-1 overflow-y-auto p-4 sm:p-6">
-            
-            {/* 🚀 DASHBOARD MODULE */}
-            <div>
-              <button onClick={() => toggleSection('dashboard')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'dashboard' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
-                <div className="flex items-center"><TrendingUp size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">ESTADÍSTICAS</span>}</div>
-                {!isSidebarCollapsed && (expandedSection === 'dashboard' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
-              </button>
-              {expandedSection === 'dashboard' && !isSidebarCollapsed && (
-                <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('dashboard')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'dashboard' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Vista General</button>
-                </div>
-              )}
-            </div>
 
-            {/* VENTAS MODULE */}
-            <div>
-              <button onClick={() => toggleSection('orders')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'orders' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
-                <div className="flex items-center"><ShoppingBag size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">VENTAS</span>}</div>
-                {!isSidebarCollapsed && (expandedSection === 'orders' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
+          <nav className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-1">
+            {NAV_ITEMS.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveModule(id)}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : ''} gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition cursor-pointer ${
+                  activeModule === id ? 'bg-brand-gold text-brand-gold-on' : 'text-white/70 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <Icon size={19} />
+                {!isSidebarCollapsed && <span>{label}</span>}
               </button>
-              {expandedSection === 'orders' && !isSidebarCollapsed && (
-                <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('order-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'order-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Historial de Pedidos</button>
-                </div>
-              )}
-            </div>
-
-            {/* PRODUCT MODULE */}
-            <div>
-              <button onClick={() => toggleSection('products')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'products' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
-                <div className="flex items-center"><Package size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">PRODUCTOS</span>}</div>
-                {!isSidebarCollapsed && (expandedSection === 'products' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
-              </button>
-              {expandedSection === 'products' && !isSidebarCollapsed && (
-                <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('product-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Listado de Productos</button>
-                  <button onClick={() => setActiveModule('price-lists')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'price-lists' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Listas de Precios</button>
-                  <button onClick={() => setActiveModule('product-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-bulk' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Carga Masiva</button>
-                </div>
-              )}
-            </div>
-
-            {/* CLIENT MODULE */}
-            <div>
-              <button onClick={() => toggleSection('clients')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'clients' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
-                <div className="flex items-center"><Users size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">CLIENTES</span>}</div>
-                {!isSidebarCollapsed && (expandedSection === 'clients' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
-              </button>
-              {expandedSection === 'clients' && !isSidebarCollapsed && (
-                <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('client-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Gestión CRM</button>
-                  <button onClick={() => setActiveModule('client-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-form' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Alta Individual</button>
-                  <button onClick={() => setActiveModule('client-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'client-bulk' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Sincronizar ERP</button>
-                </div>
-              )}
-            </div>
-
-            {/* USER MODULE */}
-            <div>
-              <button onClick={() => toggleSection('users')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'users' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
-                <div className="flex items-center"><UserIcon size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">USUARIOS</span>}</div>
-                {!isSidebarCollapsed && (expandedSection === 'users' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
-              </button>
-              {expandedSection === 'users' && !isSidebarCollapsed && (
-                <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('user-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'user-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Gestión de Usuarios</button>
-                  <button onClick={() => setActiveModule('user-form')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'user-form' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Crear Admin / Minorista</button>
-                </div>
-              )}
-            </div>
-
-            {/* 🚀 SETTINGS MODULE */}
-            <div>
-              <button onClick={() => toggleSection('settings')} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'} p-3 rounded-lg transition cursor-pointer ${expandedSection === 'settings' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-900'}`}>
-                <div className="flex items-center"><Settings size={20} className={!isSidebarCollapsed ? "mr-3" : ""} /> {!isSidebarCollapsed && <span className="text-sm font-bold">AJUSTES</span>}</div>
-                {!isSidebarCollapsed && (expandedSection === 'settings' ? <ChevronDown size={14}/> : <ChevronRight size={14}/>)}
-              </button>
-              {expandedSection === 'settings' && !isSidebarCollapsed && (
-                <div className="ml-9 mt-2 space-y-1">
-                  <button onClick={() => setActiveModule('config')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'config' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Reglas B2C</button>
-                </div>
-              )}
-            </div>
-
+            ))}
           </nav>
 
-          <div className="p-4 border-t border-slate-800 shrink-0">
+          <div className="p-4 border-t border-white/10 shrink-0">
             {!isSidebarCollapsed && (
-              <div className="flex items-center space-x-3 mb-4 px-2">
-                <div className="bg-slate-800 p-2 rounded-full shrink-0">
-                  <UserIcon size={18} className="text-blue-400" />
+              <div className="flex items-center space-x-3 mb-3 px-1">
+                <div className="bg-brand-accent w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-black">
+                  {(user?.name || 'A').charAt(0).toUpperCase()}
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-bold text-white truncate">{user?.name || 'Usuario'}</p>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider truncate">
-                    {user?.role === 'Admin' ? 'Administrador' : user?.role}
-                  </p>
+                  <p className="text-[10px] text-white/50 uppercase tracking-wider truncate">Administrador</p>
                 </div>
               </div>
             )}
-            <button onClick={logout} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-4'} space-x-2 bg-red-900/20 hover:bg-red-900/50 text-red-400 hover:text-red-300 py-3 rounded-lg transition-colors border border-red-900/30 font-bold text-sm cursor-pointer`}>
-              <LogOut size={18} className="shrink-0" />
-              {!isSidebarCollapsed && <span>Cerrar Sesión</span>}
+            <button onClick={logout} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-3'} gap-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white py-2.5 rounded-xl transition-colors border border-white/10 font-bold text-sm cursor-pointer`}>
+              <LogOut size={17} className="shrink-0" />
+              {!isSidebarCollapsed && <span>Cerrar sesión</span>}
             </button>
           </div>
 
         </div>
       </aside>
 
-      {/* 🖥️ MAIN WORKSPACE */}
+      {/* MAIN WORKSPACE */}
       <main className="flex-1 overflow-y-auto bg-bg p-6 sm:p-10 relative">
-        
+
         {activeModule === 'dashboard' && <DashboardStats />}
         {activeModule === 'order-list' && <OrderList />}
-        {activeModule === 'product-list' && <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />}
-        {activeModule === 'price-lists' && <PriceListManager setSystemMessage={setSystemMessage} />}
-        {activeModule === 'client-list' && <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />}
-        {activeModule === 'client-form' && <ClientForm setSystemMessage={setSystemMessage} />}
-        {activeModule === 'user-list' && <UserList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />}
-        {activeModule === 'user-form' && <UserForm setSystemMessage={setSystemMessage} />}
 
-        {/* 🚀 RENDER DE CONFIGURACIÓN B2C */}
+        {activeModule === 'catalog' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h1 className="text-2xl font-black text-ink uppercase">Catálogo</h1>
+                <p className="text-xs text-ink-soft mt-1">Productos y listas de precios</p>
+              </div>
+              <button onClick={() => setShowCatalogImport(true)} className="bg-paper border border-line text-ink px-4 py-2.5 rounded-xl text-xs font-bold hover:border-brand-gold transition cursor-pointer inline-flex items-center gap-1.5 shrink-0">
+                <Upload size={14}/> Importar Excel
+              </button>
+            </div>
+
+            <div className="inline-flex bg-paper border border-line rounded-xl p-1 gap-1">
+              <button
+                onClick={() => setCatalogTab('productos')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${catalogTab === 'productos' ? 'bg-brand-primary text-brand-primary-on' : 'text-ink-soft hover:bg-bg'}`}
+              >
+                Productos
+              </button>
+              <button
+                onClick={() => setCatalogTab('listas')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${catalogTab === 'listas' ? 'bg-brand-primary text-brand-primary-on' : 'text-ink-soft hover:bg-bg'}`}
+              >
+                Listas de precios
+              </button>
+            </div>
+
+            {catalogTab === 'productos'
+              ? <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />
+              : <PriceListManager setSystemMessage={setSystemMessage} />}
+
+            <BulkImportModal
+              isOpen={showCatalogImport}
+              onClose={() => setShowCatalogImport(false)}
+              endpoint="/products/upload-prices"
+              title="Importar Precios (Excel)"
+              hint="Sincronizá el catálogo desde el Excel de convenios (codigo, descrip, precio1, porcentaje, preciofinal, convenio, rubro_descrip, subrubro_descrip)."
+              onSuccess={fetchAdminData}
+              setSystemMessage={setSystemMessage}
+            />
+          </div>
+        )}
+
+        {activeModule === 'client-list' && (
+          <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} onDataChange={fetchClientsData} />
+        )}
+        {activeModule === 'user-list' && (
+          <UserList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} onDataChange={fetchClientsData} />
+        )}
+
         {activeModule === 'config' && (
           <div className="bg-paper p-8 rounded-card border border-line shadow-sm max-w-xl mx-auto mt-6 animate-in fade-in">
-            <h3 className="font-black text-lg text-ink uppercase tracking-wider mb-2">Configuración Comercial</h3>
+            <h3 className="font-black text-lg text-ink uppercase tracking-wider mb-2">Ajustes Generales</h3>
             <p className="text-xs text-ink-soft mb-6 font-medium">Gestioná los parámetros operativos del sistema sin tocar el código.</p>
 
             <div className="space-y-8">
@@ -351,24 +279,6 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
                 </div>
                 <p className="text-[10px] text-ink-soft mt-1">Tiene que ser el nombre exacto de una de las listas reales (ej. Gastronomica, Unica). Es la lista que ve cualquiera que navegue el catálogo sin estar logueado, y la que se le asigna a todo Minorista que se registre solo desde la web o se cree sin elegir una lista puntual.</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* BULK UPLOADS */}
-        {(activeModule === 'product-bulk' || activeModule === 'client-bulk') && (
-          <div className="max-w-xl mx-auto space-y-6 mt-10 text-center animate-in fade-in">
-            <div className="bg-brand-accent/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto"><Upload className="text-brand-accent" size={28} /></div>
-            <div>
-              <h2 className="text-xl font-black text-ink uppercase">Carga Masiva de {activeModule === 'product-bulk' ? 'Productos' : 'Clientes'}</h2>
-              <p className="text-ink-soft text-xs mt-1">Sincronizá tu listado mediante un archivo Excel o CSV.</p>
-            </div>
-            <div className="bg-paper p-8 rounded-card border-2 border-dashed border-line">
-              <input type="file" accept=".xlsx,.xls,.csv" className="hidden" id="bulk-file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-              <label htmlFor="bulk-file" className="cursor-pointer block text-sm text-ink-soft font-medium py-4 hover:text-ink transition">{file ? `Seleccionado: ${file.name}` : "Hacé click para seleccionar matriz CSV/Excel"}</label>
-              <button onClick={() => handleBulkUpload(activeModule === 'product-bulk' ? 'products' : 'clients')} disabled={isLoading || !file} className="w-full bg-brand-primary text-brand-primary-on py-3 rounded-xl font-bold hover:bg-brand-accent transition disabled:opacity-50 text-sm cursor-pointer shadow-md">
-                {isLoading ? "Procesando matriz..." : "Sincronizar Base de Datos"}
-              </button>
             </div>
           </div>
         )}

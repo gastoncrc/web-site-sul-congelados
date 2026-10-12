@@ -33,8 +33,21 @@
   --color-whatsapp: #25D366;
   --color-whatsapp-deep: #128C7E;
 
-  --color-admin-bg: #0f172a;
-  --color-admin-sidebar: #020617;
+  /* Paneles oscuros del admin (dashboard, pedidos, auditoría de precios) — se
+     mantienen oscuros a propósito (son tableros densos de datos), pero retinados
+     a una escala cálida derivada de la marca en vez del slate frío por defecto de
+     Tailwind, para que no choquen con el resto del panel ya rebrandeado. */
+  --color-admin-bg: #1c1613;
+  --color-admin-sidebar: #110c0a;
+
+  --color-slate-300: #d9cfc5;
+  --color-slate-400: #a99a8c;
+  --color-slate-500: #7d6f63;
+  --color-slate-600: #5c4f45;
+  --color-slate-700: #42362f;
+  --color-slate-800: #2b231f;
+  --color-slate-900: #1c1613;
+  --color-slate-950: #110c0a;
 
   --radius-card: 14px;
 
