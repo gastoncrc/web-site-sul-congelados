@@ -172,6 +172,13 @@ export const UserList: React.FC<UserListProps> = ({ clientList, setClientList, s
                 {editingUser.role === 'Vendedor' && <p className="text-[10px] text-ink-soft mt-1">El nombre tiene que coincidir exacto con el campo "Vendedor" de sus clientes asignados, para que vea su cartera.</p>}
               </div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">Teléfono</label><input type="text" value={editingUser.telefono || ''} onChange={e => setEditingUser({...editingUser, telefono: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+              {editingUser.role === 'Minorista' && (
+                <div>
+                  <label className="block text-[11px] font-black text-ink-soft uppercase">Lista de Precios</label>
+                  <input type="text" value={editingUser.convenio || ''} onChange={e => setEditingUser({...editingUser, convenio: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" placeholder="Ej: Gastronomica" />
+                  <p className="text-[10px] text-ink-soft mt-1">Tiene que ser el nombre exacto de una lista real para que vea productos en el catálogo.</p>
+                </div>
+              )}
 
               <div className="flex justify-end space-x-2 pt-2">
                 <button type="button" onClick={() => setEditingUser(null)} className="px-5 py-2.5 rounded-xl border border-line text-ink-soft font-bold text-xs hover:bg-bg transition">Cancelar</button>

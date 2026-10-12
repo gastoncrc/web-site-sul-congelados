@@ -156,8 +156,10 @@ export const registerMinorista = async (req: Request, res: Response) => {
   try {
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
-    await pool.query(`INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, require_password_change, is_active) VALUES ($1, $2, 'Minorista', 'GENERAL', $3, $4, FALSE, TRUE)`, [email, hash, telefono, domicilio_facturacion]);
-    res.status(201).json({ message: 'Registro exitoso asignado a Red General' });
+    const defaultConvenioResult = await pool.query("SELECT value FROM settings WHERE key = 'default_minorista_convenio'");
+    const defaultConvenio = defaultConvenioResult.rows[0]?.value || 'Gastronomica';
+    await pool.query(`INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, require_password_change, is_active) VALUES ($1, $2, 'Minorista', $3, $4, $5, FALSE, TRUE)`, [email, hash, defaultConvenio, telefono, domicilio_facturacion]);
+    res.status(201).json({ message: 'Registro exitoso' });
   } catch (err) {
     res.status(400).json({ error: 'El correo electrónico ya se encuentra registrado' });
   }
@@ -166,10 +168,16 @@ export const registerMinorista = async (req: Request, res: Response) => {
 // 6. Creación genérica de usuarios por Administrador
 export const adminCreateUser = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
-  const { email, password, role, convenio, telefono, domicilio_facturacion, vendedor, grupo } = req.body;
+  const { email, password, role, telefono, domicilio_facturacion, vendedor, grupo } = req.body;
+  let { convenio } = req.body;
   try {
     const salt = bcrypt.genSaltSync(10);
     const hash = bcrypt.hashSync(password, salt);
+
+    if (!convenio) {
+      const defaultConvenioResult = await pool.query("SELECT value FROM settings WHERE key = 'default_minorista_convenio'");
+      convenio = defaultConvenioResult.rows[0]?.value || 'Gastronomica';
+    }
 
     await pool.query(`
       INSERT INTO users (email, password, role, convenio, telefono, domicilio_facturacion, vendedor, grupo, require_password_change, is_active)

@@ -18,15 +18,15 @@ interface AdminProps {
 
 // 🚀 COMPONENTE PARA ALTA DE USUARIOS/ADMINS
 const UserForm = ({ setSystemMessage }: { setSystemMessage: any }) => {
-  const [form, setForm] = useState({ email: '', password: '', role: 'Admin', convenio: 'GENERAL', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' });
-  
+  const [form, setForm] = useState({ email: '', password: '', role: 'Admin', convenio: '', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' });
+
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); 
-    try { 
-      await api.post('/auth/admin-create-user', form); 
-      setSystemMessage('✅ Usuario creado exitosamente'); 
-      setForm({ email: '', password: '', role: 'Admin', convenio: 'GENERAL', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' }); 
-    } catch(e) { 
+    e.preventDefault();
+    try {
+      await api.post('/auth/admin-create-user', form);
+      setSystemMessage('✅ Usuario creado exitosamente');
+      setForm({ email: '', password: '', role: 'Admin', convenio: '', telefono: '', domicilio_facturacion: '', vendedor: '', grupo: '' });
+    } catch(e) {
       setSystemMessage('🚨 Error al crear usuario'); 
     }
   };
@@ -321,6 +321,30 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
                     Guardar
                   </button>
                 </div>
+              </div>
+
+              {/* Lista de precios default para Minoristas nuevos */}
+              <div>
+                <label className="block text-xs font-black text-ink-soft uppercase mb-2">Lista de Precios para Minoristas Nuevos</label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    id="defaultConvenioInput"
+                    defaultValue={settings.default_minorista_convenio || 'Gastronomica'}
+                    className="p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold w-full font-mono font-bold"
+                    placeholder="Ej: Gastronomica"
+                  />
+                  <button
+                    onClick={() => {
+                      const val = (document.getElementById('defaultConvenioInput') as HTMLInputElement).value;
+                      handleUpdateSetting('default_minorista_convenio', val);
+                    }}
+                    className="bg-brand-primary text-brand-primary-on font-bold px-6 rounded-xl text-xs hover:bg-brand-accent transition shadow-sm cursor-pointer shrink-0"
+                  >
+                    Guardar
+                  </button>
+                </div>
+                <p className="text-[10px] text-ink-soft mt-1">Tiene que ser el nombre exacto de una de las listas reales (ej. Gastronomica, Unica) — se le asigna a todo Minorista que se registre solo desde la web, o que se cree sin elegir una lista puntual.</p>
               </div>
             </div>
           </div>

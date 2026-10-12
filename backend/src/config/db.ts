@@ -130,6 +130,15 @@ export const initDB = async () => {
       await pool.query("INSERT INTO settings (key, value) VALUES ('min_purchase_b2c', '30000')");
     }
 
+    // Lista de precios que se le asigna a un Minorista nuevo (auto-registro público o alta
+    // manual) cuando no se le asigna una puntual — antes era 'GENERAL' hardcodeado en el
+    // código, una lista que nunca existió, así que todo minorista nuevo veía el catálogo
+    // vacío. Configurable acá en vez de en el código para no tener que redeployar si cambia.
+    const defaultConvenioCheck = await pool.query("SELECT * FROM settings WHERE key = 'default_minorista_convenio'");
+    if (defaultConvenioCheck.rows.length === 0) {
+      await pool.query("INSERT INTO settings (key, value) VALUES ('default_minorista_convenio', 'Gastronomica')");
+    }
+
     // ========================================================
     // 🚀 INYECTOR DE ACTUALIZACIÓN DE TABLA (MÁGICO)
     // Esto agrega las columnas a tu DB si ya existía de antes,
