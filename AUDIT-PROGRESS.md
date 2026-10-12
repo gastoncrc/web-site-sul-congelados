@@ -220,18 +220,27 @@ organización de navegación.
 Lista abierta que el usuario fue tirando en la sesión del 2026-10-12, explícitamente para
 documentar y no tocar todavía:
 
-- **Pedido Rápido**: mejorarlo (sin especificar qué todavía — preguntar al retomar).
-- **Nosotros**: mejorar la página.
-- **Contacto**: agregar un mapa (Google Maps embed) con la ubicación.
-- **Contacto**: agregar una sección para consultas sobre la franquicia "2x1" y pedido de logo
+- [x] **Pedido Rápido** — hecho (ver sección propia más abajo: grilla, rubro visible, stock
+  bajo, pegado masivo). Commit `53f1c60`.
+- [ ] **Nosotros**: mejorar la página — sin especificar qué todavía, preguntar al retomar.
+- [ ] **Contacto**: agregar un mapa (Google Maps embed) con la ubicación.
+- [ ] **Contacto**: agregar una sección para consultas sobre la franquicia "2x1" y pedido de logo
   (ver punto siguiente — están relacionados).
-- **Franquicia 2x1**: hay listas de precios que son específicamente de "Lomito 2x1" (una línea de
-  negocio relacionada, mencionada en `GEMINI.md` como "otro proyecto" que podría compartir
+- [ ] **Franquicia 2x1**: hay listas de precios que son específicamente de "Lomito 2x1" (una línea
+  de negocio relacionada, mencionada en `GEMINI.md` como "otro proyecto" que podría compartir
   infraestructura a futuro). La idea es un nav/acceso de login propio para esa franquicia, con su
   propio logo — separado del login genérico de SUL Congelados.
-- **Filtro por rubro**: que se pueda ordenar (hoy el orden es fijo/alfabético — definir si es
-  orden manual desde el admin o criterio distinto).
-- **Más funcionalidades comerciales**: el usuario siente que "le falta más venta" al sitio —
+- [x] **Filtro por rubro — orden**: resuelto con las dos variantes que pidió el usuario — orden
+  de categorías configurable desde el admin (**Catálogo → Orden de rubros**, ajuste
+  `settings.category_order`) y orden de productos dentro de un rubro (select nuevo en el
+  catálogo público: nombre A-Z/Z-A, precio asc/desc — `?sort=` en `/products`). Commit `094aaf7`.
+- [ ] **Más funcionalidades comerciales**: el usuario siente que "le falta más venta" al sitio —
   pidió explorar opciones orientadas a conversión/ventas en una sesión futura, sin definir
   todavía cuáles (brainstorm pendiente, no hay lista concreta aún).
-- **Slider de la home**: modernizarlo (sin especificar el criterio todavía).
+- [x] **Slider de la home — modernizado** ("estilo 2026"): tarjetas más grandes con lift + sombra
+  en capas al hover, contenedor con degradé y glow en vez de color plano, pestañas de segmento
+  con transición suave y fondo glass. Solo se tocó el componente del slider y la variante
+  `slider` de `ProductCard` — el grid normal del catálogo no cambió. Commit `094aaf7`.
+
+**Pendiente real**: Nosotros, Contacto (mapa + franquicia 2x1), login propio de la franquicia 2x1,
+y el brainstorm de funcionalidades comerciales — nada de esto se tocó todavía.
