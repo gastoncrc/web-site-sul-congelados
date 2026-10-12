@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Edit3, Calendar, KeyRound, Copy } from 'lucide-react';
+import { Users, Edit3, Calendar, KeyRound, Copy, Search } from 'lucide-react';
 import { api } from '../../config/api';
 
 interface ClientListProps {
@@ -14,6 +14,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
   const [editingClient, setEditingClient] = useState<any | null>(null);
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [roleFilter, setRoleFilter] = useState('Todos');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Modal de contraseña: generar automática o elegir una manualmente
   const [passwordClient, setPasswordClient] = useState<any | null>(null);
@@ -21,7 +22,16 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
   const [chosenPassword, setChosenPassword] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState('');
 
-  const filteredClients = roleFilter === 'Todos' ? clientList : clientList.filter(c => c.role === roleFilter);
+  const filteredClients = clientList
+    .filter(c => roleFilter === 'Todos' || c.role === roleFilter)
+    .filter(c => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (c.name || '').toLowerCase().includes(q)
+        || (c.email || '').toLowerCase().includes(q)
+        || (c.razon_social || '').toLowerCase().includes(q)
+        || (c.cuit || '').toLowerCase().includes(q);
+    });
 
   const handleToggleStatus = async (client: any) => {
     try {
@@ -123,20 +133,30 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
   return (
     <>
       <div className="bg-paper p-6 rounded-card shadow-sm border border-line">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <h2 className="text-xl font-black text-ink uppercase flex items-center">
             <Users className="mr-2 text-ink-soft"/> Gestión CRM - Cuentas
           </h2>
-          <div className="flex gap-2 flex-wrap">
-            {['Todos', ...ROLES].map(r => (
-              <button
-                key={r} onClick={() => setRoleFilter(r)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition cursor-pointer border ${roleFilter === r ? 'bg-brand-primary text-brand-primary-on border-brand-primary' : 'bg-bg text-ink-soft border-line hover:bg-line/40'}`}
-              >
-                {r}
-              </button>
-            ))}
+          <div className="flex items-center bg-paper border border-line rounded-xl px-4 py-2 w-full sm:w-80 shadow-sm">
+            <Search size={18} className="text-ink-soft mr-2" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, email, razón social o CUIT..."
+              className="bg-transparent border-none focus:ring-0 text-sm w-full outline-none"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
+        </div>
+        <div className="flex gap-2 flex-wrap mb-6">
+          {['Todos', ...ROLES].map(r => (
+            <button
+              key={r} onClick={() => setRoleFilter(r)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase transition cursor-pointer border ${roleFilter === r ? 'bg-brand-primary text-brand-primary-on border-brand-primary' : 'bg-bg text-ink-soft border-line hover:bg-line/40'}`}
+            >
+              {r}
+            </button>
+          ))}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
