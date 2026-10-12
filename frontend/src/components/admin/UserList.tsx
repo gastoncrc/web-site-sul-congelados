@@ -167,6 +167,12 @@ export const UserList: React.FC<UserListProps> = ({ clientList, setClientList, s
               <div>
                 <label className="block text-[11px] font-black text-ink-soft uppercase">Rol *</label>
                 <select required value={editingUser.role || 'Minorista'} onChange={e => setEditingUser({...editingUser, role: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none">
+                  {/* Si el rol guardado es viejo/no estándar (ej. "Mayorista" de antes de los
+                      4 roles actuales), se muestra tal cual en vez de que el <select> caiga
+                      silenciosamente en la primera opción de la lista sin que nadie lo note. */}
+                  {!ROLES.includes(editingUser.role) && editingUser.role && (
+                    <option value={editingUser.role}>{editingUser.role} (rol no estándar — elegí uno real)</option>
+                  )}
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
                 {editingUser.role === 'Vendedor' && <p className="text-[10px] text-ink-soft mt-1">El nombre tiene que coincidir exacto con el campo "Vendedor" de sus clientes asignados, para que vea su cartera.</p>}
