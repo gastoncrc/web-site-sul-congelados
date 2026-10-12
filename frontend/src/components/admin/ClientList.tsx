@@ -96,6 +96,7 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
       // 🚀 UNIFICAMOS PROPIEDADES EN SNAKE_CASE PARA EVITAR EL RECHAZO DE LA DB
       const payload = {
         name: editingClient.name,
+        email: editingClient.email,
         convenio: editingClient.convenio,
         razon_social: editingClient.razon_social,
         cuit: editingClient.cuit,
@@ -112,9 +113,9 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
 
       setSystemMessage(`✅ ${response.data.message || 'Cliente actualizado correctamente'}`);
       setClientList(prev => prev.map(c => c.id === editingClient.id ? { ...c, ...payload } : c));
-      setEditingClient(null); 
-    } catch (err) {
-      setSystemMessage('🚨 Error al intentar actualizar los datos del cliente. Revisá los campos obligatorios.');
+      setEditingClient(null);
+    } catch (err: any) {
+      setSystemMessage(`🚨 ${err.response?.data?.error || 'Error al intentar actualizar los datos del cliente. Revisá los campos obligatorios.'}`);
     }
   };
 
@@ -273,6 +274,11 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
               <div className="md:col-span-2"><h4 className="text-xs font-bold text-ink-soft uppercase">Datos Comerciales</h4><hr className="mt-1 border-line"/></div>
 
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">Nombre de Fantasía *</label><input type="text" required value={editingClient.name || ''} onChange={e => setEditingClient({...editingClient, name: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+              <div>
+                <label className="block text-[11px] font-black text-ink-soft uppercase">Email (usado para el login) *</label>
+                <input type="email" required value={editingClient.email || ''} onChange={e => setEditingClient({...editingClient, email: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none font-mono" />
+                <p className="text-[10px] text-ink-soft mt-1">Si viene de la carga masiva es un email generado (ej. cl_80012345@sul.com) — cambialo a uno real para que el cliente pueda usar "olvidé mi contraseña".</p>
+              </div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">Razón Social</label><input type="text" value={editingClient.razon_social || ''} onChange={e => setEditingClient({...editingClient, razon_social: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">CUIT</label><input type="text" value={editingClient.cuit || ''} onChange={e => setEditingClient({...editingClient, cuit: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">Convenio Asignado *</label><input type="text" required value={editingClient.convenio || ''} onChange={e => setEditingClient({...editingClient, convenio: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>

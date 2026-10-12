@@ -218,26 +218,28 @@ export const updateClient = async (req: any, res: any) => {
   if (req.user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const { id } = req.params;
-    const { 
-      name, convenio, razon_social, cuit, localidad, 
-      provincia, telefono, vendedor, grupo, 
-      domicilio_facturacion, dias_entrega 
+    const {
+      name, email, convenio, razon_social, cuit, localidad,
+      provincia, telefono, vendedor, grupo,
+      domicilio_facturacion, dias_entrega
     } = req.body;
+
+    if (!email) return res.status(400).json({ error: 'El email no puede quedar vacío.' });
 
     // Asumiendo que tu tabla en la base de datos se llama 'users'
     const updateQuery = `
-      UPDATE users 
-      SET 
-        name = $1, convenio = $2, razon_social = $3, cuit = $4, 
-        localidad = $5, provincia = $6, telefono = $7, vendedor = $8, 
-        grupo = $9, domicilio_facturacion = $10, dias_entrega = $11
-      WHERE id = $12
+      UPDATE users
+      SET
+        name = $1, email = $2, convenio = $3, razon_social = $4, cuit = $5,
+        localidad = $6, provincia = $7, telefono = $8, vendedor = $9,
+        grupo = $10, domicilio_facturacion = $11, dias_entrega = $12
+      WHERE id = $13
       RETURNING *;
     `;
-    
+
     const values = [
-      name, convenio, razon_social, cuit, localidad, 
-      provincia, telefono, vendedor, grupo, 
+      name, email, convenio, razon_social, cuit, localidad,
+      provincia, telefono, vendedor, grupo,
       domicilio_facturacion, dias_entrega, id
     ];
 
@@ -250,7 +252,10 @@ export const updateClient = async (req: any, res: any) => {
 
     res.json({ message: 'Datos actualizados correctamente', client: result.rows[0] });
 
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Ya existe otra cuenta con ese email.' });
+    }
     console.error('🚨 Error al actualizar el cliente:', error);
     res.status(500).json({ error: 'Error interno del servidor al guardar los cambios' });
   }
