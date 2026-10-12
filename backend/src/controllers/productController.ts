@@ -20,10 +20,13 @@ const resolveConvenio = async (req: Request): Promise<string> => {
         if (result.rows[0]?.convenio) return result.rows[0].convenio;
       }
     } catch (err) {
-      console.log('Aviso: Token opcional inválido o vencido, usando lista base CORDOBA.');
+      console.log('Aviso: Token opcional inválido o vencido, usando la lista default.');
     }
   }
-  return 'CORDOBA';
+  // Sin sesión (o token inválido): misma lista configurable que se le asigna a un
+  // Minorista nuevo (Admin → Ajustes → "Lista de Precios para Minoristas Nuevos").
+  const defaultResult = await pool.query("SELECT value FROM settings WHERE key = 'default_minorista_convenio'");
+  return defaultResult.rows[0]?.value || 'Gastronomica';
 };
 
 const standardizeProductRow = (row: any) => ({

@@ -323,9 +323,9 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
                 </div>
               </div>
 
-              {/* Lista de precios default para Minoristas nuevos */}
+              {/* Lista de precios default — visitantes sin cuenta y Minoristas nuevos */}
               <div>
-                <label className="block text-xs font-black text-ink-soft uppercase mb-2">Lista de Precios para Minoristas Nuevos</label>
+                <label className="block text-xs font-black text-ink-soft uppercase mb-2">Lista de Precios por Defecto</label>
                 <div className="flex space-x-2">
                   <input
                     type="text"
@@ -344,7 +344,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
                     Guardar
                   </button>
                 </div>
-                <p className="text-[10px] text-ink-soft mt-1">Tiene que ser el nombre exacto de una de las listas reales (ej. Gastronomica, Unica) — se le asigna a todo Minorista que se registre solo desde la web, o que se cree sin elegir una lista puntual.</p>
+                <p className="text-[10px] text-ink-soft mt-1">Tiene que ser el nombre exacto de una de las listas reales (ej. Gastronomica, Unica). Es la lista que ve cualquiera que navegue el catálogo sin estar logueado, y la que se le asigna a todo Minorista que se registre solo desde la web o se cree sin elegir una lista puntual.</p>
               </div>
             </div>
           </div>
