@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Zap, Sparkles, Tag, Layers } from 'lucide-react';
+import { Sparkles, Tag, Layers, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 
 interface ProductSliderProps {
@@ -76,34 +76,48 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({ sliderProducts, ge
   const handleMouseUpOrLeave = () => { setIsSliderPaused(false); isDragging.current = false; };
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging.current || !sliderRef.current) return;
-    e.preventDefault(); 
+    e.preventDefault();
     sliderRef.current.scrollLeft = scrollLeft.current - ((e.pageX - sliderRef.current.offsetLeft) - startX.current) * 1.5;
+  };
+
+  const handleArrow = (direction: 1 | -1) => {
+    if (!sliderRef.current) return;
+    sliderRef.current.scrollBy({ left: direction * 180, behavior: 'smooth' });
   };
 
   if (sliderProducts.length === 0) return null;
 
   return (
-    <div className="w-full mb-8 bg-linear-to-br from-brand-primary to-[#4a1810] rounded-3xl p-4 sm:p-5 shadow-[0_24px_48px_-24px_rgba(122,42,31,0.5)] relative overflow-hidden">
-      <div className="absolute -top-16 -right-16 w-48 h-48 bg-brand-gold/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="flex items-center justify-between gap-2 mb-3 relative">
-        <div className="flex items-center gap-1.5 text-white text-sm sm:text-base font-black uppercase tracking-wider shrink-0">
-          <Zap className="text-brand-gold fill-brand-gold" size={18}/>
+    <div className="w-full mb-8 bg-bg rounded-3xl p-4 sm:p-5 relative">
+      <div className="flex items-center justify-between gap-2 mb-3 relative flex-wrap">
+        <div className="flex items-center gap-1.5 text-ink text-sm sm:text-base font-black uppercase tracking-wider shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-accent"></span>
           <span>Destacados</span>
         </div>
-        {segmentos.length > 0 && (
-          <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar flex-nowrap min-w-0 bg-black/10 rounded-full p-1">
-            <button onClick={() => setSegmento('TODOS')} className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all duration-300 cursor-pointer ${segmento === 'TODOS' ? 'bg-brand-gold text-brand-gold-on shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>Todos</button>
-            {segmentos.map(({ key, label, Icon }) => (
-              <button key={key} onClick={() => setSegmento(key)} className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all duration-300 cursor-pointer ${segmento === key ? 'bg-brand-gold text-brand-gold-on shadow-sm' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
-                <Icon size={10} /> {label}
-              </button>
-            ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          {segmentos.length > 0 && (
+            <div className="flex items-center gap-1 overflow-x-auto hide-scrollbar flex-nowrap min-w-0">
+              <button onClick={() => setSegmento('TODOS')} className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all duration-300 cursor-pointer border ${segmento === 'TODOS' ? 'bg-brand-primary text-brand-primary-on border-brand-primary' : 'bg-paper text-ink-soft border-line hover:border-brand-gold'}`}>Todos</button>
+              {segmentos.map(({ key, label, Icon }) => (
+                <button key={key} onClick={() => setSegmento(key)} className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all duration-300 cursor-pointer border ${segmento === key ? 'bg-brand-primary text-brand-primary-on border-brand-primary' : 'bg-paper text-ink-soft border-line hover:border-brand-gold'}`}>
+                  <Icon size={10} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button onClick={() => handleArrow(-1)} aria-label="Anterior" className="w-8 h-8 rounded-full border border-line bg-paper text-ink-soft hover:border-brand-gold hover:text-ink transition flex items-center justify-center cursor-pointer">
+              <ChevronLeft size={15} />
+            </button>
+            <button onClick={() => handleArrow(1)} aria-label="Siguiente" className="w-8 h-8 rounded-full border border-line bg-paper text-ink-soft hover:border-brand-gold hover:text-ink transition flex items-center justify-center cursor-pointer">
+              <ChevronRight size={15} />
+            </button>
           </div>
-        )}
+        </div>
       </div>
       <div className="w-full overflow-hidden relative rounded-xl">
-        <div className="absolute top-0 bottom-0 left-0 w-12 bg-linear-to-r from-brand-primary to-transparent z-10 pointer-events-none"></div>
-        <div className="absolute top-0 bottom-0 right-0 w-12 bg-linear-to-l from-[#4a1810] to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute top-0 bottom-0 left-0 w-12 bg-linear-to-r from-bg to-transparent z-10 pointer-events-none"></div>
+        <div className="absolute top-0 bottom-0 right-0 w-12 bg-linear-to-l from-bg to-transparent z-10 pointer-events-none"></div>
         <div
           ref={sliderRef}
           className="flex gap-4 overflow-x-auto hide-scrollbar touch-pan-x py-2 cursor-grab active:cursor-grabbing no-select"
