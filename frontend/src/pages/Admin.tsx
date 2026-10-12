@@ -57,6 +57,20 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
+  // Borradores de los inputs de Ajustes — controlados de verdad, sincronizados cada vez
+  // que llegan ajustes frescos del servidor. Antes eran defaultValue (no controlados):
+  // si el componente se mostraba antes de que resolviera el fetch, quedaban pegados al
+  // valor de respaldo hardcodeado para siempre, aunque los datos reales llegaran después.
+  const [whatsappDraft, setWhatsappDraft] = useState('5493510000000');
+  const [minPurchaseDraft, setMinPurchaseDraft] = useState('30000');
+  const [defaultConvenioDraft, setDefaultConvenioDraft] = useState('Gastronomica');
+
+  useEffect(() => {
+    setWhatsappDraft(settings.whatsapp_number || '5493510000000');
+    setMinPurchaseDraft(settings.min_purchase_b2c || '30000');
+    setDefaultConvenioDraft(settings.default_minorista_convenio || 'Gastronomica');
+  }, [settings]);
+
   const fetchAdminData = async () => {
     try {
       const response = await api.get(`/products/admin?t=${new Date().getTime()}`);
@@ -282,16 +296,13 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
                 <div className="flex space-x-2">
                   <input
                     type="text"
-                    id="whatsappNumberInput"
-                    defaultValue={settings.whatsapp_number || '5493510000000'}
+                    value={whatsappDraft}
+                    onChange={e => setWhatsappDraft(e.target.value)}
                     className="p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold w-full font-mono font-bold"
                     placeholder="Ej: 5493510000000"
                   />
                   <button
-                    onClick={() => {
-                      const val = (document.getElementById('whatsappNumberInput') as HTMLInputElement).value;
-                      handleUpdateSetting('whatsapp_number', val);
-                    }}
+                    onClick={() => handleUpdateSetting('whatsapp_number', whatsappDraft)}
                     className="bg-brand-primary text-brand-primary-on font-bold px-6 rounded-xl text-xs hover:bg-brand-accent transition shadow-sm cursor-pointer shrink-0"
                   >
                     Guardar
@@ -306,16 +317,13 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
                 <div className="flex space-x-2">
                   <input
                     type="number"
-                    id="minPurchaseInput"
-                    defaultValue={settings.min_purchase_b2c || '30000'}
+                    value={minPurchaseDraft}
+                    onChange={e => setMinPurchaseDraft(e.target.value)}
                     className="p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold w-full font-mono font-bold"
                     placeholder="Ej: 30000"
                   />
                   <button
-                    onClick={() => {
-                      const val = (document.getElementById('minPurchaseInput') as HTMLInputElement).value;
-                      handleUpdateSetting('min_purchase_b2c', val);
-                    }}
+                    onClick={() => handleUpdateSetting('min_purchase_b2c', minPurchaseDraft)}
                     className="bg-brand-primary text-brand-primary-on font-bold px-6 rounded-xl text-xs hover:bg-brand-accent transition shadow-sm cursor-pointer shrink-0"
                   >
                     Guardar
@@ -329,16 +337,13 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
                 <div className="flex space-x-2">
                   <input
                     type="text"
-                    id="defaultConvenioInput"
-                    defaultValue={settings.default_minorista_convenio || 'Gastronomica'}
+                    value={defaultConvenioDraft}
+                    onChange={e => setDefaultConvenioDraft(e.target.value)}
                     className="p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold focus:ring-1 focus:ring-brand-gold w-full font-mono font-bold"
                     placeholder="Ej: Gastronomica"
                   />
                   <button
-                    onClick={() => {
-                      const val = (document.getElementById('defaultConvenioInput') as HTMLInputElement).value;
-                      handleUpdateSetting('default_minorista_convenio', val);
-                    }}
+                    onClick={() => handleUpdateSetting('default_minorista_convenio', defaultConvenioDraft)}
                     className="bg-brand-primary text-brand-primary-on font-bold px-6 rounded-xl text-xs hover:bg-brand-accent transition shadow-sm cursor-pointer shrink-0"
                   >
                     Guardar
