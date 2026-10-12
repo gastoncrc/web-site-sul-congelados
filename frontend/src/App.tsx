@@ -84,6 +84,7 @@ function MainLayout() {
             <Route path="*" element={<Admin setSystemMessage={setSystemMessage} />} />
           </Routes>
         </Suspense>
+        <ChangePasswordModal isOpen={isPasswordModalOpen} setStatusMessage={setSystemMessage} onSuccess={() => setIsPasswordModalOpen(false)} />
       </div>
     );
   }

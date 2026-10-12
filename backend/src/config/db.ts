@@ -1,6 +1,7 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 dotenv.config();
 const { Pool } = pg;
@@ -231,29 +232,23 @@ export const initDB = async () => {
     }
 
     // ========================================================
-    // INYECTOR INTELIGENTE (Solo escribe si las cuentas no existen)
+    // BOOTSTRAP DE ADMIN — solo corre si NO existe ningún Admin todavía
+    // (antes revisaba un email hardcodeado 'admin@sul.com' con contraseña fija
+    // 'admin123'; eso significaba que renombrar el email del admin real hacía
+    // que el próximo reinicio recreara una cuenta Admin fantasma con contraseña
+    // de fábrica conocida — quedó expuesta en producción hasta que se detectó.
+    // Ahora el check es "¿existe algún Admin?" y la contraseña es aleatoria,
+    // impresa una sola vez en los logs del servidor, nunca hardcodeada.)
     // ========================================================
-
-    // 1. Administrador Maestro
-    const adminCheck = await pool.query("SELECT * FROM users WHERE email = 'admin@sul.com'");
+    const adminCheck = await pool.query("SELECT 1 FROM users WHERE role = 'Admin' LIMIT 1");
     if (adminCheck.rows.length === 0) {
-      const adminHash = bcrypt.hashSync('admin123', bcrypt.genSaltSync(10));
+      const bootstrapPassword = crypto.randomBytes(9).toString('base64url');
+      const adminHash = bcrypt.hashSync(bootstrapPassword, bcrypt.genSaltSync(10));
       await pool.query(`
-        INSERT INTO users (email, password, role, convenio, is_active) 
-        VALUES ('admin@sul.com', $1, 'Admin', 'CORDOBA', TRUE)
+        INSERT INTO users (email, password, role, convenio, is_active, require_password_change)
+        VALUES ('admin@sul.com', $1, 'Admin', 'CORDOBA', TRUE, TRUE)
       `, [adminHash]);
-      console.log('👤 Admin maestro inicializado en la Red CORDOBA.');
-    }
-
-    // 2. Cliente de Prueba Manual
-    const clientCheck = await pool.query("SELECT * FROM users WHERE email = 'cliente@sul.com'");
-    if (clientCheck.rows.length === 0) {
-      const clientHash = bcrypt.hashSync('SULcongelados2026', bcrypt.genSaltSync(10));
-      await pool.query(`
-        INSERT INTO users (client_code, name, email, password, role, convenio, is_active, require_password_change) 
-        VALUES ('999999', 'LOCAL TEST MANUAL', 'cliente@sul.com', $1, 'Cliente', '2X1 CORDOBA', TRUE, TRUE)
-      `, [clientHash]);
-      console.log('👥 Cliente de prueba inicializado en la lista 2X1 CORDOBA.');
+      console.log('👤 Admin maestro inicializado — email: admin@sul.com — contraseña temporal (solo se muestra una vez en este log): ' + bootstrapPassword);
     }
 
     console.log('📦 Infraestructura relacional SUL sincronizada correctamente.');
