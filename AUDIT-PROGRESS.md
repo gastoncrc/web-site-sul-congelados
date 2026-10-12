@@ -218,3 +218,24 @@ La lógica de negocio, los endpoints, los permisos — es un rediseño visual + 
 navegación, no un cambio funcional. Todo lo que ya se construyó y probó en la sesión del
 2026-10-12 (precios base+markup, roles, contraseñas, etc.) sigue funcionando igual, solo con otra
 piel y otra agrupación de menús.
+
+## Backlog de ideas — anotadas, sin implementar (otra sesión)
+
+Lista abierta que el usuario fue tirando en la sesión del 2026-10-12, explícitamente para
+documentar y no tocar todavía:
+
+- **Pedido Rápido**: mejorarlo (sin especificar qué todavía — preguntar al retomar).
+- **Nosotros**: mejorar la página.
+- **Contacto**: agregar un mapa (Google Maps embed) con la ubicación.
+- **Contacto**: agregar una sección para consultas sobre la franquicia "2x1" y pedido de logo
+  (ver punto siguiente — están relacionados).
+- **Franquicia 2x1**: hay listas de precios que son específicamente de "Lomito 2x1" (una línea de
+  negocio relacionada, mencionada en `GEMINI.md` como "otro proyecto" que podría compartir
+  infraestructura a futuro). La idea es un nav/acceso de login propio para esa franquicia, con su
+  propio logo — separado del login genérico de SUL Congelados.
+- **Filtro por rubro**: que se pueda ordenar (hoy el orden es fijo/alfabético — definir si es
+  orden manual desde el admin o criterio distinto).
+- **Más funcionalidades comerciales**: el usuario siente que "le falta más venta" al sitio —
+  pidió explorar opciones orientadas a conversión/ventas en una sesión futura, sin definir
+  todavía cuáles (brainstorm pendiente, no hay lista concreta aún).
+- **Slider de la home**: modernizarlo (sin especificar el criterio todavía).
