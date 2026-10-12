@@ -30,9 +30,9 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
   const [minPurchaseB2C, setMinPurchaseB2C] = useState(30000); 
   const [whatsappNumber, setWhatsappNumber] = useState("5493510000000");
 
-  const [checkoutData, setCheckoutData] = useState({ 
-    nombre: '', direccion: '', telefono: '', pago: 'Efectivo',
-    tipoEntrega: 'Envio', fechaEntrega: '', observaciones: '' 
+  const [checkoutData, setCheckoutData] = useState({
+    nombre: '', email: '', direccion: '', telefono: '', pago: 'Efectivo',
+    tipoEntrega: 'Envio', fechaEntrega: '', observaciones: ''
   });
 
   // Estado para controlar el mes del calendario interno
@@ -118,7 +118,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
       await api.post('/orders', {
         userId: user?.id,
         customerName: user ? user.name : checkoutData.nombre,
-        customerEmail: user?.email,
+        customerEmail: user ? user.email : checkoutData.email,
         customerPhone: checkoutData.telefono,
         deliveryAddress: checkoutData.tipoEntrega === 'Envio' ? checkoutData.direccion : 'Retiro por Fábrica',
         deliveryType: checkoutData.tipoEntrega,
@@ -286,6 +286,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ isOpen, closeCart, car
               )}
 
               <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Nombre Completo *</label><input type="text" required value={checkoutData.nombre} onChange={e => setCheckoutData({...checkoutData, nombre: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold" placeholder="Nombre y Apellido" /></div>
+              <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Email de Contacto *</label><input type="email" required value={checkoutData.email} onChange={e => setCheckoutData({...checkoutData, email: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold" placeholder="tu@email.com" /><p className="text-[10px] text-ink-soft mt-1">Para poder confirmarte el pedido.</p></div>
 
               {!debaRetirarEnPlanta && (
                 <div><label className="block text-xs font-black text-ink-soft uppercase mb-1"><MapPin size={12} className="inline mr-1"/> Dirección de Entrega *</label><input type="text" required value={checkoutData.direccion} onChange={e => setCheckoutData({...checkoutData, direccion: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none focus:border-brand-gold" placeholder="Calle, Número, Barrio" /></div>
