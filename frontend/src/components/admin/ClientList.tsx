@@ -308,31 +308,35 @@ export const ClientList: React.FC<ClientListProps> = ({ clientList, setClientLis
               </div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">Razón Social</label><input type="text" value={editingClient.razon_social || ''} onChange={e => setEditingClient({...editingClient, razon_social: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">CUIT</label><input type="text" value={editingClient.cuit || ''} onChange={e => setEditingClient({...editingClient, cuit: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
-              <div><label className="block text-[11px] font-black text-ink-soft uppercase">Convenio Asignado *</label><input type="text" required value={editingClient.convenio || ''} onChange={e => setEditingClient({...editingClient, convenio: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+              <div><label className="block text-[11px] font-black text-ink-soft uppercase">Convenio Asignado{editingClient.role === 'Cliente' ? ' *' : ''}</label><input type="text" required={editingClient.role === 'Cliente'} value={editingClient.convenio || ''} onChange={e => setEditingClient({...editingClient, convenio: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">Grupo</label><input type="text" value={editingClient.grupo || ''} onChange={e => setEditingClient({...editingClient, grupo: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
               <div><label className="block text-[11px] font-black text-ink-soft uppercase">Vendedor</label><input type="text" value={editingClient.vendedor || ''} onChange={e => setEditingClient({...editingClient, vendedor: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
 
-              <div className="md:col-span-2 mt-2"><h4 className="text-xs font-bold text-ink-soft uppercase">Datos Logísticos</h4><hr className="mt-1 border-line"/></div>
+              {editingClient.role === 'Cliente' && (
+                <>
+                  <div className="md:col-span-2 mt-2"><h4 className="text-xs font-bold text-ink-soft uppercase">Datos Logísticos</h4><hr className="mt-1 border-line"/></div>
 
-              <div className="md:col-span-2"><label className="block text-[11px] font-black text-ink-soft uppercase">Domicilio de Entrega *</label><input type="text" required value={editingClient.domicilio_facturacion || ''} onChange={e => setEditingClient({...editingClient, domicilio_facturacion: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
-              <div><label className="block text-[11px] font-black text-ink-soft uppercase">Localidad *</label><input type="text" required value={editingClient.localidad || ''} onChange={e => setEditingClient({...editingClient, localidad: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
-              <div><label className="block text-[11px] font-black text-ink-soft uppercase">Provincia *</label><input type="text" required value={editingClient.provincia || ''} onChange={e => setEditingClient({...editingClient, provincia: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
-              <div><label className="block text-[11px] font-black text-ink-soft uppercase">Teléfono *</label><input type="text" required value={editingClient.telefono || ''} onChange={e => setEditingClient({...editingClient, telefono: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+                  <div className="md:col-span-2"><label className="block text-[11px] font-black text-ink-soft uppercase">Domicilio de Entrega *</label><input type="text" required value={editingClient.domicilio_facturacion || ''} onChange={e => setEditingClient({...editingClient, domicilio_facturacion: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+                  <div><label className="block text-[11px] font-black text-ink-soft uppercase">Localidad *</label><input type="text" required value={editingClient.localidad || ''} onChange={e => setEditingClient({...editingClient, localidad: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+                  <div><label className="block text-[11px] font-black text-ink-soft uppercase">Provincia *</label><input type="text" required value={editingClient.provincia || ''} onChange={e => setEditingClient({...editingClient, provincia: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
+                  <div><label className="block text-[11px] font-black text-ink-soft uppercase">Teléfono *</label><input type="text" required value={editingClient.telefono || ''} onChange={e => setEditingClient({...editingClient, telefono: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" /></div>
 
-              {/* 🚀 SELECTOR COMPACTO EN EDICIÓN */}
-              <div className="md:col-span-2 pt-4 border-t border-line">
-                <label className="flex text-xs font-black text-ink-soft uppercase mb-3 items-center">
-                  <Calendar size={14} className="mr-1 text-brand-primary" /> Días de Reparto Habilitados
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {diasSemana.map(day => (
-                    <button key={day.id} type="button" onClick={() => handleDayToggle(day.id)}
-                      className={`w-10 h-10 rounded-xl text-xs font-black transition-all border cursor-pointer flex items-center justify-center ${selectedDays.includes(day.id) ? 'bg-brand-gold text-brand-gold-on border-brand-gold shadow-sm' : 'bg-paper text-ink-soft border-line hover:bg-bg'}`}>
-                      {day.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  {/* 🚀 SELECTOR COMPACTO EN EDICIÓN */}
+                  <div className="md:col-span-2 pt-4 border-t border-line">
+                    <label className="flex text-xs font-black text-ink-soft uppercase mb-3 items-center">
+                      <Calendar size={14} className="mr-1 text-brand-primary" /> Días de Reparto Habilitados
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {diasSemana.map(day => (
+                        <button key={day.id} type="button" onClick={() => handleDayToggle(day.id)}
+                          className={`w-10 h-10 rounded-xl text-xs font-black transition-all border cursor-pointer flex items-center justify-center ${selectedDays.includes(day.id) ? 'bg-brand-gold text-brand-gold-on border-brand-gold shadow-sm' : 'bg-paper text-ink-soft border-line hover:bg-bg'}`}>
+                          {day.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="md:col-span-2 flex justify-end space-x-2 mt-4 shrink-0">
                 <button type="button" onClick={() => setEditingClient(null)} className="px-5 py-2.5 rounded-xl border border-line text-ink-soft font-bold text-xs hover:bg-bg transition">Cancelar</button>
