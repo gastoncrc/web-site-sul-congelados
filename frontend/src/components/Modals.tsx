@@ -14,11 +14,16 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
   // 🚀 Estado de carga para el Spinner
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   if (!isOpen) return null;
+
+  if (showForgotPassword) {
+    return <ForgotPasswordModal onClose={() => setShowForgotPassword(false)} />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +90,59 @@ export const LoginModal: React.FC<ModalProps> = ({ isOpen, onClose, setStatusMes
               "Ingresar de forma segura"
             )}
           </button>
+          <button type="button" onClick={() => setShowForgotPassword(true)} className="w-full text-center text-xs text-ink-soft hover:text-brand-primary transition font-medium cursor-pointer">
+            ¿Olvidaste tu contraseña?
+          </button>
         </form>
+      </div>
+    </div>
+  );
+};
+
+const ForgotPasswordModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await api.post('/auth/forgot-password', { email });
+      setSent(true);
+    } catch (err) {
+      // El endpoint siempre responde genérico; si falla la red, igual mostramos el mismo mensaje.
+      setSent(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+      <div className="bg-paper rounded-card p-6 sm:p-8 max-w-md w-full shadow-2xl relative border border-line">
+        <button onClick={onClose} className="absolute top-4 right-4 text-ink-soft hover:text-ink p-1"><X size={20} /></button>
+        <div className="mb-5">
+          <h3 className="text-lg font-black text-brand-primary uppercase tracking-wider">Recuperar Contraseña</h3>
+          <p className="text-xs text-ink-soft mt-0.5">Te enviamos un enlace para elegir una nueva.</p>
+        </div>
+
+        {sent ? (
+          <div className="text-center py-4">
+            <p className="text-sm text-ink font-medium">Si el email está registrado, vas a recibir un enlace para restablecer tu contraseña en los próximos minutos.</p>
+            <button onClick={onClose} className="mt-6 w-full bg-brand-primary text-brand-primary-on py-3 rounded-lg font-bold text-sm hover:bg-brand-accent transition">Entendido</button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-bold text-ink-soft uppercase mb-1">Email Corporativo</label>
+              <input type="email" placeholder="cl_80000XXX@sul.com o admin@sul.com" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 bg-bg border border-line rounded-lg text-xs sm:text-sm outline-none focus:border-brand-gold" required />
+            </div>
+            <button type="submit" disabled={isSubmitting} className="w-full bg-brand-primary text-brand-primary-on py-3 rounded-lg font-bold text-xs sm:text-sm hover:bg-brand-accent transition shadow-md disabled:opacity-50">
+              {isSubmitting ? 'Enviando...' : 'Enviar enlace de recuperación'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

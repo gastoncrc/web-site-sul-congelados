@@ -9,6 +9,7 @@ import { ClientForm } from '../components/admin/ClientForm';
 import { ClientList } from '../components/admin/ClientList';
 import { OrderList } from '../components/admin/OrderList';
 import { DashboardStats } from '../components/admin/DashboardStats';
+import { PriceListManager } from '../components/admin/PriceListManager';
 
 interface AdminProps {
   setSystemMessage: React.Dispatch<React.SetStateAction<string>>;
@@ -34,7 +35,7 @@ const UserForm = ({ setSystemMessage }: { setSystemMessage: any }) => {
       <h2 className="font-black text-xl mb-4 text-ink uppercase">Alta de Usuario</h2>
       <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Email</label><input type="email" required value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none" /></div>
       <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Contraseña</label><input type="password" required value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none" /></div>
-      <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Rol</label><select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none"><option value="Admin">Administrador</option><option value="Minorista">Minorista</option></select></div>
+      <div><label className="block text-xs font-black text-ink-soft uppercase mb-1">Rol</label><select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="w-full p-3 border border-line rounded-xl bg-bg text-sm outline-none"><option value="Admin">Administrador</option><option value="Cliente">Cliente</option><option value="Minorista">Minorista</option><option value="Vendedor">Vendedor</option></select></div>
       <button type="submit" className="w-full bg-brand-primary text-brand-primary-on p-3 rounded-xl font-bold hover:bg-brand-accent transition cursor-pointer">Crear Usuario</button>
     </form>
   );
@@ -44,7 +45,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
   const { user, logout } = useAuth(); 
   
   // Navigation & UI States
-  const [activeModule, setActiveModule] = useState<'dashboard' | 'product-list' | 'product-bulk' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'config' | 'order-list'>('dashboard');
+  const [activeModule, setActiveModule] = useState<'dashboard' | 'product-list' | 'product-bulk' | 'price-lists' | 'client-list' | 'client-form' | 'client-bulk' | 'user-form' | 'config' | 'order-list'>('dashboard');
   const [expandedSection, setExpandedSection] = useState<'dashboard' | 'products' | 'clients' | 'users' | 'settings' | 'orders' | null>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -182,6 +183,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
               {expandedSection === 'products' && !isSidebarCollapsed && (
                 <div className="ml-9 mt-2 space-y-1">
                   <button onClick={() => setActiveModule('product-list')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-list' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Listado de Productos</button>
+                  <button onClick={() => setActiveModule('price-lists')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'price-lists' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Listas de Precios</button>
                   <button onClick={() => setActiveModule('product-bulk')} className={`w-full text-left p-2 text-xs font-medium rounded cursor-pointer ${activeModule === 'product-bulk' ? 'text-brand-gold' : 'text-slate-400 hover:text-white'}`}>Carga Masiva</button>
                 </div>
               )}
@@ -259,6 +261,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
         {activeModule === 'dashboard' && <DashboardStats />}
         {activeModule === 'order-list' && <OrderList />}
         {activeModule === 'product-list' && <ProductList products={productList} onRefresh={fetchAdminData} setSystemMessage={setSystemMessage} />}
+        {activeModule === 'price-lists' && <PriceListManager setSystemMessage={setSystemMessage} />}
         {activeModule === 'client-list' && <ClientList clientList={clientList} setClientList={setClientList} setSystemMessage={setSystemMessage} />}
         {activeModule === 'client-form' && <ClientForm setSystemMessage={setSystemMessage} />}
         {activeModule === 'user-form' && <UserForm setSystemMessage={setSystemMessage} />}

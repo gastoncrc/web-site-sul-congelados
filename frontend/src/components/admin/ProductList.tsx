@@ -66,7 +66,11 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
         is_new: editingProduct.is_new,
         image_url: editingProduct.image_url || null
       });
-      
+
+      if (editingProduct.base_price !== '' && editingProduct.base_price !== null && editingProduct.base_price !== undefined) {
+        await api.put('/products/base-price', { sku: editingProduct.sku, base_price: parseFloat(editingProduct.base_price) });
+      }
+
       setSystemMessage(`✅ Datos del producto actualizados.`);
       await onRefresh();
       setEditingProduct(null); 
@@ -209,6 +213,12 @@ export const ProductList: React.FC<ProductListProps> = ({ products, onRefresh, s
               <div>
                 <label className="block text-[11px] font-black text-ink-soft uppercase">Unidades por Caja (Presentación)</label>
                 <input type="number" min={0} placeholder="Ej: 30" value={editingProduct.package_size || ''} onChange={e => setEditingProduct({...editingProduct, package_size: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none" />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black text-ink-soft uppercase">Precio Base (Mayorista)</label>
+                <input type="number" step="0.01" min={0} placeholder="Ej: 10035" value={editingProduct.base_price ?? ''} onChange={e => setEditingProduct({...editingProduct, base_price: e.target.value})} className="w-full mt-1 p-2 border border-line rounded bg-bg text-sm outline-none font-mono" />
+                <p className="text-[10px] text-ink-soft mt-1">Al cambiarlo, se recalculan todas las listas que ya tienen markup definido para este producto.</p>
               </div>
 
               <div className="md:col-span-2">

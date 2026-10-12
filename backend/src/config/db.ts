@@ -166,7 +166,10 @@ export const initDB = async () => {
       'ALTER TABLE products ADD COLUMN is_new BOOLEAN DEFAULT FALSE;',
       // URL de foto real del producto (hosteada afuera, ej. Cloudinary) — nulo cae al ícono
       // de categoría genérico que ya se usa.
-      'ALTER TABLE products ADD COLUMN image_url TEXT;'
+      'ALTER TABLE products ADD COLUMN image_url TEXT;',
+      // Precio base único por producto (el "precio1"/Mayorista del Excel de convenios).
+      // Cada lista deriva su precio final de este número + su propio markup_percent.
+      'ALTER TABLE products ADD COLUMN base_price NUMERIC;'
     ];
 
     for (const query of columnasNuevasProducts) {
@@ -174,6 +177,25 @@ export const initDB = async () => {
         await pool.query(query);
       } catch (error) {}
     }
+
+    // Markup por (producto, lista) — el "porcentaje" del Excel de convenios. `precio` sigue
+    // siendo la columna que lee el catálogo y el recálculo de pedidos; se recalcula y se
+    // reescribe acá cada vez que cambia el markup o el precio base, nunca se computa al vuelo.
+    try {
+      await pool.query('ALTER TABLE product_prices ADD COLUMN markup_percent NUMERIC;');
+    } catch (error) {}
+
+    // Tokens de "olvidé mi contraseña" — de un solo uso, con vencimiento.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token_hash TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL,
+        used_at TIMESTAMP
+      )
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);');
 
     // Favoritos / "Mis habituales" — recompra rápida para clientes logueados.
     await pool.query(`

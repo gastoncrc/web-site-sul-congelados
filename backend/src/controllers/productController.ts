@@ -150,7 +150,10 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
     const rows: any[] = XLSX.utils.sheet_to_json(worksheet);
 
     // 1. Parsear y validar todas las filas en memoria (igual que antes, sin tocar la DB todavía)
-    interface ParsedRow { sku: string; name: string; category: string; subcategory: string; convenio: string; price: number; }
+    interface ParsedRow {
+      sku: string; name: string; category: string; subcategory: string; convenio: string; price: number;
+      basePrice: number | null; markupPercent: number | null;
+    }
     const parsedRows: ParsedRow[] = [];
     for (const rawRow of rows) {
       const row: any = {};
@@ -164,6 +167,11 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       const convenio = row.convenio || row.lista || row.nombre_lista || row.convenios;
       const rubro = row.rubro_descrip || row.rubro || row.category || 'Varios';
       const subrubro = row.subrubro_descrip || row.subrubro || 'Varios';
+      // precio1 = precio base único por producto (el "Mayorista"); porcentaje = markup de
+      // esta lista sobre ese base. Ambos son opcionales — si el archivo no los trae (ej. un
+      // Excel viejo con solo precio final), quedan en null y no se toca lo ya guardado.
+      const precio1 = row.precio1 || row.preciobase || row.precio_base;
+      const porcentaje = row.porcentaje;
 
       if (codigo && descrip && preciofinal && convenio) {
         parsedRows.push({
@@ -173,6 +181,8 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
           subcategory: String(subrubro).trim(),
           convenio: String(convenio).trim(),
           price: parseFloat(preciofinal),
+          basePrice: precio1 !== undefined && precio1 !== null && precio1 !== '' ? parseFloat(precio1) : null,
+          markupPercent: porcentaje !== undefined && porcentaje !== null && porcentaje !== '' ? parseFloat(porcentaje) : null,
         });
       }
     }
@@ -211,10 +221,11 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       for (let i = 0; i < uniqueProducts.length; i += BATCH_SIZE) {
         const chunk = uniqueProducts.slice(i, i + BATCH_SIZE);
         await client.query(
-          `INSERT INTO products (sku, name, category, subcategory, stock)
-           SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[])
-           ON CONFLICT (sku) DO UPDATE SET name = EXCLUDED.name, category = EXCLUDED.category, subcategory = EXCLUDED.subcategory`,
-          [chunk.map(r => r.sku), chunk.map(r => r.name), chunk.map(r => r.category), chunk.map(r => r.subcategory), chunk.map(() => 100)]
+          `INSERT INTO products (sku, name, category, subcategory, stock, base_price)
+           SELECT * FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[], $6::numeric[])
+           ON CONFLICT (sku) DO UPDATE SET name = EXCLUDED.name, category = EXCLUDED.category, subcategory = EXCLUDED.subcategory,
+             base_price = COALESCE(EXCLUDED.base_price, products.base_price)`,
+          [chunk.map(r => r.sku), chunk.map(r => r.name), chunk.map(r => r.category), chunk.map(r => r.subcategory), chunk.map(() => 100), chunk.map(r => r.basePrice)]
         );
       }
 
@@ -223,10 +234,11 @@ export const uploadCsvConvenios = async (req: Request, res: Response) => {
       for (let i = 0; i < uniquePrices.length; i += BATCH_SIZE) {
         const chunk = uniquePrices.slice(i, i + BATCH_SIZE);
         await client.query(
-          `INSERT INTO product_prices (product_sku, convenio, precio)
-           SELECT * FROM unnest($1::text[], $2::text[], $3::numeric[])
-           ON CONFLICT (product_sku, convenio) DO UPDATE SET precio = EXCLUDED.precio`,
-          [chunk.map(r => r.sku), chunk.map(r => r.convenio), chunk.map(r => r.price)]
+          `INSERT INTO product_prices (product_sku, convenio, precio, markup_percent)
+           SELECT * FROM unnest($1::text[], $2::text[], $3::numeric[], $4::numeric[])
+           ON CONFLICT (product_sku, convenio) DO UPDATE SET precio = EXCLUDED.precio,
+             markup_percent = COALESCE(EXCLUDED.markup_percent, product_prices.markup_percent)`,
+          [chunk.map(r => r.sku), chunk.map(r => r.convenio), chunk.map(r => r.price), chunk.map(r => r.markupPercent)]
         );
 
         // Historial solo para los que realmente cambiaron de precio
@@ -325,17 +337,138 @@ export const setIndividualPrice = async (req: Request, res: Response) => {
 };
 
 // 6. Obtener TODOS los productos para la tabla del Admin (Incluye in_slider)
+// Con ?convenio=X además trae precio base, markup y precio final de esa lista puntual,
+// para la pantalla "Listas de Precios".
 export const getAdminProducts = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const convenio = (req.query.convenio as string || '').trim();
   try {
+    if (convenio) {
+      const result = await pool.query(`
+        SELECT p.sku, p.name, p.category, p.is_active, p.is_promo, p.promo_price, p.in_slider,
+               p.package_size, p.is_new, p.image_url, p.base_price, pp.markup_percent, pp.precio
+        FROM products p
+        INNER JOIN product_prices pp ON p.sku = pp.product_sku AND UPPER(TRIM(pp.convenio)) = UPPER(TRIM($1))
+        ORDER BY p.name ASC
+      `, [convenio]);
+      return res.json(result.rows);
+    }
+
     const result = await pool.query(`
-      SELECT sku, name, category, is_active, is_promo, promo_price, in_slider, package_size, is_new, image_url
+      SELECT sku, name, category, is_active, is_promo, promo_price, in_slider, package_size, is_new, image_url, base_price
       FROM products
       ORDER BY name ASC
     `);
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: 'Error obteniendo catálogo admin' });
+  }
+};
+
+// 6b. Listas de precios existentes (convenios) con cuántos productos tiene cada una
+export const getPriceLists = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  try {
+    const result = await pool.query(`
+      SELECT convenio, COUNT(*) AS total_productos
+      FROM product_prices
+      GROUP BY convenio
+      ORDER BY convenio ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Error obteniendo listas de precios' });
+  }
+};
+
+// 6c. Editar el precio base (Mayorista) de un producto — recalcula el precio final de
+// todas las listas que tienen markup guardado para ese sku.
+export const updateBasePrice = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku, base_price } = req.body;
+  if (!sku || base_price === undefined || base_price === null || isNaN(parseFloat(base_price))) {
+    return res.status(400).json({ error: 'sku y base_price son requeridos' });
+  }
+  const newBase = parseFloat(base_price);
+  const changedBy = (req as any).user?.email || 'Admin';
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('UPDATE products SET base_price = $1 WHERE sku = $2', [newBase, sku]);
+
+    const rows = await client.query(
+      `SELECT convenio, precio, markup_percent FROM product_prices WHERE product_sku = $1 AND markup_percent IS NOT NULL`,
+      [sku]
+    );
+
+    for (const row of rows.rows) {
+      const oldPrice = parseFloat(row.precio);
+      const newPrice = Math.round(newBase * (1 - parseFloat(row.markup_percent) / 100) * 100) / 100;
+      if (newPrice === oldPrice) continue;
+      await client.query('UPDATE product_prices SET precio = $1 WHERE product_sku = $2 AND convenio = $3', [newPrice, sku, row.convenio]);
+      await client.query(
+        `INSERT INTO price_history (product_sku, convenio, old_price, new_price, changed_by) VALUES ($1, $2, $3, $4, $5)`,
+        [sku, row.convenio, oldPrice, newPrice, changedBy]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Precio base actualizado. Las listas con markup definido se recalcularon.' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Error actualizando el precio base' });
+  } finally {
+    client.release();
+  }
+};
+
+// 6d. Editar el markup de un producto en una lista puntual — recalcula el precio final
+// desde el precio base del producto.
+export const updateMarkup = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Denegado' });
+  const { sku, convenio, markup_percent } = req.body;
+  if (!sku || !convenio || markup_percent === undefined || markup_percent === null || isNaN(parseFloat(markup_percent))) {
+    return res.status(400).json({ error: 'sku, convenio y markup_percent son requeridos' });
+  }
+  const newMarkup = parseFloat(markup_percent);
+  const changedBy = (req as any).user?.email || 'Admin';
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const productResult = await client.query('SELECT base_price FROM products WHERE sku = $1', [sku]);
+    const basePrice = productResult.rows[0]?.base_price !== null && productResult.rows[0]?.base_price !== undefined
+      ? parseFloat(productResult.rows[0].base_price) : null;
+    if (basePrice === null) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Este producto todavía no tiene un precio base definido.' });
+    }
+
+    const priceResult = await client.query('SELECT precio FROM product_prices WHERE product_sku = $1 AND convenio = $2', [sku, convenio]);
+    const oldPrice = priceResult.rows[0] ? parseFloat(priceResult.rows[0].precio) : null;
+    const newPrice = Math.round(basePrice * (1 - newMarkup / 100) * 100) / 100;
+
+    await client.query(`
+      INSERT INTO product_prices (product_sku, convenio, precio, markup_percent)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (product_sku, convenio) DO UPDATE SET precio = $3, markup_percent = $4
+    `, [sku, convenio, newPrice, newMarkup]);
+
+    if (oldPrice !== newPrice) {
+      await client.query(
+        `INSERT INTO price_history (product_sku, convenio, old_price, new_price, changed_by) VALUES ($1, $2, $3, $4, $5)`,
+        [sku, convenio, oldPrice, newPrice, changedBy]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Markup actualizado', precio: newPrice });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'Error actualizando el markup' });
+  } finally {
+    client.release();
   }
 };
 

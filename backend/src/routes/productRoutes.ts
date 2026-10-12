@@ -10,7 +10,10 @@ import {
   deleteProduct,
   getPriceHistory,
   getFavorites,
-  toggleFavorite
+  toggleFavorite,
+  getPriceLists,
+  updateBasePrice,
+  updateMarkup
 } from '../controllers/productController';
 import { verifyTokenAndStatus } from '../middleware/auth';
 import multer from 'multer';
@@ -33,6 +36,11 @@ router.post('/upload-prices', verifyTokenAndStatus, upload.single('file'), uploa
 router.post('/individual', verifyTokenAndStatus, upsertIndividualProduct);
 router.post('/individual-price', verifyTokenAndStatus, setIndividualPrice);
 router.patch('/:sku/flags', verifyTokenAndStatus, toggleProductFlags);
+
+// Listas de precios — precio base por producto + markup por (producto, lista)
+router.get('/price-lists', verifyTokenAndStatus, getPriceLists);
+router.put('/base-price', verifyTokenAndStatus, updateBasePrice);
+router.put('/markup', verifyTokenAndStatus, updateMarkup);
 
 // Rutas exclusivas para la tabla del Admin
 router.get('/admin', verifyTokenAndStatus, getAdminProducts);

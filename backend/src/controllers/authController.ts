@@ -1,10 +1,19 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import * as XLSX from 'xlsx';
 import { pool } from '../config/db';
+import { sendPasswordResetEmail } from '../utils/mailer';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
+const MIN_PASSWORD_LENGTH = 8;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
+
+const getFrontendUrl = (): string => {
+  const configured = process.env.FRONTEND_URL?.split(',')[0]?.trim();
+  return configured || 'https://sulcongelados.com';
+};
 
 // 1. Login unificado con control de estado activo
 export const login = async (req: Request, res: Response) => {
@@ -173,31 +182,33 @@ export const adminCreateUser = async (req: Request, res: Response) => {
   }
 };
 
-// 7. Listado CRM de clientes (Trae también el estado is_active)
+// 7. Listado CRM de cuentas (todos los roles — Admin, Cliente, Minorista, Vendedor)
 export const getClients = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   try {
     const result = await pool.query(`
-      SELECT id, name, email, convenio, razon_social, cuit, localidad, provincia, telefono, vendedor, grupo, is_active 
-      FROM users 
-      WHERE role = 'Cliente' 
+      SELECT id, name, email, role, convenio, razon_social, cuit, localidad, provincia, telefono, vendedor, grupo, is_active
+      FROM users
       ORDER BY name ASC
     `);
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: 'Error interno del servidor al obtener el listado de clientes.' });
+    res.status(500).json({ error: 'Error interno del servidor al obtener el listado de cuentas.' });
   }
 };
 
-// 8. Baja lógica de clientes
-export const deleteClientAdmin = async (req: Request, res: Response) => {
+// 8. Pausar / reactivar cualquier cuenta
+export const setAccountStatus = async (req: Request, res: Response) => {
   if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
   const { id } = req.params;
+  const { is_active } = req.body;
+  if (typeof is_active !== 'boolean') return res.status(400).json({ error: 'is_active debe ser true o false' });
   try {
-    await pool.query("UPDATE users SET is_active = FALSE WHERE id = $1 AND role = 'Cliente'", [id]);
-    res.json({ message: 'Cliente suspendido comercialmente con éxito.' });
+    const result = await pool.query('UPDATE users SET is_active = $1 WHERE id = $2 RETURNING id', [is_active, id]);
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Cuenta no encontrada' });
+    res.json({ message: is_active ? 'Cuenta reactivada con éxito.' : 'Cuenta pausada con éxito.' });
   } catch (err) {
-    res.status(500).json({ error: 'Error al cambiar estado del cliente.' });
+    res.status(500).json({ error: 'Error al cambiar el estado de la cuenta.' });
   }
 };
 
@@ -242,5 +253,108 @@ export const updateClient = async (req: any, res: any) => {
   } catch (error) {
     console.error('🚨 Error al actualizar el cliente:', error);
     res.status(500).json({ error: 'Error interno del servidor al guardar los cambios' });
+  }
+};
+
+// 9. Admin genera una contraseña aleatoria para una cuenta — se muestra una sola vez en la
+// respuesta (nunca se persiste ni se loguea en texto plano) y fuerza cambio al primer ingreso.
+export const generatePassword = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
+  const { id } = req.params;
+  try {
+    const plainPassword = crypto.randomBytes(9).toString('base64url');
+    const hash = bcrypt.hashSync(plainPassword, bcrypt.genSaltSync(10));
+
+    const result = await pool.query(
+      'UPDATE users SET password = $1, require_password_change = TRUE WHERE id = $2 RETURNING id',
+      [hash, id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Cuenta no encontrada' });
+
+    res.json({ message: 'Contraseña generada. Comunicásela al usuario ahora — no se volverá a mostrar.', password: plainPassword });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al generar la contraseña' });
+  }
+};
+
+// 10. Admin elige manualmente una contraseña para una cuenta — también fuerza cambio al
+// primer ingreso.
+export const setPassword = async (req: Request, res: Response) => {
+  if ((req as any).user?.role !== 'Admin') return res.status(403).json({ error: 'Acceso denegado' });
+  const { id } = req.params;
+  const { password } = req.body;
+  if (!password || String(password).length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.` });
+  }
+  try {
+    const hash = bcrypt.hashSync(password, bcrypt.genSaltSync(10));
+    const result = await pool.query(
+      'UPDATE users SET password = $1, require_password_change = TRUE WHERE id = $2 RETURNING id',
+      [hash, id]
+    );
+    if (result.rowCount === 0) return res.status(404).json({ error: 'Cuenta no encontrada' });
+
+    res.json({ message: 'Contraseña actualizada. El usuario deberá cambiarla al ingresar.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al actualizar la contraseña' });
+  }
+};
+
+// 11. Solicitud pública de recuperación de contraseña — siempre responde el mismo mensaje
+// genérico, exista o no la cuenta, para no filtrar qué emails están registrados.
+export const forgotPassword = async (req: Request, res: Response) => {
+  const { email } = req.body;
+  const genericResponse = { message: 'Si el email está registrado, vas a recibir un enlace para restablecer tu contraseña.' };
+  if (!email) return res.json(genericResponse);
+
+  try {
+    const userResult = await pool.query('SELECT id FROM users WHERE email = $1 AND is_active = TRUE', [email]);
+    const user = userResult.rows[0];
+    if (!user) return res.json(genericResponse);
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+
+    await pool.query(
+      'INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [user.id, tokenHash, expiresAt]
+    );
+
+    const resetLink = `${getFrontendUrl()}/reset-password?token=${token}`;
+    await sendPasswordResetEmail(email, resetLink);
+
+    res.json(genericResponse);
+  } catch (err) {
+    console.error('🚨 Error en forgotPassword:', err);
+    // Igual respondemos genérico — no delatamos errores internos a un endpoint público.
+    res.json(genericResponse);
+  }
+};
+
+// 12. Confirmación pública de recuperación — consume el token de un solo uso.
+export const resetPassword = async (req: Request, res: Response) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword || String(newPassword).length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: `Token y contraseña (mínimo ${MIN_PASSWORD_LENGTH} caracteres) son requeridos.` });
+  }
+
+  try {
+    const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+    const tokenResult = await pool.query(
+      `SELECT id, user_id FROM password_reset_tokens
+       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()`,
+      [tokenHash]
+    );
+    const resetToken = tokenResult.rows[0];
+    if (!resetToken) return res.status(400).json({ error: 'El enlace venció o ya fue usado. Solicitá uno nuevo.' });
+
+    const hash = bcrypt.hashSync(newPassword, bcrypt.genSaltSync(10));
+    await pool.query('UPDATE users SET password = $1, require_password_change = FALSE WHERE id = $2', [hash, resetToken.user_id]);
+    await pool.query('UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1', [resetToken.id]);
+
+    res.json({ message: 'Contraseña actualizada. Ya podés iniciar sesión.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al restablecer la contraseña' });
   }
 };
