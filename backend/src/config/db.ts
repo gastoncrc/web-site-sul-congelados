@@ -143,7 +143,14 @@ export const initDB = async () => {
       'ALTER TABLE users ADD COLUMN localidad TEXT;',
       'ALTER TABLE users ADD COLUMN provincia TEXT;',
       'ALTER TABLE users ADD COLUMN vendedor TEXT;',
-      'ALTER TABLE users ADD COLUMN grupo TEXT;'
+      'ALTER TABLE users ADD COLUMN grupo TEXT;',
+      // Estas tres están en el CREATE TABLE de arriba desde hace tiempo, pero nunca se
+      // migraron acá — en una tabla ya existente (como la de producción) el CREATE TABLE
+      // IF NOT EXISTS no las agrega. getVendorClients (vendorController.ts) las selecciona,
+      // así que sin esto cualquier Vendedor rompía con error 500 al ver su cartera.
+      'ALTER TABLE users ADD COLUMN client_code TEXT UNIQUE;',
+      'ALTER TABLE users ADD COLUMN lugar_entrega TEXT;',
+      'ALTER TABLE users ADD COLUMN observaciones TEXT;'
     ];
 
     for (const query of columnasNuevas) {
