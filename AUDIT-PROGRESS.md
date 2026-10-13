@@ -304,3 +304,108 @@ variables de entorno del backend de Render al servidor nuevo — `JWT_SECRET` es
 que no tiene respaldo y el server no arranca sin él. El servidor nuevo necesita su propio HTTPS
 (Render lo hace solo vía Let's Encrypt; un VPS necesita algo como Caddy o nginx+certbot armado a
 mano).
+
+## Checklist de infraestructura para migrar a servidor propio (2026-10-12)
+
+El usuario ya tiene el dominio (`sulcongelados.com`, DNS en Cloudflare) y pregunta en concreto
+qué más hay que contratar/configurar para que quede "segura, cuidada, persistente" — no es un
+plan a futuro, es la guía real para decidir y migrar.
+
+**Decisión previa**: no migrar la base de datos. Neon (Postgres manejado) se queda — tiene sus
+propios backups/PITR y mover una base en producción es quirúrgico y arriesgado por nada; lo que
+se muda es solo el cómputo (backend Node + servir el build de frontend). Esto reduce la migración
+a "mover un server", no "mover todo el sistema".
+
+- [ ] **VPS**: Hetzner CX22 (2 vCPU / 4GB RAM / 40GB disco), ya evaluado antes — ronda
+  US$85-92/año sin IVA para pago desde Argentina. Ubuntu 24.04 LTS.
+- [ ] **Backups del VPS**: activar el add-on de snapshots de Hetzner (~20% extra sobre el costo
+  del VPS) — sin esto, si el disco se corrompe no hay nada que restaurar (la base en Neon está
+  a salvo aparte, pero el server en sí no).
+- [ ] **Proxy + HTTPS**: Caddy en vez de nginx+certbot — renueva Let's Encrypt solo, config de
+  3-4 líneas, sirve el build estático de `frontend/` y hace proxy a `localhost:PORT` del backend
+  desde el mismo Caddyfile. Un solo binario, un solo archivo de config.
+- [ ] **El backend como servicio systemd**: unit file que lo reinicia solo si crashea y lo
+  levanta solo si el server reinicia. (Alternativa más liviana: PM2, pero systemd ya viene con
+  Ubuntu y `journalctl` da los logs gratis con rotación automática.)
+- [ ] **Firewall**: `ufw` — abrir únicamente 22 (SSH), 80 y 443. El puerto interno de Node no
+  debe quedar expuesto a internet, solo accesible para Caddy en `localhost`.
+- [ ] **SSH endurecido**: login solo por clave (desactivar password auth), usuario de deploy sin
+  privilegios de root directo (`sudo` puntual), `fail2ban` para frenar intentos de fuerza bruta.
+- [ ] **Parches automáticos del sistema**: `unattended-upgrades` para que los parches de
+  seguridad del propio Ubuntu se instalen solos sin intervención manual.
+- [ ] **Monitoreo de caída**: un ping cada pocos minutos a un endpoint de salud (ej.
+  `GET /api/db-check`) desde un servicio externo gratuito (UptimeRobot o similar) con alerta por
+  mail si el sitio deja de responder — hoy no hay ninguna señal si el server se cae a las 3am.
+- [ ] **Variables de entorno**: `.env` vive solo en el server nuevo, nunca en git, permisos
+  restringidos al usuario de deploy. Copiar TODAS las de Render, `JWT_SECRET` en particular (ver
+  sección de arriba).
+- [ ] **DNS**: repuntar el registro A de `sulcongelados.com` en Cloudflare a la IP del VPS nuevo
+  cuando esté listo. Si se deja el proxy naranja de Cloudflare activado (protección DDoS + cache
+  gratis de estáticos), hay que poner el modo SSL de Cloudflare en "Full (strict)" — si no, loop
+  de redirect contra el certificado de Caddy.
+- [ ] **Proceso de deploy**: un script chico (`git pull && npm ci && npm run build && sudo
+  systemctl restart sul-backend`) para no hacerlo a mano paso a paso cada vez — reduce el riesgo
+  de un deploy a medio aplicar.
+- [ ] **Retención de backups de Neon**: confirmar el plan actual de Neon y su ventana de
+  point-in-time-recovery (el free tier suele ser corto, ~7 días) — ahora que esto es un negocio
+  real en producción, vale la pena revisar si conviene un plan pago con más retención.
+- [ ] **Mail**: sin cambios — Resend es una API HTTPS, no depende de qué servidor corre el
+  backend.
+
+**No es necesario para esta migración**: self-hostear Postgres (Neon ya cumple esa función),
+CI/CD complejo (a esta escala un script de deploy manual alcanza), balanceo de carga (un solo
+VPS CX22 sobra para el volumen actual).
+
+## Plan: Maps en checkout, Maps en Contacto, mensaje de WhatsApp editable (2026-10-12)
+
+Pedido explícito del usuario — **documentar el plan, no implementar todavía**. Se retoma cuando
+el usuario lo indique.
+
+### 1. Zonas de cobertura con mapa real + selección automática del día de reparto
+
+Decisión confirmada con el usuario: zonas dibujadas como polígonos reales en un mapa (no texto
+libre por barrio) — más preciso, pero requiere Google Maps JavaScript API con Drawing + Geometry
+library, lo cual implica crear un proyecto en Google Cloud, habilitar facturación (da US$200/mes
+gratis, probablemente cubre el uso real de esta escala) y generar una API key restringida por
+dominio.
+
+- **Esquema nuevo**: tabla `delivery_zones (id, name, polygon JSONB, delivery_days TEXT, active
+  BOOLEAN)` — `polygon` guarda el array de vértices `{lat, lng}` que devuelve el
+  `DrawingManager` de Maps.
+- **Admin — pantalla nueva** (en Ajustes o ítem propio del nav): mapa centrado en Córdoba con
+  `DrawingManager` para dibujar polígonos, nombrar cada zona y asignarle los días de reparto
+  (mismo patrón que ya existe en `ClientForm.tsx` para `diasEntrega` por cliente).
+- **Backend — resolución de zona**: al armar el pedido, el cliente manda `{lat, lng}` (de
+  autocompletar dirección o de un pin arrastrable en un mapa embebido en `CartSidebar.tsx`). El
+  backend (nunca el cliente) corre un point-in-polygon (ray-casting simple, sin necesidad de
+  PostGIS para la cantidad de zonas que va a haber) contra las zonas activas y devuelve qué días
+  de reparto corresponden — evita que alguien falsee el resultado desde el navegador.
+- **Checkout**: `CartSidebar.tsx` reemplaza/complementa el selector fijo `diasHabilitados`
+  (hoy viene de `user.diasEntrega`, fijo por cliente) con el resultado de la zona cuando hay una
+  dirección nueva marcada en el mapa — útil sobre todo para invitados o clientes que piden en una
+  dirección distinta a la habitual.
+- **Pedido**: agregar `orders.lat`, `orders.lng`, `orders.zone_id` para dejar registrado con qué
+  zona se resolvió cada pedido (trazabilidad para logística).
+
+### 2. Mapa de ubicación en Contacto
+
+Mucho más simple y sin costo: un `<iframe>` con el embed público de Google Maps (Maps Embed vía
+"Compartir → Insertar un mapa" desde la ubicación real de SUL) — **no necesita API key** para este
+caso de uso estático, a diferencia del checkout. Solo falta la dirección/coordenadas reales de
+SUL para generar el embed.
+
+### 3. Mensaje de WhatsApp editable
+
+Hoy el texto vive hardcodeado en dos lugares de `frontend/src/components/CartSidebar.tsx` (líneas
+~136 y ~152, duplicado en el camino normal y en el catch de fallback). Plan:
+
+- Nueva clave en `settings`: `whatsapp_message_template` (TEXT), default = el texto actual.
+- Placeholders fijos que el template puede usar: `{{items}}`, `{{total}}`, `{{entrega}}` — el
+  admin edita el saludo/cierre libremente desde Ajustes (mismo patrón de textarea controlado que
+  ya existe para `whatsappDraft`/`minPurchaseDraft`), pero el detalle de ítems/total se sigue
+  generando desde los datos reales del pedido, nunca a mano, para que no se pueda romper el
+  cálculo.
+- `CartSidebar.tsx` hace el fetch de la plantilla junto con el resto de `/settings` (ya trae
+  `whatsapp_number`) y reemplaza los placeholders antes de armar la URL de `wa.me`.
+
+**No implementado** — queda para la próxima sesión cuando el usuario lo pida.
