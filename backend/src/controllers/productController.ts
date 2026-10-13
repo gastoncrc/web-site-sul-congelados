@@ -2,8 +2,7 @@ import { Request, Response } from 'express';
 import { pool } from '../config/db';
 import * as XLSX from 'xlsx';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
+import { JWT_SECRET } from '../config/jwt';
 
 // Resuelve siempre contra la base, nunca contra el convenio grabado en el token —
 // mismo patrón que ya usa verifyTokenAndStatus (middleware/auth.ts) para rutas

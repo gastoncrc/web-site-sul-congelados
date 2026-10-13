@@ -5,8 +5,7 @@ import crypto from 'crypto';
 import * as XLSX from 'xlsx';
 import { pool } from '../config/db';
 import { sendPasswordResetEmail } from '../utils/mailer';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
+import { JWT_SECRET } from '../config/jwt';
 const MIN_PASSWORD_LENGTH = 8;
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hora
 
@@ -126,12 +125,17 @@ export const uploadClientsExcel = async (req: Request, res: Response) => {
           // Mapea si "inactivo" es 1, entonces is_active es false. Si no, es true.
           const is_active = (row.inactivo == 1 || row.inactivo == '1') ? false : true;
 
+          // ON CONFLICT por client_code (el código del ERP, estable) — no por email: si el
+          // admin ya corrigió el email de este cliente a uno real desde el panel, matchear
+          // por email volvería a generar el placeholder cl_<codigo>@sul.com y crearía un
+          // cliente duplicado en vez de actualizar el real. Tampoco se toca email ni
+          // password en el UPDATE — ambos quedan como estén, se hayan corregido o no.
           await client.query(`
-            INSERT INTO users (name, email, password, role, convenio, vendedor, require_password_change, is_active)
-            VALUES ($1, $2, $3, 'Cliente', $4, $5, TRUE, $6)
-            ON CONFLICT (email) DO UPDATE 
+            INSERT INTO users (name, email, password, role, convenio, vendedor, require_password_change, is_active, client_code)
+            VALUES ($1, $2, $3, 'Cliente', $4, $5, TRUE, $6, $7)
+            ON CONFLICT (client_code) DO UPDATE
             SET name = $1, convenio = $4, vendedor = $5, is_active = $6
-          `, [cleanName, generatedEmail, defaultPasswordHash, convenio, vendedor, is_active]);
+          `, [cleanName, generatedEmail, defaultPasswordHash, convenio, vendedor, is_active, cleanCode]);
 
           processed++;
         }

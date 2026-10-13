@@ -19,7 +19,9 @@ import multer from 'multer';
 import rateLimit from 'express-rate-limit';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+// memoryStorage sin límite dejaba subir un archivo de cualquier tamaño directo a RAM —
+// 10MB es generoso para un Excel de miles de filas y acota el peor caso.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Máximo 10 intentos de login por IP cada 15 minutos, para frenar fuerza bruta.
 const loginLimiter = rateLimit({

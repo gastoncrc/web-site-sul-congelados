@@ -170,6 +170,16 @@ export const initDB = async () => {
       }
     }
 
+    // Backfill de client_code para clientes cargados antes de que esta columna existiera —
+    // se extrae del email generado por la carga masiva (cl_<codigo>@sul.com). Es el
+    // identificador estable que necesita uploadClientsExcel para no duplicar un cliente
+    // cuyo email ya fue corregido a uno real desde el panel.
+    await pool.query(`
+      UPDATE users
+      SET client_code = substring(email FROM '^cl_(\\d+)@sul\\.com$')
+      WHERE role = 'Cliente' AND client_code IS NULL AND email ~ '^cl_\\d+@sul\\.com$'
+    `);
+
     const columnasNuevasProducts = [
       'ALTER TABLE products ADD COLUMN is_active BOOLEAN DEFAULT TRUE;',
       'ALTER TABLE products ADD COLUMN is_promo BOOLEAN DEFAULT FALSE;',

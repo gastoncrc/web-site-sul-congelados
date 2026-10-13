@@ -20,7 +20,9 @@ import { verifyTokenAndStatus } from '../middleware/auth';
 import multer from 'multer';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+// memoryStorage sin límite dejaba subir un archivo de cualquier tamaño directo a RAM —
+// 10MB es generoso para un Excel de miles de filas y acota el peor caso.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Catálogo (Público / Clientes) — paginado vía ?page&limit&search&category
 router.get('/', getProductsByConvenio);

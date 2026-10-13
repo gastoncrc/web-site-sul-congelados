@@ -33,19 +33,15 @@ app.use((req, res, next) => {
   next();
 });
 
-// Declaración de módulos limpios - Last Deploy: 2026-06-02
+// Healthcheck — a propósito NO expone conteos de filas (usuarios/pedidos/productos):
+// es una ruta pública sin login, antes le mostraba el volumen de negocio a cualquiera.
 app.get('/api/db-check', async (req, res) => {
   try {
     const { pool } = await import('./config/db');
-    const tables = ['orders', 'settings', 'users', 'products'];
-    const counts: Record<string, number> = {};
-    for (const table of tables) {
-      const result = await pool.query(`SELECT COUNT(*) FROM ${table}`);
-      counts[table] = parseInt(result.rows[0].count);
-    }
-    res.json({ database: 'connected', counts, time: new Date().toISOString() });
+    await pool.query('SELECT 1');
+    res.json({ database: 'connected', time: new Date().toISOString() });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ database: 'error' });
   }
 });
 
@@ -56,5 +52,18 @@ app.use('/api/products', productRoutes);
 app.use('/api/vendor', vendorRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/settings', settingsRoutes);
+
+// Manejador de errores global — sin esto, cualquier error sin capturar (incluido el
+// límite de tamaño de Multer) caía en el handler default de Express, que puede
+// devolver el stack trace completo al cliente. Acá se loguea server-side y se
+// responde siempre JSON genérico, nunca el detalle interno.
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (err?.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: 'El archivo es demasiado grande (máximo 10MB).' });
+  }
+  console.error('🚨 Error no manejado:', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Error interno del servidor.' });
+});
 
 export default app;

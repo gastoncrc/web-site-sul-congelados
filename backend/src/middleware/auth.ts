@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/db';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'sul_secreto_super_seguro_2026';
+import { JWT_SECRET } from '../config/jwt';
 
 declare global {
   namespace Express {
