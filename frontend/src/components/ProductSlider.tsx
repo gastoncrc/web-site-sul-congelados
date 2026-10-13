@@ -81,8 +81,15 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({ sliderProducts, ge
   };
 
   const handleArrow = (direction: 1 | -1) => {
-    if (!sliderRef.current) return;
-    sliderRef.current.scrollBy({ left: direction * 180, behavior: 'smooth' });
+    const slider = sliderRef.current;
+    if (!slider) return;
+    // El auto-scroll corre siempre y pisa cualquier scroll "smooth" del navegador
+    // (cancela la animación al reasignar scrollLeft en el próximo frame) — por eso
+    // se salta directo, igual que hace el propio auto-scroll internamente.
+    let next = slider.scrollLeft + direction * 220;
+    if (next < 0) next += slider.scrollWidth / 2;
+    if (next >= slider.scrollWidth / 2) next -= slider.scrollWidth / 2;
+    slider.scrollLeft = next;
   };
 
   if (sliderProducts.length === 0) return null;
