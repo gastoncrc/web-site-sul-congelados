@@ -95,8 +95,12 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
     );
     const total = parseInt(countResult.rows[0].count);
 
-    // Orden de productos — por defecto, ofertas primero y nombre; si viene un ?sort=
-    // explícito (elegido por quien navega), se respeta tal cual, sin el empuje de ofertas.
+    const categoryOrderResult = await pool.query("SELECT value FROM settings WHERE key = 'category_order'");
+    const customOrder: string[] = (categoryOrderResult.rows[0]?.value || '').split(',').map((c: string) => c.trim()).filter(Boolean);
+
+    // Orden de productos — por defecto, agrupado por el orden de rubros configurado
+    // (Admin → Catálogo → Orden de rubros) y alfabético dentro de cada uno. Si viene
+    // un ?sort= explícito (elegido por quien navega), ese se respeta tal cual.
     const SORT_OPTIONS: Record<string, string> = {
       name_asc: 'p.name ASC',
       name_desc: 'p.name DESC',
@@ -104,9 +108,13 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
       price_desc: 'pr.precio DESC',
     };
     const sortParam = (req.query.sort as string || '').trim();
-    const orderBy = SORT_OPTIONS[sortParam] || 'p.is_promo DESC, p.name ASC';
+    const categoryOrderParamIndex = params.length + 1;
+    const defaultOrderBy = `COALESCE(array_position($${categoryOrderParamIndex}::text[], p.category), 9999) ASC, p.name ASC`;
+    const orderBy = SORT_OPTIONS[sortParam] || defaultOrderBy;
+    const usesCategoryOrderParam = !SORT_OPTIONS[sortParam];
 
-    const pageParams = [...params, limit, offset];
+    const orderParams = usesCategoryOrderParam ? [...params, customOrder] : params;
+    const pageParams = [...orderParams, limit, offset];
     const result = await pool.query(
       `SELECT ${PRODUCT_SELECT_COLUMNS}
        FROM products p
@@ -123,8 +131,6 @@ export const getProductsByConvenio = async (req: Request, res: Response) => {
        WHERE UPPER(TRIM(pr.convenio)) = UPPER(TRIM($1)) AND p.is_active = TRUE`,
       [userConvenio]
     );
-    const categoryOrderResult = await pool.query("SELECT value FROM settings WHERE key = 'category_order'");
-    const customOrder: string[] = (categoryOrderResult.rows[0]?.value || '').split(',').map((c: string) => c.trim()).filter(Boolean);
     const allCategories: string[] = categoriesResult.rows.map(r => r.category as string);
     const orderedCategories = customOrder.length > 0
       ? [
