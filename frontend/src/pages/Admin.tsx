@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User as UserIcon, Package, Users, Menu, Settings, ShoppingBag, TrendingUp, Upload } from 'lucide-react';
+import { LogOut, User as UserIcon, Package, Users, Menu, Settings, ShoppingBag, TrendingUp, Upload, X } from 'lucide-react';
 import { api } from '../config/api';
 
 // IMPORTAMOS LOS COMPONENTES MODULARIZADOS
@@ -33,6 +33,7 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
 
   const [activeModule, setActiveModule] = useState<ActiveModule>('dashboard');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [catalogTab, setCatalogTab] = useState<'productos' | 'listas' | 'rubros'>('productos');
   const [showCatalogImport, setShowCatalogImport] = useState(false);
 
@@ -101,10 +102,20 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
   if (user?.role !== 'Admin') return null;
 
   return (
-    <div className="flex h-full w-full bg-brand-primary overflow-hidden">
+    <div className="flex h-full w-full bg-brand-primary overflow-hidden relative">
 
-      {/* SIDEBAR */}
-      <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-60'} bg-linear-to-b from-brand-primary to-[#4a1810] flex flex-col shrink-0 transition-all duration-300`}>
+      {/* Fondo oscuro al abrir el drawer en mobile — tocarlo lo cierra */}
+      {isMobileSidebarOpen && (
+        <div onClick={() => setIsMobileSidebarOpen(false)} className="fixed inset-0 bg-black/50 z-30 sm:hidden" />
+      )}
+
+      {/* SIDEBAR — drawer que se desliza en mobile, dock fijo (con modo colapsado) desde sm: */}
+      <aside className={`
+        fixed sm:relative inset-y-0 left-0 z-40 h-full
+        ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0
+        ${isSidebarCollapsed ? 'sm:w-20' : 'sm:w-60'} w-64
+        bg-linear-to-b from-brand-primary to-[#4a1810] flex flex-col shrink-0 transition-all duration-300
+      `}>
         <div className="flex flex-col h-full">
 
           <div className="h-20 flex items-center justify-between px-4 sm:px-6 border-b border-white/10 shrink-0">
@@ -114,9 +125,13 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
                 <p className="text-[10px] uppercase tracking-widest text-white/50 mt-0.5">Panel admin</p>
               </div>
             ) : (
-              <h2 className="text-white text-lg font-black mx-auto">S</h2>
+              <h2 className="text-white text-lg font-black mx-auto hidden sm:block">S</h2>
             )}
-            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-white/60 hover:text-white p-1 ml-2 cursor-pointer shrink-0">
+            {/* Mobile: cierra el drawer. Desktop (sm:): colapsa/expande a modo ícono. */}
+            <button onClick={() => setIsMobileSidebarOpen(false)} className="text-white/60 hover:text-white p-1 ml-2 cursor-pointer shrink-0 sm:hidden">
+              <X size={20} />
+            </button>
+            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="hidden sm:block text-white/60 hover:text-white p-1 ml-2 cursor-pointer shrink-0">
               <Menu size={20} />
             </button>
           </div>
@@ -125,32 +140,30 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
             {NAV_ITEMS.map(({ id, label, Icon }) => (
               <button
                 key={id}
-                onClick={() => setActiveModule(id)}
-                className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : ''} gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition cursor-pointer ${
+                onClick={() => { setActiveModule(id); setIsMobileSidebarOpen(false); }}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'sm:justify-center' : ''} gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition cursor-pointer ${
                   activeModule === id ? 'bg-brand-gold text-brand-gold-on' : 'text-white/70 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 <Icon size={19} />
-                {!isSidebarCollapsed && <span>{label}</span>}
+                <span className={isSidebarCollapsed ? 'sm:hidden' : ''}>{label}</span>
               </button>
             ))}
           </nav>
 
           <div className="p-4 border-t border-white/10 shrink-0">
-            {!isSidebarCollapsed && (
-              <div className="flex items-center space-x-3 mb-3 px-1">
-                <div className="bg-brand-accent w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-black">
-                  {(user?.name || 'A').charAt(0).toUpperCase()}
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-sm font-bold text-white truncate">{user?.name || 'Usuario'}</p>
-                  <p className="text-[10px] text-white/50 uppercase tracking-wider truncate">Administrador</p>
-                </div>
+            <div className={`flex items-center space-x-3 mb-3 px-1 ${isSidebarCollapsed ? 'sm:hidden' : ''}`}>
+              <div className="bg-brand-accent w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white text-xs font-black">
+                {(user?.name || 'A').charAt(0).toUpperCase()}
               </div>
-            )}
-            <button onClick={logout} className={`w-full flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-3'} gap-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white py-2.5 rounded-xl transition-colors border border-white/10 font-bold text-sm cursor-pointer`}>
+              <div className="overflow-hidden">
+                <p className="text-sm font-bold text-white truncate">{user?.name || 'Usuario'}</p>
+                <p className="text-[10px] text-white/50 uppercase tracking-wider truncate">Administrador</p>
+              </div>
+            </div>
+            <button onClick={logout} className={`w-full flex items-center ${isSidebarCollapsed ? 'sm:justify-center' : 'justify-start'} px-3 gap-2 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white py-2.5 rounded-xl transition-colors border border-white/10 font-bold text-sm cursor-pointer`}>
               <LogOut size={17} className="shrink-0" />
-              {!isSidebarCollapsed && <span>Cerrar sesión</span>}
+              <span className={isSidebarCollapsed ? 'sm:hidden' : ''}>Cerrar sesión</span>
             </button>
           </div>
 
@@ -158,7 +171,13 @@ export const Admin: React.FC<AdminProps> = ({ setSystemMessage }) => {
       </aside>
 
       {/* MAIN WORKSPACE */}
-      <main className="flex-1 overflow-y-auto bg-bg p-6 sm:p-10 relative">
+      <main className="flex-1 overflow-y-auto bg-bg p-4 sm:p-10 relative w-full">
+        <button
+          onClick={() => setIsMobileSidebarOpen(true)}
+          className="sm:hidden mb-4 flex items-center gap-2 bg-paper border border-line rounded-xl px-3 py-2 text-xs font-bold text-ink shadow-sm cursor-pointer"
+        >
+          <Menu size={16} /> Menú
+        </button>
 
         {activeModule === 'dashboard' && <DashboardStats />}
         {activeModule === 'order-list' && <OrderList />}

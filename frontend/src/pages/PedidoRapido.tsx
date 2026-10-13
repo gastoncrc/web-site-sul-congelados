@@ -303,9 +303,9 @@ export const PedidoRapido: React.FC<PedidoRapidoProps> = ({ setShoppingCart }) =
       )}
 
       {totalItems > 0 && (
-        <div className="sticky bottom-4 bg-brand-primary text-white rounded-card p-4 flex items-center justify-between shadow-lg">
-          <span className="text-sm font-bold">{totalItems} producto{totalItems > 1 ? 's' : ''} · Total: ${formatPrice(totalAmount)}</span>
-          <button onClick={handleConfirmar} className="bg-brand-gold text-brand-gold-on font-bold px-5 py-2 rounded-xl text-sm hover:bg-brand-gold-deep transition cursor-pointer">Agregar al Pedido</button>
+        <div className="sticky bottom-4 bg-brand-primary text-white rounded-card p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shadow-lg">
+          <span className="text-sm font-bold text-center sm:text-left">{totalItems} producto{totalItems > 1 ? 's' : ''} · Total: ${formatPrice(totalAmount)}</span>
+          <button onClick={handleConfirmar} className="bg-brand-gold text-brand-gold-on font-bold px-5 py-2.5 rounded-xl text-sm hover:bg-brand-gold-deep transition cursor-pointer shrink-0">Agregar al Pedido</button>
         </div>
       )}
 
