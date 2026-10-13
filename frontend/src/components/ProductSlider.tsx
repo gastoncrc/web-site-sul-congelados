@@ -85,8 +85,11 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({ sliderProducts, ge
     if (!slider) return;
     // El auto-scroll corre siempre y pisa cualquier scroll "smooth" del navegador
     // (cancela la animación al reasignar scrollLeft en el próximo frame) — por eso
-    // se salta directo, igual que hace el propio auto-scroll internamente.
-    let next = slider.scrollLeft + direction * 220;
+    // se salta directo, igual que hace el propio auto-scroll internamente. El salto
+    // es proporcional al ancho visible (casi una pantalla de tarjetas), no un número
+    // fijo chico.
+    const jump = Math.max(slider.clientWidth * 0.85, 240);
+    let next = slider.scrollLeft + direction * jump;
     if (next < 0) next += slider.scrollWidth / 2;
     if (next >= slider.scrollWidth / 2) next -= slider.scrollWidth / 2;
     slider.scrollLeft = next;
