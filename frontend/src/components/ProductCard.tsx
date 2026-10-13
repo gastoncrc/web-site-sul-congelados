@@ -72,7 +72,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, inCartQty, on
         </button>
       )}
 
-      <div className={product.isPromo && !isSlider ? 'pt-4' : ''}>
+      <div className={product.isPromo ? (isSlider ? 'pt-2.5' : 'pt-4') : ''}>
         <div className={`w-full bg-brand-gold/10 flex items-center justify-center overflow-hidden ${isSlider ? 'aspect-square mb-2 rounded-xl' : 'aspect-4/3 mb-3 rounded-lg'}`}>
           {product.imageUrl ? (
             <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
