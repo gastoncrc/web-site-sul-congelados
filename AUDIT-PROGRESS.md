@@ -237,10 +237,70 @@ documentar y no tocar todavía:
 - [ ] **Más funcionalidades comerciales**: el usuario siente que "le falta más venta" al sitio —
   pidió explorar opciones orientadas a conversión/ventas en una sesión futura, sin definir
   todavía cuáles (brainstorm pendiente, no hay lista concreta aún).
-- [x] **Slider de la home — modernizado** ("estilo 2026"): tarjetas más grandes con lift + sombra
-  en capas al hover, contenedor con degradé y glow en vez de color plano, pestañas de segmento
-  con transición suave y fondo glass. Solo se tocó el componente del slider y la variante
-  `slider` de `ProductCard` — el grid normal del catálogo no cambió. Commit `094aaf7`.
+- [x] **Slider de la home — modernizado** ("estilo 2026"): se armaron 3 propuestas visuales en un
+  Artifact (A: editorial minimalista, B: bento sin scroll, C: carrusel con "peek") basadas en
+  research real de tendencias 2026 — el usuario eligió la **C**. Implementada: fondo neutro
+  (`bg`) en vez de bloque de color sólido, tarjetas blancas con sombra en capas + hover lift,
+  flechas de navegación visibles (saltan ~85% del ancho visible, directo — un `scrollBy` con
+  `behavior:'smooth'` no funciona porque el auto-scroll existente lo cancela cada frame).
+  Commits `a76277a`, `11e21e6`, `86c81d6`. De paso se corrigió `bg-gradient-to-*` (no es una
+  clase válida en esta versión de Tailwind v4, es `bg-linear-to-*` — el degradé nunca se vio)
+  y el badge de "Oferta" pisando la imagen en modo slider.
 
 **Pendiente real**: Nosotros, Contacto (mapa + franquicia 2x1), login propio de la franquicia 2x1,
 y el brainstorm de funcionalidades comerciales — nada de esto se tocó todavía.
+
+## Admin usable en celular (2026-10-12)
+
+El usuario avisó que la mayoría de los pedidos se hacen desde el celular — eso también aplica
+cuando el admin revisa algo desde el suyo. El sidebar del panel era de ancho fijo (`w-60`) sin
+ningún modo mobile, comiéndose casi toda la pantalla en un teléfono. Convertido en un drawer:
+botón "Menú" en mobile, se abre como overlay con fondo oscuro, se cierra tocando afuera o
+eligiendo un destino; desde `sm:` sigue siendo el dock fijo de siempre (con su modo colapsado a
+íconos intacto). También se corrigió la barra fija de "Agregar al Pedido" en Pedido Rápido para
+que apile texto y botón en mobile en vez de arriesgar que se aprieten. Commit `60392d2`.
+
+## Repaso de seguridad pre-migración (2026-10-12)
+
+Pedido explícito del usuario: quiere pagar un servidor (dejar el free tier de Render) pero
+primero necesita confianza de que no hay huecos de seguridad ni bugs de persistencia de datos.
+Todo esto es un repaso adicional, no relacionado al audit original de arriba.
+
+- [x] **Bug real de persistencia, confirmado**: `uploadClientsExcel` decidía crear-vs-actualizar
+  un cliente comparando por **email** — pero el email que genera la carga masiva
+  (`cl_<codigo>@sul.com`) se recalcula siempre igual desde el Excel, sin saber si ese cliente ya
+  fue corregido a un email real desde el panel (feature de la sesión de hoy). Resultado: resubir
+  el Excel después de corregir un email creaba un **cliente duplicado** con el placeholder viejo,
+  dejando el real (con su contraseña y convenio ya configurados) fuera de sincronía con futuros
+  resyncs. Arreglado: ahora matchea por `client_code` (el código del ERP, estable, con backfill
+  automático para los clientes ya cargados antes de este fix) y el `UPDATE` nunca toca `email` ni
+  `password`, se hayan corregido o no. Commit `1023f2d`.
+- [x] **JWT_SECRET sin respaldo hardcodeado**: había un secreto de respaldo committeado al repo
+  público en 3 archivos (`'sul_secreto_super_seguro_2026'`) — si la variable de entorno real de
+  Render alguna vez falta (típico error de migración: olvidarse de copiar una env var), el server
+  degradaba en silencio a ese secreto conocido, con el que cualquiera podría firmar un JWT de
+  Admin válido. Ahora (`backend/src/config/jwt.ts`) el server **no arranca** si falta la variable
+  real — falla ruidoso en vez de degradar en silencio.
+- [x] **Límite de tamaño en la carga de Excel** (10MB) — `multer` con `memoryStorage()` sin
+  límite dejaba subir un archivo de cualquier tamaño directo a RAM.
+- [x] **Manejador de errores global** — no existía ninguno; un error sin capturar (incluido el
+  límite de arriba) caía en el handler default de Express, que puede devolver el stack trace
+  completo al cliente que hizo el request.
+- [x] **`/api/db-check` ya no expone conteos** — era una ruta pública sin login que devolvía
+  cuántos usuarios/pedidos/productos hay; ahora solo confirma que la base responde.
+- [x] **Dependencias**: `npm audit` a 0 vulnerabilidades en backend y frontend (`tar`, `undici`,
+  `react-router`, `source-map-js`, `vite` vía fixes no-breaking). `nodemailer` y `sqlite3`
+  removidos del todo (sin uso real en el código — `nodemailer` quedó huérfano desde la migración
+  a la API de Resend de hoy). `xlsx` actualizado a 0.20.3 **desde el CDN oficial de SheetJS**
+  (`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`) — el paquete en el registro de npm
+  (0.18.5) está clavado ahí desde hace años con 2 vulnerabilidades sin fix publicado; SheetJS
+  solo publica los parches reales en su propio CDN. Verificado que el parseo de `CONVENIOS.XLS`
+  da exactamente el mismo resultado que antes de actualizar.
+- [x] **Limpieza**: 4 archivos `.txt` viejos sueltos en `backend/src` (copias de backup de mayo,
+  sin uso) borrados.
+
+**Pendiente para la migración en sí** (no es código, es checklist operativo): copiar TODAS las
+variables de entorno del backend de Render al servidor nuevo — `JWT_SECRET` especialmente, ahora
+que no tiene respaldo y el server no arranca sin él. El servidor nuevo necesita su propio HTTPS
+(Render lo hace solo vía Let's Encrypt; un VPS necesita algo como Caddy o nginx+certbot armado a
+mano).
